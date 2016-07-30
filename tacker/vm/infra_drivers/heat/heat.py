@@ -29,12 +29,11 @@ from tacker.common import clients
 from tacker.common import log
 from tacker.extensions import vnfm
 from tacker.vm.infra_drivers import abstract_driver
-#from tacker.vm.monitor_drivers.ceilometer.ceilometer import VNFMonitorCeilometer
 from tacker.vm.tosca import utils as toscautils
 from oslo_config import cfg
-import random
-import string
-import socket
+#import random
+#import string
+#import socket
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
