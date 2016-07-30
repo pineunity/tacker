@@ -355,8 +355,10 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
                 # TODO (tungdoan) Should be validate function: Ceilometer, Monasca, Definition
                 def create_alrm_url(vnf_id, policy_name, policy_dict):
                     # url: 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name/key'
-                    host = cfg.CONF.trigger.host
-                    port = cfg.CONF.trigger.port
+#                    host = cfg.CONF.trigger.host
+#                    port = cfg.CONF.trigger.port
+                    host = 'pinedcn'
+                    port = '9890'
                     host_port = {'host': host, 'port': port}
                     LOG.info(_("Tacker in heat listening on %(host)s:%(port)s"),
                              {'host': host,
@@ -368,12 +370,11 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
                     access_key = ''.join(
                         random.SystemRandom().choice(string.ascii_lowercase + string.digits)
                         for _ in range(8))
-                    alarm_url = "".join([origin, monitoring_policy_name, alarm_action_name, '?', access_key])
+                    alarm_url = "".join([origin, vnf_id, monitoring_policy_name, alarm_action_name, '?', access_key])
                     return alarm_url
 
                 alarm_url = create_alrm_url('123de3541', policy_name, mon_policy_dict)
                 properties['alarm_action'] = alarm_url
-#                mon_policy['properties'] = properties
                 return properties
             def _convert_to_heat_monitoring_resource(mon_policy_dict):
                 name,mon_policy_prop = mon_policy_dict.items()[0]
