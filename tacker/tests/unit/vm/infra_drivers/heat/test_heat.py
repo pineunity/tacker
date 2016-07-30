@@ -381,9 +381,9 @@ class TestDeviceHeat(base.TestCase):
             'hot_tosca_mgmt_sriov.yaml'
         )
 
-#    def test_create_tosca_with_alarm_monitoring(self):
-#        self._test_assert_equal_for_tosca_templates(
-#            'tosca_alarm_monitoring.yaml',
-#            'hot_alarm_monitoring.yaml',
-#            is_monitor=False
-#        )
+    def test_create_tosca_with_alarm_monitoring(self):
+        self._test_assert_equal_for_tosca_templates(
+            'tosca_alarm_monitoring.yaml',
+            'hot_alarm_monitoring.yaml',
+            is_monitor=False
+        )

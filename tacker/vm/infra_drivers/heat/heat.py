@@ -58,13 +58,13 @@ STACK_FLAVOR_EXTRA = cfg.CONF.tacker_heat.flavor_extra_specs
 
 
 #Test webhook
-trigger_opts = [
-    cfg.StrOpt('host', socket.gethostname(),
-               help=_('Address which drivers use to trigger')),
-    cfg.PortOpt('port', default=9890,
-               help=_('number of seconds to wait for a response')),
-]
-cfg.CONF.register_opts(trigger_opts, group='trigger')
+#trigger_opts = [
+#    cfg.StrOpt('host', socket.gethostname(),
+#               help=_('Address which drivers use to trigger')),
+#    cfg.PortOpt('port', default=9890,
+#               help=_('number of seconds to wait for a response')),
+#]
+#cfg.CONF.register_opts(trigger_opts, group='trigger')
 
 # Global map of individual resource type and
 # incompatible properties, alternate properties pair for
@@ -350,31 +350,32 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
                 properties['threshold'] = tpl_condition['threshold']
 #                properties['actions'] = tpl_condition['alarm_actions']['resize']
                 # alarm url process here
-                driver = tpl_trigger_name['event_type']['implementation']
+
+#                driver = tpl_trigger_name['event_type']['implementation']
                 # TODO(anyone) extend to support any low level design.
                 # TODO (tungdoan) Should be validate function: Ceilometer, Monasca, Definition
-                def create_alrm_url(vnf_id, policy_name, policy_dict):
-                    # url: 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name/key'
-                    host = cfg.CONF.trigger.host
-                    port = cfg.CONF.trigger.port
-                    #host = 'pinedcn'
-                    #port = '9890'
-                    host_port = {'host': host, 'port': port}
-                    LOG.info(_("Tacker in heat listening on %(host)s:%(port)s"),
-                             {'host': host,
-                              'port': port})
+#               def create_alrm_url(vnf_id, policy_name, policy_dict):
+#                    # url: 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name/key'
+#                    host = cfg.CONF.trigger.host
+#                    port = cfg.CONF.trigger.port
+#                    #host = 'pinedcn'
+#                    #port = '9890'
+#                    host_port = {'host': host, 'port': port}
+#                    LOG.info(_("Tacker in heat listening on %(host)s:%(port)s"),
+#                             {'host': host,
+#                              'port': port})
+#
+#                    origin = "http://%(host)s:%(port)/vnfs" % host_port
+#                    monitoring_policy_name = policy_name
+#                    alarm_action_name = policy_dict['triggers']['resize_compute']['action']
+#                    access_key = ''.join(
+#                        random.SystemRandom().choice(string.ascii_lowercase + string.digits)
+#                        for _ in range(8))
+#                    alarm_url = "".join([origin, vnf_id, monitoring_policy_name, alarm_action_name, '?', access_key])
+#                    return alarm_url
 
-                    origin = "http://%(host)s:%(port)/vnfs" % host_port
-                    monitoring_policy_name = policy_name
-                    alarm_action_name = policy_dict['triggers']['resize_compute']['action']
-                    access_key = ''.join(
-                        random.SystemRandom().choice(string.ascii_lowercase + string.digits)
-                        for _ in range(8))
-                    alarm_url = "".join([origin, vnf_id, monitoring_policy_name, alarm_action_name, '?', access_key])
-                    return alarm_url
-
-                alarm_url = create_alrm_url('123de3541', policy_name, mon_policy_dict)
-                properties['alarm_action'] = alarm_url
+#                alarm_url = create_alrm_url('123de3541', policy_name, mon_policy_dict)
+                properties['alarm_actions'] = ''
                 return properties
             def _convert_to_heat_monitoring_resource(mon_policy_dict):
                 name,mon_policy_prop = mon_policy_dict.items()[0]
