@@ -32,7 +32,6 @@ from tacker.extensions import vnfm
 from tacker.vm.infra_drivers import abstract_driver
 from tacker.vm.tosca import utils as toscautils
 
-
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 OPTS = [
@@ -45,8 +44,8 @@ OPTS = [
                help=_("Wait time (in seconds) between consecutive stack"
                       " create/delete retries")),
     cfg.DictOpt('flavor_extra_specs',
-               default={},
-               help=_("Flavor Extra Specs")),
+                default={},
+                help=_("Flavor Extra Specs")),
 ]
 CONF.register_opts(OPTS, group='tacker_heat')
 
@@ -138,7 +137,7 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
             if service_types:
                 device_template_dict.setdefault('service_types', []).extend(
                     [{'service_type': service_type}
-                    for service_type in service_types])
+                     for service_type in service_types])
             # TODO(anyone)  - this code assumes one mgmt_driver per VNFD???
             for vdu in vnfd_dict.get('vdus', {}).values():
                 mgmt_driver = vdu.get('mgmt_driver')
@@ -334,6 +333,54 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
 
             return heat_template_yaml, monitoring_dict
 
+        def generate_hot_alarm_resource(topology_tpl_dict, heat_tpl):
+            heat_dict = yamlparser.simple_ordered_parse(heat_tpl)
+            is_enabled_alarm = False
+
+            def _convert_to_heat_monitoring_prop(mon_policy_prop):
+                tpl_trigger_name = \
+                    mon_policy_prop['triggers']['resize_compute']
+                tpl_condition = tpl_trigger_name['condition']
+                properties = {}
+                properties['meter_name'] = tpl_trigger_name['metrics']
+                properties['comparison_operator'] = \
+                    tpl_condition['comparison_operator']
+                properties['period'] = tpl_condition['period']
+                properties['evaluations'] = tpl_condition['evaluations']
+                properties['statistic'] = tpl_condition['method']
+                properties['description'] = tpl_condition['constraint']
+                properties['threshold'] = tpl_condition['threshold']
+                # alarm url process here
+                low_level_design = \
+                    tpl_trigger_name['event_type']['implementation']
+                # TODO(anyone) extend to support any low level design.
+                if low_level_design == 'Ceilometer':
+                    properties['alarm_actions'] = ''
+
+#                mon_policy['properties'] = properties
+                return properties
+
+            def _convert_to_heat_monitoring_resource(mon_policy_dict):
+                name, mon_policy_prop = mon_policy_dict.items()[0]
+                mon_policy_hot = {'type': 'OS::Ceilometer::Alarm'}
+                mon_policy_hot['properties'] = \
+                    _convert_to_heat_monitoring_prop(mon_policy_prop)
+                return mon_policy_hot
+
+            if 'policies' in topology_tpl_dict:
+                for policy_dict in topology_tpl_dict['policies']:
+                    name, policy_tpl_dict = policy_dict.items()[0]
+                    if policy_tpl_dict['type'] == \
+                            'tosca.policies.tacker.Alarming':
+                        is_enabled_alarm = True
+                        heat_dict['resources'][name] = \
+                            _convert_to_heat_monitoring_resource(policy_dict)
+                        break
+
+            heat_tpl_yaml = yaml.dump(heat_dict)
+            return (is_enabled_alarm,
+                    heat_tpl_yaml)
+
         def generate_hot_from_legacy(vnfd_dict):
             assert 'template' not in fields
             assert 'template_url' not in fields
@@ -365,8 +412,10 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
                     properties[key] = vdu_dict[vdu_key]
                 if 'network_interfaces' in vdu_dict:
                     self._process_vdu_network_interfaces(vdu_id,
-                     vdu_dict, properties, template_dict,
-                     unsupported_res_prop)
+                                                         vdu_dict,
+                                                         properties,
+                                                         template_dict,
+                                                         unsupported_res_prop)
                 if ('user_data' in vdu_dict and
                         'user_data_format' in vdu_dict):
                     properties['user_data_format'] = vdu_dict[
@@ -420,15 +469,23 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
             vnfd_dict = yamlparser.simple_ordered_parse(vnfd_yaml)
             LOG.debug('vnfd_dict %s', vnfd_dict)
 
+            is_tosca_format = False
             if 'tosca_definitions_version' in vnfd_dict:
                 (heat_template_yaml,
                  monitoring_dict) = generate_hot_from_tosca(vnfd_dict)
+                is_tosca_format = True
             else:
                 (heat_template_yaml,
                  monitoring_dict) = generate_hot_from_legacy(vnfd_dict)
 
-            fields['template'] = heat_template_yaml
+            if is_tosca_format:
+                (is_enabled_alarm, heat_tpl_yaml) = \
+                    generate_hot_alarm_resource(vnfd_dict['topology_template'],
+                                                heat_template_yaml)
+                if is_enabled_alarm:
+                    heat_template_yaml = heat_tpl_yaml
 
+            fields['template'] = heat_template_yaml
             if not device['attributes'].get('heat_template'):
                 device['attributes']['heat_template'] = \
                     fields['template']
@@ -486,12 +543,12 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
                   {'stack': str(stack), 'status': status})
         if stack_retries == 0 and status != 'CREATE_COMPLETE':
             error_reason = _("Resource creation is not completed within"
-                           " {wait} seconds as creation of stack {stack}"
-                           " is not completed").format(
-                               wait=(STACK_RETRIES * STACK_RETRY_WAIT),
-                               stack=device_id)
+                             " {wait} seconds as creation of stack {stack}"
+                             " is not completed").format(
+                wait=(STACK_RETRIES * STACK_RETRY_WAIT),
+                stack=device_id)
             LOG.warning(_("VNF Creation failed: %(reason)s"),
-                    {'reason': error_reason})
+                        {'reason': error_reason})
             raise vnfm.DeviceCreateWaitFailed(device_id=device_id,
                                               reason=error_reason)
 
@@ -590,16 +647,17 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
             error_reason = _("Resource cleanup for device is"
                              " not completed within {wait} seconds as "
                              "deletion of Stack {stack} is "
-                             "not completed").format(stack=device_id,
-                             wait=(STACK_RETRIES * STACK_RETRY_WAIT))
+                             "not completed").format(
+                stack=device_id,
+                wait=(STACK_RETRIES * STACK_RETRY_WAIT))
             LOG.warning(error_reason)
             raise vnfm.DeviceCreateWaitFailed(device_id=device_id,
                                               reason=error_reason)
 
         if stack_retries != 0 and status != 'DELETE_COMPLETE':
             error_reason = _("device {device_id} deletion is not completed. "
-                            "{stack_status}").format(device_id=device_id,
-                            stack_status=status)
+                             "{stack_status}").format(device_id=device_id,
+                                                      stack_status=status)
             LOG.warning(error_reason)
             raise vnfm.DeviceCreateWaitFailed(device_id=device_id,
                                               reason=error_reason)
