@@ -61,7 +61,7 @@ STACK_FLAVOR_EXTRA = cfg.CONF.tacker_heat.flavor_extra_specs
 trigger_opts = [
     cfg.StrOpt('host', socket.gethostname(),
                help=_('Address which drivers use to trigger')),
-    cfg.StrOpt('port', default='9890',
+    cfg.PortOpt('port', default=9890,
                help=_('number of seconds to wait for a response')),
 ]
 cfg.CONF.register_opts(trigger_opts, group='trigger')
