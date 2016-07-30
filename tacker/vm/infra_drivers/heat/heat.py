@@ -362,7 +362,7 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
 
             def _convert_to_heat_monitoring_resource(mon_policy_dict):
                 name, mon_policy_prop = mon_policy_dict.items()[0]
-                mon_policy_hot = {'type': 'OS::Ceilometer::Alarm'}
+                mon_policy_hot = {'type': 'OS::Aodh::Alarm'}
                 mon_policy_hot['properties'] = \
                     _convert_to_heat_monitoring_prop(mon_policy_prop)
                 return mon_policy_hot
