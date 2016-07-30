@@ -17,7 +17,6 @@ import sys
 import time
 
 from heatclient import exc as heatException
-from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from six import iteritems
