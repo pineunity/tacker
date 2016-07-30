@@ -62,7 +62,7 @@ trigger_opts = [
     cfg.StrOpt('host', socket.gethostname(),
                help=_('Address which drivers use to trigger')),
     cfg.StrOpt('port', default='9890',
-               help=_('number of seconds to wait for a response'))
+               help=_('number of seconds to wait for a response')),
 ]
 cfg.CONF.register_opts(trigger_opts, group='trigger')
 
@@ -355,10 +355,10 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
                 # TODO (tungdoan) Should be validate function: Ceilometer, Monasca, Definition
                 def create_alrm_url(vnf_id, policy_name, policy_dict):
                     # url: 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name/key'
-#                    host = cfg.CONF.trigger.host
-#                    port = cfg.CONF.trigger.port
-                    host = 'pinedcn'
-                    port = '9890'
+                    host = cfg.CONF.trigger.host
+                    port = cfg.CONF.trigger.port
+                    #host = 'pinedcn'
+                    #port = '9890'
                     host_port = {'host': host, 'port': port}
                     LOG.info(_("Tacker in heat listening on %(host)s:%(port)s"),
                              {'host': host,
