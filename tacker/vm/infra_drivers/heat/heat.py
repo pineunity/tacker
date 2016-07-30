@@ -29,10 +29,12 @@ from tacker.common import clients
 from tacker.common import log
 from tacker.extensions import vnfm
 from tacker.vm.infra_drivers import abstract_driver
+#from tacker.vm.monitor_drivers.ceilometer.ceilometer import VNFMonitorCeilometer
 from tacker.vm.tosca import utils as toscautils
 from oslo_config import cfg
 import random
 import string
+import socket
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -53,6 +55,16 @@ CONF.register_opts(OPTS, group='tacker_heat')
 STACK_RETRIES = cfg.CONF.tacker_heat.stack_retries
 STACK_RETRY_WAIT = cfg.CONF.tacker_heat.stack_retry_wait
 STACK_FLAVOR_EXTRA = cfg.CONF.tacker_heat.flavor_extra_specs
+
+
+#Test webhook
+trigger_opts = [
+    cfg.StrOpt('host', socket.gethostname(),
+               help=_('Address which drivers use to trigger')),
+    cfg.StrOpt('port', default='9890',
+               help=_('number of seconds to wait for a response'))
+]
+cfg.CONF.register_opts(trigger_opts, group='trigger')
 
 # Global map of individual resource type and
 # incompatible properties, alternate properties pair for
@@ -343,8 +355,8 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
                 # TODO (tungdoan) Should be validate function: Ceilometer, Monasca, Definition
                 def create_alrm_url(vnf_id, policy_name, policy_dict):
                     # url: 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name/key'
-                    host = cfg.CONF.bind_host
-                    port = cfg.CONF.bind_port
+                    host = cfg.CONF.trigger.host
+                    port = cfg.CONF.trigger.port
                     host_port = {'host': host, 'port': port}
                     LOG.info(_("Tacker in heat listening on %(host)s:%(port)s"),
                              {'host': host,
