@@ -31,7 +31,9 @@ from tacker.common import log
 from tacker.extensions import vnfm
 from tacker.vm.infra_drivers import abstract_driver
 from tacker.vm.tosca import utils as toscautils
-
+from oslo_config import cfg
+import random
+import string
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -49,11 +51,6 @@ OPTS = [
                help=_("Flavor Extra Specs")),
 ]
 CONF.register_opts(OPTS, group='tacker_heat')
-
-
-def config_opts():
-    return [('tacker_heat', OPTS)]
-
 STACK_RETRIES = cfg.CONF.tacker_heat.stack_retries
 STACK_RETRY_WAIT = cfg.CONF.tacker_heat.stack_retry_wait
 STACK_FLAVOR_EXTRA = cfg.CONF.tacker_heat.flavor_extra_specs
@@ -326,6 +323,64 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
 
             return heat_template_yaml, monitoring_dict
 
+        def generate_hot_alarm_resource(topology_tpl_dict, heat_tpl):
+            heat_dict = yamlparser.simple_ordered_parse(heat_tpl)
+            is_enabled_alarm = False
+            def _convert_to_heat_monitoring_prop(policy_name,mon_policy_dict):
+                tpl_trigger_name = mon_policy_dict['triggers']['resize_compute']
+                tpl_condition = tpl_trigger_name['condition']
+                properties = {}
+                properties['meter_name'] = tpl_trigger_name['metrics']
+                properties['comparison_operator'] = tpl_condition['comparison_operator']
+                properties['period'] = tpl_condition['period']
+                properties['evaluations'] = tpl_condition['evaluations']
+                properties['statistic'] = tpl_condition['method']
+                properties['description'] = tpl_condition['constraint']
+                properties['threshold'] = tpl_condition['threshold']
+#                properties['actions'] = tpl_condition['alarm_actions']['resize']
+                # alarm url process here
+                driver = tpl_trigger_name['event_type']['implementation']
+                # TODO(anyone) extend to support any low level design.
+                # TODO (tungdoan) Should be validate function: Ceilometer, Monasca, Definition
+                def create_alrm_url(vnf_id, policy_name, policy_dict):
+                    # url: 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name/key'
+                    host = cfg.CONF.bind_host
+                    port = cfg.CONF.bind_port
+                    host_port = {'host': host, 'port': port}
+                    LOG.info(_("Tacker in heat listening on %(host)s:%(port)s"),
+                             {'host': host,
+                              'port': port})
+
+                    origin = "http://%(host)s:%(port)/vnfs" % host_port
+                    monitoring_policy_name = policy_name
+                    alarm_action_name = policy_dict['triggers']['resize_compute']['action']
+                    access_key = ''.join(
+                        random.SystemRandom().choice(string.ascii_lowercase + string.digits)
+                        for _ in range(8))
+                    alarm_url = "".join([origin, monitoring_policy_name, alarm_action_name, '?', access_key])
+                    return alarm_url
+
+                alarm_url = create_alrm_url('123de3541', policy_name, mon_policy_dict)
+                properties['alarm_action'] = alarm_url
+#                mon_policy['properties'] = properties
+                return properties
+            def _convert_to_heat_monitoring_resource(mon_policy_dict):
+                name,mon_policy_prop = mon_policy_dict.items()[0]
+                mon_policy_hot = {'type':'OS::Ceilometer::Alarm'}
+                mon_policy_hot['properties'] = _convert_to_heat_monitoring_prop(name,mon_policy_prop)
+                return mon_policy_hot
+
+            if 'policies' in topology_tpl_dict:
+                for policy_dict in topology_tpl_dict['policies']:
+                    name, policy_tpl_dict = policy_dict.items()[0]
+                    if policy_tpl_dict['type'] == 'tosca.policies.tacker.Alarming':
+                        is_enabled_alarm = True
+                        heat_dict['resources'][name] = _convert_to_heat_monitoring_resource(policy_dict)
+                        break
+
+            heat_tpl_yaml = yaml.dump(heat_dict)
+            return (is_enabled_alarm, heat_tpl_yaml)
+
         def generate_hot_from_legacy(vnfd_dict):
             assert 'template' not in fields
             assert 'template_url' not in fields
@@ -412,15 +467,22 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
             vnfd_dict = yamlparser.simple_ordered_parse(vnfd_yaml)
             LOG.debug('vnfd_dict %s', vnfd_dict)
 
+            is_tosca_format = False
             if 'tosca_definitions_version' in vnfd_dict:
                 (heat_template_yaml,
                  monitoring_dict) = generate_hot_from_tosca(vnfd_dict)
+                is_tosca_format = True
             else:
                 (heat_template_yaml,
                  monitoring_dict) = generate_hot_from_legacy(vnfd_dict)
 
-            fields['template'] = heat_template_yaml
+            if is_tosca_format:
+                (is_enabled_alarm, heat_tpl_yaml) = \
+                    generate_hot_alarm_resource(vnfd_dict['topology_template'], heat_template_yaml)
+                if is_enabled_alarm:
+                    heat_template_yaml = heat_tpl_yaml
 
+            fields['template'] = heat_template_yaml
             if not device['attributes'].get('heat_template'):
                 device['attributes']['heat_template'] = \
                     fields['template']
