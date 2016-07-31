@@ -35,7 +35,7 @@ resources:
       meter_name: cpu_utils
       threshold: 50
       period: 60
-      statistic: average
-      evaluations: 1
+      statistic: avg
+      evaluation_periods: 1
       comparison_operator: gt
       alarm_actions: ''
