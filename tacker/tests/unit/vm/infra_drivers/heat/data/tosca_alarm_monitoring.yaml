@@ -51,6 +51,6 @@ topology_template:
                     constraint: utilization greater_than 50%
                     period: 60
                     evaluations: 1
-                    method: average
+                    method: avg
                     comparison_operator: gt
                 action: ''

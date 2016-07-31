@@ -346,7 +346,7 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
                 properties['comparison_operator'] = \
                     tpl_condition['comparison_operator']
                 properties['period'] = tpl_condition['period']
-                properties['evaluations'] = tpl_condition['evaluations']
+                properties['evaluation_periods'] = tpl_condition['evaluations']
                 properties['statistic'] = tpl_condition['method']
                 properties['description'] = tpl_condition['constraint']
                 properties['threshold'] = tpl_condition['threshold']
