@@ -343,11 +343,12 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
                 properties['description'] = tpl_condition['constraint']
                 properties['threshold'] = tpl_condition['threshold']
                 # alarm url process here
-                low_level_design = \
-                    tpl_trigger_name['event_type']['implementation']
+
+#                low_level_design = \
+#                    tpl_trigger_name['event_type']['implementation']
                 # TODO(anyone) extend to support any low level design.
-                if low_level_design == 'Ceilometer':
-                    properties['alarm_actions'] = ''
+#                if low_level_design == 'Ceilometer':
+#                    properties['alarm_actions'] = ''
 
 #                mon_policy['properties'] = properties
                 return properties
