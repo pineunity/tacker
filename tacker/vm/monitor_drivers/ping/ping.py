@@ -19,6 +19,7 @@ from tacker._i18n import _LW
 from tacker.agent.linux import utils as linux_utils
 from tacker.common import log
 from tacker.vm.monitor_drivers import abstract_driver
+from tacker.vm.monitor_drivers.webhook import Webhook
 
 
 LOG = logging.getLogger(__name__)
@@ -61,6 +62,8 @@ class VNFMonitorPing(abstract_driver.VNFMonitorAbstractDriver):
         :param ip: IP to check
         :return: bool - True or string 'failure' depending on pingability.
         """
+        driver = self.get_type()
+        a = Webhook(driver)
         ping_cmd = ['ping',
                     '-c', count,
                     '-W', timeout,
