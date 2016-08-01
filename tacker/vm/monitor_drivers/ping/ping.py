@@ -47,6 +47,7 @@ cfg.CONF.register_opts(trigger_opts, group='trigger')
 def config_opts():
     return [('monitor_ping', OPTS), ('trigger', trigger_opts)]
 
+
 class VNFMonitorPing(abstract_driver.VNFMonitorAbstractDriver):
     def get_type(self):
         return 'ping'
