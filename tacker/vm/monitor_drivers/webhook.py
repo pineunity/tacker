@@ -13,13 +13,13 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License
-import time
-import random
-import string
+#import time
+#import random
+#import string
 import socket
 from oslo_config import cfg
 from oslo_log import log as logging
-from tacker.db.vm import vm_db
+#from tacker.db.vm import vm_db
 
 LOG = logging.getLogger(__name__)
 
@@ -58,5 +58,5 @@ class Webhook(object):
 #                    alarm_url = "".join([origin, vnf_id, monitoring_policy_name, alarm_action_name, '?', access_key])
 
         if self.driver in DRIVER:
-            alarm_url = {}
+            alarm_url = origin
             return alarm_url
