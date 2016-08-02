@@ -29,7 +29,7 @@ resources:
       ram: 512
       vcpus: 2
   vdu1_cpu_usage_monitoring_policy:
-    type: OS::Aodh::Alarm
+    type: OS::Ceilometer::Alarm
     properties:
       description: utilization greater_than 50%
       meter_name: cpu_utils
