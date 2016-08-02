@@ -19,6 +19,7 @@ from tacker._i18n import _LW
 from tacker.agent.linux import utils as linux_utils
 from tacker.common import log
 from tacker.vm.monitor_drivers import abstract_driver
+import socket
 
 
 LOG = logging.getLogger(__name__)
@@ -33,8 +34,17 @@ OPTS = [
 cfg.CONF.register_opts(OPTS, 'monitor_ping')
 
 
+trigger_opts = [
+    cfg.StrOpt('host', socket.gethostname(),
+               help=_('Address which drivers use to trigger')),
+    cfg.PortOpt('port', default=9890,
+               help=_('number of seconds to wait for a response'))
+]
+cfg.CONF.register_opts(trigger_opts, group='trigger')
+
+
 def config_opts():
-    return [('monitor_ping', OPTS)]
+    return [('monitor_ping', OPTS), ('trigger', trigger_opts)]
 
 
 class VNFMonitorPing(abstract_driver.VNFMonitorAbstractDriver):
