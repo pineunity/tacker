@@ -19,7 +19,7 @@ from tacker._i18n import _LW
 from tacker.agent.linux import utils as linux_utils
 from tacker.common import log
 from tacker.vm.monitor_drivers import abstract_driver
-import socket
+from tacker.common import utils
 
 
 LOG = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ cfg.CONF.register_opts(OPTS, 'monitor_ping')
 
 
 trigger_opts = [
-    cfg.StrOpt('host', socket.gethostname(),
+    cfg.StrOpt('host', defaukt=utils.gethostname(),
                help=_('Address which drivers use to trigger')),
     cfg.PortOpt('port', default=9890,
                help=_('number of seconds to wait for a response'))
