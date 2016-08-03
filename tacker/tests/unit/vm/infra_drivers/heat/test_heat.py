@@ -160,8 +160,8 @@ class TestDeviceHeat(base.TestCase):
         result = self.heat_driver.create(plugin=None, context=self.context,
                                          device=device_obj,
                                          auth_attr=utils.get_vim_auth_obj())
-#        self.heat_client.create.assert_called_once_with(expected_fields)
-#        self.assertEqual(expected_result, result)
+        self.heat_client.create.assert_called_once_with(expected_fields)
+        self.assertEqual(expected_result, result)
 
     def test_create_ip_addr_param_attr(self):
         device_obj = utils.get_dummy_device_obj_ipaddr_attr()
@@ -200,7 +200,7 @@ class TestDeviceHeat(base.TestCase):
                                 device_id=device_id, device_dict=device_obj,
                                 device=device_config_obj,
                                 auth_attr=utils.get_vim_auth_obj())
-#        self.assertEqual(expected_device_update, device_obj)
+        self.assertEqual(expected_device_update, device_obj)
 
     def test_create_device_template_pre_tosca(self):
         tosca_tpl = _get_template('test_tosca_openwrt.yaml')
