@@ -35,7 +35,7 @@ cfg.CONF.register_opts(OPTS, 'monitor_ping')
 
 
 trigger_opts = [
-    cfg.StrOpt('host', defaukt=utils.gethostname(),
+    cfg.StrOpt('host', default=utils.gethostname(),
                help=_('Address which drivers use to trigger')),
     cfg.PortOpt('port', default=9890,
                help=_('number of seconds to wait for a response'))
