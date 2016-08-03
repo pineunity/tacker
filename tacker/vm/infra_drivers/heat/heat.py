@@ -31,6 +31,7 @@ from tacker.common import log
 from tacker.extensions import vnfm
 from tacker.vm.infra_drivers import abstract_driver
 from tacker.vm.tosca import utils as toscautils
+from tacker.vm.monitor_drivers.webhook import Webhook
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
