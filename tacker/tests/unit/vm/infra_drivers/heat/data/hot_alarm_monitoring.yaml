@@ -38,4 +38,4 @@ resources:
       statistic: avg
       evaluation_periods: 1
       comparison_operator: gt
-#      alarm_actions: ''
+      alarm_actions:

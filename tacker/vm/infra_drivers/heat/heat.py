@@ -337,9 +337,10 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
             heat_dict = yamlparser.simple_ordered_parse(heat_tpl)
             is_enabled_alarm = False
 
-            def _convert_to_heat_monitoring_prop(mon_policy_prop):
+            def _convert_to_heat_monitoring_prop(mon_policy):
+                name, mon_policy_dict = mon_policy.items()[0]
                 tpl_trigger_name = \
-                    mon_policy_prop['triggers']['resize_compute']
+                    mon_policy_dict['triggers']['resize_compute']
                 tpl_condition = tpl_trigger_name['condition']
                 properties = {}
                 properties['meter_name'] = tpl_trigger_name['metrics']
@@ -351,9 +352,8 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
                 properties['description'] = tpl_condition['constraint']
                 properties['threshold'] = tpl_condition['threshold']
                 # alarm url process here
-
-#                low_level_design = \
-#                    tpl_trigger_name['event_type']['implementation']
+                mon_driver = \
+                    tpl_trigger_name['event_type']['implementation']
                 # TODO(anyone) extend to support any low level design.
 #                if low_level_design == 'Ceilometer':
 #                    properties['alarm_actions'] = ''
@@ -361,11 +361,10 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
 #                mon_policy['properties'] = properties
                 return properties
 
-            def _convert_to_heat_monitoring_resource(mon_policy_dict):
-                name, mon_policy_prop = mon_policy_dict.items()[0]
+            def _convert_to_heat_monitoring_resource(mon_policy):
                 mon_policy_hot = {'type': 'OS::Aodh::Alarm'}
                 mon_policy_hot['properties'] = \
-                    _convert_to_heat_monitoring_prop(mon_policy_prop)
+                    _convert_to_heat_monitoring_prop(mon_policy)
                 return mon_policy_hot
 
             if 'policies' in topology_tpl_dict:
