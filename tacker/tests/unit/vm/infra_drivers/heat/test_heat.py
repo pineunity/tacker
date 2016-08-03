@@ -1,18 +1,3 @@
-# Copyright 2015 Brocade Communications System, Inc.
-# All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-#    not use this file except in compliance with the License. You may obtain
-#    a copy of the License at
-#
-#         http://www.apache.org/licenses/LICENSE-2.0
-#
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-#    License for the specific language governing permissions and limitations
-#    under the License.
-
 import codecs
 import json
 import mock
@@ -97,23 +82,28 @@ class TestDeviceHeat(base.TestCase):
                 '-d5a1-4fd4-9447-bb9243c8460b',
                 'template': self.hot_ipparam_template}
 
-    def _get_expected_device_wait_obj(self):
-        return {'status': 'PENDING_CREATE', 'instance_id': None, 'name':
-            u'test_openwrt', 'tenant_id':
-        u'ad7ebc56538745a08ef7c5e97f8bd437', 'template_id':
-        u'eb094833-995e-49f0-a047-dfb56aaf7c4e', 'device_template': {
-            'service_types': [{'service_type': u'vnfd', 'id':
-            u'4a4c2d44-8a52-4895-9a75-9d1c76c3e738'}], 'description':
-            u'OpenWRT with services', 'tenant_id':
-            u'ad7ebc56538745a08ef7c5e97f8bd437', 'mgmt_driver': u'openwrt',
-            'infra_driver': u'heat',
-            'attributes': {u'vnfd': self.vnfd_openwrt},
-            'id': u'fb048660-dc1b-4f0f-bd89-b023666650ec', 'name':
-            u'openwrt_services'}, 'mgmt_url': '{"vdu1": "192.168.120.31"}',
-                'service_context': [], 'attributes': {
-            u'param_values': u''}, 'id':
-            'eb84260e-5ff7-4332-b032-50a14d6c1123', 'description':
-            u'OpenWRT with services'}
+    def _get_expected_device_wait_obj(self, param_values=''):
+        return {'status': 'PENDING_CREATE',
+                'instance_id': None,
+                'name': u'test_openwrt',
+                'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
+                'template_id': u'eb094833-995e-49f0-a047-dfb56aaf7c4e',
+                'device_template': {
+                    'service_types': [{
+                        'service_type': u'vnfd',
+                        'id': u'4a4c2d44-8a52-4895-9a75-9d1c76c3e738'}],
+                    'description': u'OpenWRT with services',
+                    'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
+                    'mgmt_driver': u'openwrt',
+                    'infra_driver': u'heat',
+                    'attributes': {u'vnfd': self.vnfd_openwrt},
+                    'id': u'fb048660-dc1b-4f0f-bd89-b023666650ec',
+                    'name': u'openwrt_services'},
+                'mgmt_url': '{"vdu1": "192.168.120.31"}',
+                'service_context': [],
+                'attributes': {u'param_values': param_values},
+                'id': 'eb84260e-5ff7-4332-b032-50a14d6c1123',
+                'description': u'OpenWRT with services'}
 
     def _get_expected_device_update_obj(self):
         return {'status': 'PENDING_CREATE', 'instance_id': None, 'name':
@@ -213,7 +203,8 @@ class TestDeviceHeat(base.TestCase):
     def _get_expected_tosca_device(self,
                                    tosca_tpl_name,
                                    hot_tpl_name,
-                                   is_monitor=True):
+                                   param_values='',
+                                   is_monitor=True,):
         tosca_tpl = _get_template(tosca_tpl_name)
         exp_tmpl = self._get_expected_device_template(tosca_tpl)
         tosca_hw_dict = yaml.safe_load(_get_template(hot_tpl_name))
@@ -222,7 +213,7 @@ class TestDeviceHeat(base.TestCase):
             'description': u'OpenWRT with services',
             'attributes': {
                 'heat_template': tosca_hw_dict,
-                'param_values': ''
+                'param_values': param_values
             },
             'id': 'eb84260e-5ff7-4332-b032-50a14d6c1123',
             'instance_id': None,
@@ -244,7 +235,7 @@ class TestDeviceHeat(base.TestCase):
 
         return dvc
 
-    def _get_dummy_tosca_device(self, template):
+    def _get_dummy_tosca_device(self, template, input_params=''):
         tosca_template = _get_template(template)
         device = utils.get_dummy_device_obj()
         dtemplate = self._get_expected_device_template(tosca_template)
@@ -252,17 +243,21 @@ class TestDeviceHeat(base.TestCase):
             '4a4c2d44-8a52-4895-9a75-9d1c76c3e738'}]
         dtemplate['tenant_id'] = 'ad7ebc56538745a08ef7c5e97f8bd437'
         device['device_template'] = dtemplate['device_template']
+        device['attributes'] = {}
+        device['attributes']['param_values'] = input_params
         return device
 
     def _test_assert_equal_for_tosca_templates(self, tosca_tpl_name,
                                                hot_tpl_name,
+                                               input_params='',
                                                files=None,
                                                is_monitor=True):
-        device = self._get_dummy_tosca_device(tosca_tpl_name)
+        device = self._get_dummy_tosca_device(tosca_tpl_name, input_params)
         expected_result = '4a4c2d44-8a52-4895-9a75-9d1c76c3e738'
         expected_fields = self._get_expected_fields_tosca(hot_tpl_name)
         expected_device = self._get_expected_tosca_device(tosca_tpl_name,
                                                           hot_tpl_name,
+                                                          input_params,
                                                           is_monitor)
         result = self.heat_driver.create(plugin=None, context=self.context,
                                          device=device,
@@ -379,6 +374,14 @@ class TestDeviceHeat(base.TestCase):
         self._test_assert_equal_for_tosca_templates(
             'tosca_mgmt_sriov.yaml',
             'hot_tosca_mgmt_sriov.yaml'
+        )
+
+    def test_tosca_params(self):
+        input_params = 'image: cirros\nflavor: m1.large'
+        self._test_assert_equal_for_tosca_templates(
+            'tosca_generic_vnfd_params.yaml',
+            'hot_tosca_generic_vnfd_params.yaml',
+            input_params
         )
 
     def test_create_tosca_with_alarm_monitoring(self):
