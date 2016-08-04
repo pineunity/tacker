@@ -33,6 +33,7 @@ from tacker.vm.infra_drivers import abstract_driver
 from tacker.vm.tosca import utils as toscautils
 from tacker.vm.monitor_drivers.webhook import Webhook
 
+
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 OPTS = [
@@ -356,9 +357,10 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
                 mon_driver = \
                     tpl_trigger_name['event_type']['implementation']
                 # TODO(anyone) extend to support any low level design.
-#                if low_level_design == 'Ceilometer':
-#                    properties['alarm_actions'] = ''
-
+                whook = Webhook(mon_driver)
+                alarm_url = whook.create_alarm_url(name, mon_policy_dict,device)
+                LOG.debug('Alarm url %s', alarm_url)
+                properties['alarm-actions'] = alarm_url
 #                mon_policy['properties'] = properties
                 return properties
 

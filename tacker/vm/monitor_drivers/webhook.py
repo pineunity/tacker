@@ -35,12 +35,15 @@ def config_opts():
     return [('trigger', trigger_opts)]
 
 DRIVER = ['Ceilometer', 'Monasca', 'StackStorm']
+
+
 class Webhook(object):
     def __init__(self,driver):
         self.driver = driver
 
     def create_alrm_url(self, policy_name, policy_dict, device):
-        # url: 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name/key'
+        # url: alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name/key'
+
         host = cfg.CONF.trigger.host
         port = cfg.CONF.trigger.port
         host_port = {'host': host, 'port': port}
