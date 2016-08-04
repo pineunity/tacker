@@ -359,7 +359,7 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
                 whook = Webhook(mon_driver)
                 alarm_url = whook.create_alarm_url(name, mon_policy_dict,device)
                 LOG.debug('Alarm url %s', alarm_url)
-                properties['alarm_actions'] = alarm_url
+                properties['alarm_actions'] = [alarm_url]
 #                mon_policy['properties'] = properties
                 return properties
 
