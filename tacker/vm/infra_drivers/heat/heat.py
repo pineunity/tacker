@@ -31,6 +31,7 @@ from tacker.common import log
 from tacker.extensions import vnfm
 from tacker.vm.infra_drivers import abstract_driver
 from tacker.vm.tosca import utils as toscautils
+from tacker.vm.monitor_drivers.webhook import Webhook
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -337,9 +338,10 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
             heat_dict = yamlparser.simple_ordered_parse(heat_tpl)
             is_enabled_alarm = False
 
-            def _convert_to_heat_monitoring_prop(mon_policy_prop):
+            def _convert_to_heat_monitoring_prop(mon_policy):
+                name, mon_policy_dict = mon_policy.items()[0]
                 tpl_trigger_name = \
-                    mon_policy_prop['triggers']['resize_compute']
+                    mon_policy_dict['triggers']['resize_compute']
                 tpl_condition = tpl_trigger_name['condition']
                 properties = {}
                 properties['meter_name'] = tpl_trigger_name['metrics']
@@ -351,21 +353,20 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver):
                 properties['description'] = tpl_condition['constraint']
                 properties['threshold'] = tpl_condition['threshold']
                 # alarm url process here
-
-#                low_level_design = \
-#                    tpl_trigger_name['event_type']['implementation']
+                mon_driver = \
+                    tpl_trigger_name['event_type']['implementation']
                 # TODO(anyone) extend to support any low level design.
-#                if low_level_design == 'Ceilometer':
-#                    properties['alarm_actions'] = ''
-
+                whook = Webhook(mon_driver)
+                alarm_url = whook.create_alarm_url(name, mon_policy_dict,device)
+                LOG.debug('Alarm url %s', alarm_url)
+                properties['alarm-actions'] = alarm_url
 #                mon_policy['properties'] = properties
                 return properties
 
-            def _convert_to_heat_monitoring_resource(mon_policy_dict):
-                name, mon_policy_prop = mon_policy_dict.items()[0]
+            def _convert_to_heat_monitoring_resource(mon_policy):
                 mon_policy_hot = {'type': 'OS::Aodh::Alarm'}
                 mon_policy_hot['properties'] = \
-                    _convert_to_heat_monitoring_prop(mon_policy_prop)
+                    _convert_to_heat_monitoring_prop(mon_policy)
                 return mon_policy_hot
 
             if 'policies' in topology_tpl_dict:
