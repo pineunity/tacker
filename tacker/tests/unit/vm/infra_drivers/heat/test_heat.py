@@ -219,7 +219,7 @@ class TestDeviceHeat(base.TestCase):
                                    tosca_tpl_name,
                                    hot_tpl_name,
                                    param_values='',
-                                   is_monitor=True):
+                                   is_monitor=True,):
         tosca_tpl = _get_template(tosca_tpl_name)
         exp_tmpl = self._get_expected_device_template(tosca_tpl)
         tosca_hw_dict = yaml.safe_load(_get_template(hot_tpl_name))
@@ -263,8 +263,7 @@ class TestDeviceHeat(base.TestCase):
         device['attributes']['param_values'] = input_params
         return device
 
-    def _test_assert_equal_for_tosca_templates(self,
-                                               tosca_tpl_name,
+    def _test_assert_equal_for_tosca_templates(self, tosca_tpl_name,
                                                hot_tpl_name,
                                                input_params='',
                                                files=None,
@@ -406,5 +405,12 @@ class TestDeviceHeat(base.TestCase):
             'tosca_scale.yaml',
             'hot_scale_main.yaml',
             files={'scaling.yaml': 'hot_scale_custom.yaml'},
+            is_monitor=False
+        )
+
+    def test_create_tosca_with_alarm_monitoring(self):
+        self._test_assert_equal_for_tosca_templates(
+            'tosca_alarm_monitoring.yaml',
+            'hot_alarm_monitoring.yaml',
             is_monitor=False
         )
