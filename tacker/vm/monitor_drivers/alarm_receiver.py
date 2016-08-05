@@ -16,7 +16,7 @@ class AlarmReceiver(wsgi.Middleware):
         if request.method != 'POST':
             return
         url = request.url
-        LOG.debug('Alarm url %s', url)
+        LOG.debug('Alarm url triggered: %s', url)
         device_id, params = self.handle_url(request.url)
         self.validate_url(url)
 
