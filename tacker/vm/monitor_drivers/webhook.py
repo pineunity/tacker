@@ -51,7 +51,7 @@ class Webhook(object):
         LOG.info(_("Tacker in heat listening on %(host)s:%(port)s"),
                  {'host': host,
                   'port': port})
-        origin = "http://%(host)s:%(port)s/vnfs" % {'host': host, 'port': port}
+        origin = "http://%(host)s:%(port)s/v1.0/vnfs" % {'host': host, 'port': port}
         vnf_id = device['id']
         monitoring_policy_name = policy_name
         alarm_action_name = policy_dict['triggers']['resize_compute']['action']['resize_compute']
@@ -60,7 +60,7 @@ class Webhook(object):
             for _ in range(8))
         params = {'key':access_key}
         ordered_params = sorted(params.items(), key=lambda t: t[0])
-        alarm_url = "".join([origin, '/', 'v1.0', '/', vnf_id, '/', monitoring_policy_name, '/',
+        alarm_url = "".join([origin, '/', vnf_id, '/', monitoring_policy_name, '/',
                              alarm_action_name, '?', urlparse.urlencode(ordered_params)])
         if self.driver in DRIVER:
             return alarm_url

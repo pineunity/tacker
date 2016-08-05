@@ -219,7 +219,7 @@ class TestDeviceHeat(base.TestCase):
                                    tosca_tpl_name,
                                    hot_tpl_name,
                                    param_values='',
-                                   is_monitor=True,):
+                                   is_monitor=True):
         tosca_tpl = _get_template(tosca_tpl_name)
         exp_tmpl = self._get_expected_device_template(tosca_tpl)
         tosca_hw_dict = yaml.safe_load(_get_template(hot_tpl_name))
