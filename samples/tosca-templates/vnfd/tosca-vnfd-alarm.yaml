@@ -47,9 +47,9 @@ topology_template:
                     targets: [VDU1]
                 metrics: cpu_util
                 condition:
-                    threshold: 1
+                    threshold: 5
                     constraint: utilization greater_than 50%
-                    period: 90
+                    period: 65
                     evaluations: 1
                     method: avg
                     comparison_operator: gt
