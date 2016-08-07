@@ -39,6 +39,7 @@ class AlarmReceiver(wsgi.Middleware):
         '''Validate with db'''
         return True
 
+
 def webhook_filter_factory(global_conf, **local_conf):
     def webhook_url_filter(app):
         return AlarmReceiver(app)
