@@ -40,7 +40,5 @@ class AlarmReceiver(wsgi.Middleware):
         return True
 
 
-def webhook_filter_factory(global_conf, **local_conf):
-    def webhook_url_filter(app):
-        return AlarmReceiver(app)
-    return webhook_url_filter
+def webhook_filter_factory(app, global_conf, **local_conf):
+    return AlarmReceiver(app)
