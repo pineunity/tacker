@@ -364,6 +364,7 @@ class ExtensionMiddleware(wsgi.Middleware):
     @webob.dec.wsgify(RequestClass=wsgi.Request)
     def __call__(self, req):
         """Route the incoming request with router."""
+        LOG.debug(_('tung request: %s'), req.url)
         req.environ['extended.app'] = self.application
         return self._router
 
