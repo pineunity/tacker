@@ -277,14 +277,11 @@ class ExtensionMiddleware(wsgi.Middleware):
                                "/%s/{%s_id}" %
                                (resource.parent["collection_name"],
                                 resource.parent["member_name"]))
-                LOG.debug(_('tung resource: %s'),            # I'm here
-                      path_prefix)
             LOG.debug(_('Extended resource: %s'),
                       resource.collection)
             for action, method in six.iteritems(resource.collection_actions):
                 conditions = dict(method=[method])
                 path = "/%s/%s" % (resource.collection, action)
-                LOG.debug(_('tung path: %s'), path)           # I'm here
                 with mapper.submapper(controller=resource.controller,
                                       action=action,
                                       path_prefix=path_prefix,
@@ -366,7 +363,6 @@ class ExtensionMiddleware(wsgi.Middleware):
     @webob.dec.wsgify(RequestClass=wsgi.Request)
     def __call__(self, req):
         """Route the incoming request with router."""
-        LOG.debug(_('tung request: %s'), req.url)                  # I'm here
         req.environ['extended.app'] = self.application
         return self._router
 
