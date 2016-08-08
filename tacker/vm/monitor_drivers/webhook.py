@@ -20,6 +20,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 from tacker.common import utils
 from six.moves.urllib import parse as urlparse
+from collections import OrderedDict
 # from tacker.db.vm import vm_db
 
 LOG = logging.getLogger(__name__)
@@ -58,9 +59,14 @@ class Webhook(object):
         access_key = ''.join(
             random.SystemRandom().choice(string.ascii_lowercase + string.digits)
             for _ in range(8))
-        params = {'key':access_key}
+        # params = OrderedDict(policy_name=monitoring_policy_name, action_name=alarm_action_name, key=access_key)
+        params = OrderedDict([('policy_name', monitoring_policy_name),
+                              ('action_name', alarm_action_name), ('key', access_key)])
+        query = urlparse.urlencode(params)
+        # params = {'key':access_key}
         ordered_params = sorted(params.items(), key=lambda t: t[0])
-        alarm_url = "".join([origin, '/', vnf_id, '/', monitoring_policy_name, '/',
-                             alarm_action_name, '?', urlparse.urlencode(ordered_params)])
+        # alarm_url = "".join([origin, '/', vnf_id, '/', monitoring_policy_name, '/',
+        #                      alarm_action_name, '?', urlparse.urlencode(ordered_params)])
+        alarm_url = "".join([origin, '/', vnf_id, '?', query])
         if self.driver in DRIVER:
             return alarm_url
