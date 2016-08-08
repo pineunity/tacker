@@ -64,7 +64,7 @@ class Webhook(object):
                               ('action_name', alarm_action_name), ('key', access_key)])
         query = urlparse.urlencode(params)
         # params = {'key':access_key}
-        ordered_params = sorted(params.items(), key=lambda t: t[0])
+        # ordered_params = sorted(params.items(), key=lambda t: t[0])
         # alarm_url = "".join([origin, '/', vnf_id, '/', monitoring_policy_name, '/',
         #                      alarm_action_name, '?', urlparse.urlencode(ordered_params)])
         alarm_url = "".join([origin, '/', vnf_id, '?', query])
