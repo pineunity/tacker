@@ -312,8 +312,6 @@ class Middleware(object):
 
     @webob.dec.wsgify
     def __call__(self, req):
-        if req.method == 'POST':
-            LOG.debug('Alarm url triggered: %s', req.url)
         response = self.process_request(req)
         if response:
             return response
