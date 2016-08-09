@@ -1123,8 +1123,7 @@ class Resource(Application):
             msg_dict = dict(url=request.url, exception=e)
             msg = _("%(url)s returned a fault: %(exception)s") % msg_dict
 
-        LOG.info(_("what: %s"), msg)
-#        LOG.info(msg)
+        LOG.info(msg)
 
         return response
 
