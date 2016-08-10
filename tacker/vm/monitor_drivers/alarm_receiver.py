@@ -3,22 +3,25 @@
 # if url time is older than bd time, reject
 
 # from tacker.db.vm import vm_db
-from tacker import wsgi
 import logging
 from six.moves.urllib import parse as urlparse
+from tacker import wsgi
+from tacker.common import clients
 
 LOG = logging.getLogger(__name__)
 
 
 class AlarmReceiver(wsgi.Middleware):
 
-    def process_request(self, request):
-        if request.method != 'POST':
+    def process_request(self, req):
+        if req.method != 'POST':
             return
-        url = request.url
+        url = req.url
         LOG.debug('Alarm url triggered: %s', url)
-        device_id, params = self.handle_url(request.url)
+        device_id, params = self.handle_url(req.url)
         self.validate_url(url)
+        token = clients.OpenstackClients().auth_token
+        req.headers['X-Auth-Token'] = token['id']
 
     def handle_url(self, url):
         # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
