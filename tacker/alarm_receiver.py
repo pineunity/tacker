@@ -16,8 +16,8 @@ class AlarmReceiver(wsgi.Middleware):
     def process_request(self, req):
         if req.method != 'POST':
             return
-        url = req.urlgit
-        LOG.debug(_('Alarm url triggered: %s'), url)
+        url = req.url
+        LOG.debug(_('tung triggered: %s'), url)
         device_id, params = self.handle_url(req.url)
         self.validate_url(url)
 #        token = Token(username='admin', password='devstack',
@@ -32,7 +32,7 @@ class AlarmReceiver(wsgi.Middleware):
         # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
         parts = urlparse.urlparse(url)
         p = parts.path.split('/')
-
+        LOG.debug(_('Alarm url triggered: %s'), url)
         # expected: ['', 'v1.0', 'vnfs', 'vnf-uuid', 'monitoring-policy-name', 'action-name']
         if len(p) != 6:
             return None

@@ -312,7 +312,6 @@ class Middleware(object):
 
     @webob.dec.wsgify
     def __call__(self, req):
-        LOG.info(_("tung url: %s"), req.url)
         response = self.process_request(req)
         if response:
             return response
