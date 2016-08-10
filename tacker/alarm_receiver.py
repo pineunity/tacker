@@ -14,8 +14,9 @@ LOG = logging.getLogger(__name__)
 class AlarmReceiver(wsgi.Middleware):
 
     def process_request(self, req):
-        if req.method != 'POST':
-            return
+        #if req.method != 'POST':
+        #    return
+
         url = req.url
         LOG.debug(_('tung triggered: %s'), url)
         device_id, params = self.handle_url(req.url)
