@@ -6,16 +6,18 @@
 import logging
 from six.moves.urllib import parse as urlparse
 from tacker import wsgi
+import webob.dec
 # from tacker.vm.monitor_drivers.token import Token
 LOG = logging.getLogger(__name__)
 
 
 class AlarmReceiver(wsgi.Middleware):
 
-    def __init__(self, application):
-        LOG.debug(_('What the hll'))
-        self.application = application
-        super(AlarmReceiver, self).__init__(application)
+    @webob.dec.wsgify
+    def __call__(self, req):
+        if req.method == 'POST':
+            LOG.debug(_('hll: %s'), req.url)
+        return self.application
 
     def process_request(self, req):
         if req.method != 'POST':
@@ -51,15 +53,16 @@ class AlarmReceiver(wsgi.Middleware):
     def validate_url(self, url):
         '''Validate with db'''
         return True
-    @classmethod
-    def factory(cls, global_config, **local_config):
-        """Paste factory."""
-        def _factory(app):
-            return cls(app, global_config, **local_config)
-        return _factory
+
+#    @classmethod
+#    def factory(cls, global_config, **local_config):
+#        """Paste factory."""
+#        def _factory(app):
+#            return cls(app, global_config, **local_config)
+#        return _factory
 
 
-def webhook_filter_factory(global_conf, **local_conf):
-    def _factory(app):
-        return AlarmReceiver(app)
-    return _factory
+#def webhook_filter_factory(global_conf, **local_conf):
+#    def _factory(app):
+#        return AlarmReceiver(app)
+#    return _factory
