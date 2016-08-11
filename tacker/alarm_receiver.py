@@ -26,6 +26,7 @@ class AlarmReceiver(wsgi.Middleware):
         # LOG.debug('Alarm url %s', token['id'])
 
 #        req.headers['X-Auth-Token'] = token_identity
+        return None
 
     def handle_url(self, url):
         # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
