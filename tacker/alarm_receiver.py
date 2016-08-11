@@ -12,6 +12,11 @@ LOG = logging.getLogger(__name__)
 
 class AlarmReceiver(wsgi.Middleware):
 
+    def __init__(self, application):
+        LOG.debug(_('What the hll'))
+        self.application = application
+        super(AlarmReceiver, self).__init__(application)
+
     def process_request(self, req):
         if req.method != 'POST':
             return
