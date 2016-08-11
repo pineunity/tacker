@@ -62,6 +62,12 @@ class TackerKeystoneContext(wsgi.Middleware):
 
         return self.application
 
+    def process_request(self, req):
+        if req.method != 'POST':
+            return
+        url = req.url
+        LOG.debug(_('dmm %s'), url)
+        return None
 
 def pipeline_factory(loader, global_conf, **local_conf):
     """Create a paste pipeline based on the 'auth_strategy' config option."""
