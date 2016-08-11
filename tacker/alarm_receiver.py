@@ -12,17 +12,11 @@ LOG = logging.getLogger(__name__)
 
 
 class AlarmReceiver(wsgi.Middleware):
-
-    @webob.dec.wsgify
-    def __call__(self, req):
-        LOG.debug(_('hll: %s'), req.url)
-        return self.application
-
     def process_request(self, req):
         if req.method != 'POST':
             return
         url = req.url
-        LOG.debug(_('tung triggered: %s'), url)
+        LOG.info(_('tung triggered: %s'), url)
         device_id, params = self.handle_url(req.url)
         self.validate_url(url)
 #        token = Token(username='admin', password='devstack',
@@ -30,15 +24,13 @@ class AlarmReceiver(wsgi.Middleware):
 #        token_identity = token.create_token()
 
         # LOG.debug('Alarm url %s', token['id'])
-
 #        req.headers['X-Auth-Token'] = token_identity
-        return None
 
     def handle_url(self, url):
         # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
         parts = urlparse.urlparse(url)
         p = parts.path.split('/')
-        LOG.debug(_('Alarm url triggered: %s'), url)
+        LOG.info(_('Alarm url triggered: %s'), url)
         # expected: ['', 'v1.0', 'vnfs', 'vnf-uuid', 'monitoring-policy-name', 'action-name']
         if len(p) != 6:
             return None
