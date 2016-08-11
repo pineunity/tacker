@@ -24,7 +24,6 @@ import routes
 import six
 import webob.dec
 import webob.exc
-from six.moves.urllib import parse as urlparse
 from tacker.api.v1 import attributes
 from tacker.common import exceptions
 import tacker.extensions
@@ -379,29 +378,6 @@ class ExtensionMiddleware(wsgi.Middleware):
             return req.environ['extended.app']
         app = match['controller']
         return app
-
-
-    def process_request(self, req):
-        if req.method != 'POST':
-            return
-        url = req.url
-        device_id, params = self.handle_url(url)
-        LOG.debug(_('dmm: %s'), device_id)
-
-    def handle_url(self, url):
-        # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
-        parts = urlparse.urlparse(url)
-        p = parts.path.split('/')
-        LOG.debug(_('Alarm url triggered: %s'), url)
-        # expected: ['', 'v1.0', 'vnfs', 'vnf-uuid', 'monitoring-policy-name', 'action-name']
-        if len(p) != 6:
-            return None
-
-        if any((p[0] != '', p[2] != 'vnfs')):
-            return None
-        qs = urlparse.parse_qs(parts.query)
-        params = dict((k, v[0]) for k, v in qs.items())
-        return p[3], params
 
 
 def extension_middleware_factory(global_config, **local_config):

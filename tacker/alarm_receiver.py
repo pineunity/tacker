@@ -15,8 +15,7 @@ class AlarmReceiver(wsgi.Middleware):
 
     @webob.dec.wsgify
     def __call__(self, req):
-        if req.method == 'POST':
-            LOG.debug(_('hll: %s'), req.url)
+        LOG.debug(_('hll: %s'), req.url)
         return self.application
 
     def process_request(self, req):
