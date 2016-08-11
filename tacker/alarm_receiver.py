@@ -7,7 +7,6 @@ import logging
 from six.moves.urllib import parse as urlparse
 from tacker import wsgi
 # from tacker.vm.monitor_drivers.token import Token
-import oslo_middleware
 LOG = logging.getLogger(__name__)
 
 
@@ -53,5 +52,8 @@ class AlarmReceiver(wsgi.Middleware):
             return cls(app, global_config, **local_config)
         return _factory
 
-#def webhook_filter_factory(app, global_conf, **local_conf):
-#    return AlarmReceiver(app)
+
+def webhook_filter_factory(global_conf, **local_conf):
+    def _factory(app):
+        return AlarmReceiver(app)
+    return _factory
