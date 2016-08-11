@@ -15,6 +15,7 @@
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_middleware import request_id
+from six.moves.urllib import parse as urlparse
 import webob.dec
 import webob.exc
 
@@ -66,8 +67,24 @@ class TackerKeystoneContext(wsgi.Middleware):
         if req.method != 'POST':
             return
         url = req.url
-        LOG.debug(_('dmm %s'), url)
-        return None
+        device_id, params = self.handle_url(url)
+        LOG.debug(_('dmm: %s'), device_id)
+
+    def handle_url(self, url):
+        # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
+        parts = urlparse.urlparse(url)
+        p = parts.path.split('/')
+        LOG.debug(_('Alarm url triggered: %s'), url)
+        # expected: ['', 'v1.0', 'vnfs', 'vnf-uuid', 'monitoring-policy-name', 'action-name']
+        if len(p) != 6:
+            return None
+
+        if any((p[0] != '', p[2] != 'vnfs')):
+            return None
+        qs = urlparse.parse_qs(parts.query)
+        params = dict((k, v[0]) for k, v in qs.items())
+        return p[3], params
+
 
 def pipeline_factory(loader, global_conf, **local_conf):
     """Create a paste pipeline based on the 'auth_strategy' config option."""
