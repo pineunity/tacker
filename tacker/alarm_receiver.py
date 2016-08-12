@@ -12,29 +12,25 @@ LOG = logging.getLogger(__name__)
 
 
 class AlarmReceiver(wsgi.Middleware):
-    def process_request(self, req):
+    """Make a request context from keystone headers."""
+
+    @webob.dec.wsgify
+    def __call__(self, req):
         if req.method != 'POST':
             return
         url = req.url
         LOG.info(_('tung triggered: %s'), url)
         device_id, params = self.handle_url(req.url)
+        LOG.info(_('tung triggered: %s'), device_id)
         self.validate_url(url)
-#        token = Token(username='admin', password='devstack',
-#                      auth_url="http://127.0.0.1:35357/v2.0", tenant_name="admin")
-#        token_identity = token.create_token()
-
-        # LOG.debug('Alarm url %s', token['id'])
-#        req.headers['X-Auth-Token'] = token_identity
+        return self.application
 
     def handle_url(self, url):
-        # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
         parts = urlparse.urlparse(url)
         p = parts.path.split('/')
         LOG.info(_('Alarm url triggered: %s'), url)
-        # expected: ['', 'v1.0', 'vnfs', 'vnf-uuid', 'monitoring-policy-name', 'action-name']
         if len(p) != 6:
             return None
-
         if any((p[0] != '', p[2] != 'vnfs')):
             return None
         qs = urlparse.parse_qs(parts.query)
@@ -42,18 +38,4 @@ class AlarmReceiver(wsgi.Middleware):
         return p[3], params
 
     def validate_url(self, url):
-        '''Validate with db'''
         return True
-
-#    @classmethod
-#    def factory(cls, global_config, **local_config):
-#        """Paste factory."""
-#        def _factory(app):
-#            return cls(app, global_config, **local_config)
-#        return _factory
-
-
-#def webhook_filter_factory(global_conf, **local_conf):
-#    def _factory(app):
-#        return AlarmReceiver(app)
-#    return _factory
