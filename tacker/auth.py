@@ -46,6 +46,7 @@ class TackerKeystoneContext(wsgi.Middleware):
     @webob.dec.wsgify
     def __call__(self, req):
         # Determine the user ID
+        self.process_request(req)
         if req.method == 'POST':
             LOG.debug(_('dmm: %s'), req.url)
         user_id = req.headers.get('X_USER_ID')
@@ -77,7 +78,6 @@ class TackerKeystoneContext(wsgi.Middleware):
 
         # Inject the context...
         req.environ['tacker.context'] = ctx
-
         return self.application
 
 
