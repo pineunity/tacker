@@ -36,7 +36,7 @@ class TackerKeystoneContext(wsgi.Middleware):
                              auth_url="http://127.0.0.1:35357/v2.0", tenant_name="admin")
             token_identity = token.create_token()
             LOG.debug('Alarm url %s', token['id'])
-            req.headers['X-Auth-Token'] = token_identity
+            req.headers['X_AUTH_TOKEN'] = token_identity
 
     @webob.dec.wsgify
     def __call__(self, req):
