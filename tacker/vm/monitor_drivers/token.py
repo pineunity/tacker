@@ -14,6 +14,7 @@
 
 import keystoneclient.v2_0.client as ksclient
 
+
 class Token(object):
     def __init__(self, username, password, auth_url, tenant_name):
         self.username = username
