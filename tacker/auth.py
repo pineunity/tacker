@@ -29,14 +29,19 @@ class TackerKeystoneContext(wsgi.Middleware):
     """Make a request context from keystone headers."""
 
     def process_request(self, req):
-        if req.method != 'POST':
-            return
+        # if req.method != 'POST':
+        #    return
         if req.headers.get('X_AUTH_TOKEN') is None:
             token = Token(username='admin', password='devstack',
-                             auth_url="http://127.0.0.1:35357/v2.0", tenant_name="admin")
+                          auth_url="http://127.0.0.1:35357/v2.0", tenant_name="admin")
             token_identity = token.create_token()
             LOG.debug('Alarm url %s', token['id'])
             req.headers['X_AUTH_TOKEN'] = token_identity
+            self.validate_url(req.url)
+
+    def validate_url(self, url):
+        LOG.debug(_("what is this: %s"), url)
+        return True
 
     @webob.dec.wsgify
     def __call__(self, req):
