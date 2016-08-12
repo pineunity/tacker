@@ -19,16 +19,16 @@ class AlarmReceiver(wsgi.Middleware):
         if req.method != 'POST':
             return
         url = req.url
-        LOG.info(_('tung triggered: %s'), url)
+        LOG.debug(_('hll: %s'), url)
         device_id, params = self.handle_url(req.url)
-        LOG.info(_('tung triggered: %s'), device_id)
+        LOG.debug(_('dvc: %s'), device_id)
         self.validate_url(url)
         return self.application
 
     def handle_url(self, url):
         parts = urlparse.urlparse(url)
         p = parts.path.split('/')
-        LOG.info(_('Alarm url triggered: %s'), url)
+        LOG.debug(_('Alarm url triggered: %s'), url)
         if len(p) != 6:
             return None
         if any((p[0] != '', p[2] != 'vnfs')):
