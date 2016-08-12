@@ -31,7 +31,7 @@ class TackerKeystoneContext(wsgi.Middleware):
     def __call__(self, req):
         # Determine the user ID
         if req.method == 'POST':
-            LOG.debug(_('dmm: %s'), req.url)
+            LOG.debug(_('dmm: %s'), req.headers.get('X_AUTH_TOKEN'))
         user_id = req.headers.get('X_USER_ID')
         if not user_id:
             LOG.debug(_("X_USER_ID is not found in request"))

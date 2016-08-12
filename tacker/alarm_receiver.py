@@ -16,8 +16,8 @@ class AlarmReceiver(wsgi.Middleware):
 
     @webob.dec.wsgify
     def __call__(self, req):
-        if req.method != 'POST':
-            return
+        # if req.method != 'POST':
+        #    return
         url = req.url
         LOG.debug(_('hll: %s'), url)
         device_id, params = self.handle_url(req.url)
