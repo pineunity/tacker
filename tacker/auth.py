@@ -20,7 +20,6 @@ import webob.exc
 
 from tacker import context
 from tacker import wsgi
-from tacker.vm.monitor_drivers.token import Token
 
 LOG = logging.getLogger(__name__)
 
@@ -28,27 +27,12 @@ LOG = logging.getLogger(__name__)
 class TackerKeystoneContext(wsgi.Middleware):
     """Make a request context from keystone headers."""
 
-    def process_request(self, req):
-        # if req.method != 'POST':
-        #    return
-        if req.headers.get('X_AUTH_TOKEN') is None:
-            token = Token(username='admin', password='devstack',
-                          auth_url="http://127.0.0.1:35357/v2.0", tenant_name="admin")
-            token_identity = token.create_token()
-            LOG.debug('Alarm url %s', token['id'])
-            req.headers['X_AUTH_TOKEN'] = token_identity
-            self.validate_url(req.url)
-
-    def validate_url(self, url):
-        LOG.debug(_("what is this: %s"), url)
-        return True
-
     @webob.dec.wsgify
     def __call__(self, req):
         # Determine the user ID
         self.process_request(req)
         if req.method == 'POST':
-            LOG.debug(_('dmm: %s'), req.url)
+            LOG.debug(_('dmm: %s'), req.environ.get('wsgiorg.routing_args'))
         user_id = req.headers.get('X_USER_ID')
         if not user_id:
             LOG.debug(_("X_USER_ID is not found in request"))
