@@ -64,6 +64,7 @@ def Resource(controller, faults=None, deserializers=None, serializers=None):
     @webob.dec.wsgify(RequestClass=Request)
     def resource(request):
         route_args = request.environ.get('wsgiorg.routing_args')
+        LOG.debug(_('route_args: %s'), request.environ.get('wsgiorg.routing_args'))
         if route_args:
             args = route_args[1].copy()
         else:
