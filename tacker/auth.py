@@ -30,9 +30,7 @@ class TackerKeystoneContext(wsgi.Middleware):
     @webob.dec.wsgify
     def __call__(self, req):
         # Determine the user ID
-        self.process_request(req)
-        if req.method == 'POST':
-            LOG.debug(_('dmm: %s'), req.environ.get('wsgiorg.routing_args'))
+        LOG.debug(_('dmm: %s'), req.environ.get('wsgiorg.routing_args'))
         user_id = req.headers.get('X_USER_ID')
         if not user_id:
             LOG.debug(_("X_USER_ID is not found in request"))
