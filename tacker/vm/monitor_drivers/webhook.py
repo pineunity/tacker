@@ -47,7 +47,6 @@ class Webhook(object):
 
         host = cfg.CONF.trigger.host
         port = cfg.CONF.trigger.port
-        host_port = {'host': host, 'port': port}
         LOG.info(_("Tacker in heat listening on %(host)s:%(port)s"),
                  {'host': host,
                   'port': port})
@@ -58,14 +57,10 @@ class Webhook(object):
         access_key = ''.join(
             random.SystemRandom().choice(string.ascii_lowercase + string.digits)
             for _ in range(8))
-        # params = OrderedDict(policy_name=monitoring_policy_name, action_name=alarm_action_name, key=access_key)
-        params = OrderedDict([('policy_name', monitoring_policy_name),
-                              ('action_name', alarm_action_name), ('key', access_key)])
-        query = urlparse.urlencode(params)
-        # params = {'key':access_key}
-        # ordered_params = sorted(params.items(), key=lambda t: t[0])
-        # alarm_url = "".join([origin, '/', vnf_id, '/', monitoring_policy_name, '/',
-        #                      alarm_action_name, '?', urlparse.urlencode(ordered_params)])
-        alarm_url = "".join([origin, '/', vnf_id, '?', query])
+        params = {'key':access_key}
+        ordered_params = sorted(params.items(), key=lambda t: t[0])
+        alarm_url = "".join([origin, '/', vnf_id, '/', monitoring_policy_name, '/',
+                             alarm_action_name, '?', urlparse.urlencode(ordered_params)])
         if self.driver in DRIVER:
             return alarm_url
+

@@ -13,39 +13,45 @@
 #    under the License.
 
 import logging
-#from six.moves.urllib import parse as urlparse
+from six.moves.urllib import parse as urlparse
 from tacker import wsgi
-import webob.dec
-# from tacker.vm.monitor_drivers.token import Token
+from tacker.vm.monitor_drivers.token import Token
+# check alarm url with db --> move to plugin
 LOG = logging.getLogger(__name__)
 
 
 class AlarmReceiver(wsgi.Middleware):
-    """Make a request context from keystone headers."""
-
-    @webob.dec.wsgify
-    def __call__(self, req):
-        # if req.method != 'POST':
-        #    return
+    def process_request(self, req):
+        if req.method != 'POST':
+            return
         url = req.url
-        LOG.debug(_('hll: %s'), url)
-#        device_id, params = self.handle_url(req.url)
-#        LOG.debug(_('dvc: %s'), device_id)
-        self.validate_url(url)
-        return self.application
+        LOG.info(_('tung triggered: %s'), url)
+        if not self.handle_url(url):
+            return
+        device_id, params = self.handle_url(req.url)
+        self.validate_url(device_id)
+        token = Token(username='admin', password='devstack',
+                      auth_url="http://127.0.0.1:35357/v2.0", tenant_name="admin")
+        token_identity = token.create_token()
 
-#    def handle_url(self, url):
-#        parts = urlparse.urlparse(url)
-#        p = parts.path.split('/')
-#        LOG.debug(_('Alarm url triggered: %s'), url)
-#        if len(p) != 6:
-#            return None
-#        if any((p[0] != '', p[2] != 'vnfs')):
-#            return None
-#        qs = urlparse.parse_qs(parts.query)
-#        params = dict((k, v[0]) for k, v in qs.items())
-#        return p[3], params
+        LOG.debug('Alarm url %s', token['id'])
+        req.headers['X-Auth-Token'] = token_identity
 
-    def validate_url(self, url):
-        LOG.debug(_('Alarm url triggered: %s'), url)
+    def handle_url(self, url):
+        # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
+        parts = urlparse.urlparse(url)
+        p = parts.path.split('/')
+        # expected: ['', 'v1.0', 'vnfs', 'vnf-uuid', 'monitoring-policy-name', 'action-name']
+        if len(p) != 6:
+            return None
+
+        if any((p[0] != '', p[2] != 'vnfs')):
+            return None
+        qs = urlparse.parse_qs(parts.query)
+        params = dict((k, v[0]) for k, v in qs.items())
+        return p[3], params
+
+    def validate_url(self, device_id):
+        '''Validate with db'''
+        LOG.debug(_('Alarm url triggered: %s'), device_id)
         return True
