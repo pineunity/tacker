@@ -25,9 +25,9 @@ class AlarmReceiver(wsgi.Middleware):
         if req.method != 'POST':
             return
         url = req.url
-        LOG.info(_('tung triggered: %s'), url)
         if not self.handle_url(url):
             return
+        LOG.debug(_('tung triggered: %s'), url)
         device_id, params = self.handle_url(req.url)
         self.validate_url(device_id)
         token = Token(username='admin', password='devstack',
