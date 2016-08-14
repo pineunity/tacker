@@ -23,10 +23,10 @@ class Token(object):
         self.tenant_name = tenant_name
 
     def create_token(self):
-        keystone = ksclient.Client(auth_url=self.auth_url,
-                           username=self.username,
-                           password=self.username,
-                           tenant_name=self.tenant_name)
+        keystone = ksclient.Client(username=self.username,
+                                   password=self.password,
+                                   auth_url=self.auth_url,
+                                   tenant_name=self.tenant_name)
 
         token = keystone.auth_ref['token']['id']
         return token
