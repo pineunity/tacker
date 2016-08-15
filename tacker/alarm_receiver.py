@@ -28,7 +28,7 @@ class AlarmReceiver(wsgi.Middleware):
         if not self.handle_url(url):
             return
         LOG.debug(_('tung triggered: %s'), url)
-        info, params = self.handle_url(req.url)
+        prefix, info, params = self.handle_url(req.url)
         device_id = info[3]
         self.validate_url(device_id)
         token = Token(username='admin', password='devstack',
@@ -36,6 +36,7 @@ class AlarmReceiver(wsgi.Middleware):
         token_identity = token.create_token()
         req.headers['X_AUTH_TOKEN'] = token_identity
         LOG.debug('Body alarm: %s', req.body)
+        # Change the body request
         if 'alarm_id' in req.body:
             body_dict = dict()
             body_dict['trigger'] = {}
@@ -44,6 +45,8 @@ class AlarmReceiver(wsgi.Middleware):
             body_dict['trigger']['action_name'] = info[5]
             req.body = jsonutils.dumps(body_dict)
             LOG.debug('Body alarm: %s', req.body)
+        # Need to change url because of mandatory
+        req.url = prefix + 'actions'
 
     def handle_url(self, url):
         # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
@@ -57,7 +60,9 @@ class AlarmReceiver(wsgi.Middleware):
             return None
         qs = urlparse.parse_qs(parts.query)
         params = dict((k, v[0]) for k, v in qs.items())
-        return p, params
+        prefix_url = 'http://%(scheme)s/%(version)s/%(collec)s/' % {'scheme': parts.netloc, 'version': p[1],
+                                                                    'collec': p[2]}
+        return prefix_url, p, params
 
     def validate_url(self, device_id):
         '''Validate with db'''
