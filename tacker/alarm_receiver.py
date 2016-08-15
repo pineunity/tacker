@@ -20,6 +20,7 @@ from tacker.vm.monitor_drivers.token import Token
 
 LOG = logging.getLogger(__name__)
 
+
 class AlarmReceiver(wsgi.Middleware):
     def process_request(self, req):
         if req.method != 'POST':
@@ -46,7 +47,8 @@ class AlarmReceiver(wsgi.Middleware):
             req.body = jsonutils.dumps(body_dict)
             LOG.debug('Body alarm: %s', req.body)
         # Need to change url because of mandatory
-        req.url = prefix + 'actions'
+        req.environ['PATH_INFO'] = prefix + 'actions'
+        req.environ['QUERY_STRING'] = ''
 
     def handle_url(self, url):
         # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
