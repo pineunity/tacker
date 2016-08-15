@@ -13,11 +13,15 @@
 #    under the License.
 import copy
 import logging
+from oslo_config import cfg
 from six.moves.urllib import parse as urlparse
 from tacker import wsgi
-from tacker.vm.monitor_drivers.token import Token
+# from tacker.vm.monitor_drivers.token import Token
+from tacker.common import clients
 # check alarm url with db --> move to plugin
+
 LOG = logging.getLogger(__name__)
+CONF = cfg.CONF
 
 
 class AlarmReceiver(wsgi.Middleware):
@@ -30,11 +34,17 @@ class AlarmReceiver(wsgi.Middleware):
         LOG.debug(_('tung triggered: %s'), url)
         device_id, params = self.handle_url(req.url)
         self.validate_url(device_id)
-        token = Token(username='admin', password='devstack',
-                      auth_url="http://127.0.0.1:35357/v2.0", tenant_name="admin")
-        token_identity = token.create_token()
+        LOG.debug('type check: %s', type(req.method))
+        # token = Token(username='admin', password='devstack',
+        #              auth_url="http://127.0.0.1:35357/v2.0", tenant_name="admin")
+
+        # keystone v2.0 specific
+        authtoken = CONF.keystone_authtoken
+        token = clients.OpenstackClients().auth_token
+        token_identity = token['id']
         req.headers['X_AUTH_TOKEN'] = token_identity
-        LOG.debug('Body alarm: %s', req.body)
+        LOG.debug('token: %s', token_identity)
+
     def handle_url(self, url):
         # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
         parts = urlparse.urlparse(url)
