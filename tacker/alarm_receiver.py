@@ -11,7 +11,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
+import copy
 import logging
 from six.moves.urllib import parse as urlparse
 from tacker import wsgi
@@ -34,8 +34,11 @@ class AlarmReceiver(wsgi.Middleware):
                       auth_url="http://127.0.0.1:35357/v2.0", tenant_name="admin")
         token_identity = token.create_token()
         req.headers['X_AUTH_TOKEN'] = token_identity
-        LOG.debug('Body alarm: %s', req.body)
-
+        if 'alarm_id' in req.body:
+            params = copy.deepcopy(req.body)
+            req.body = dict()
+            req.body['params'] = params
+            LOG.debug('Body alarm: %s', req.body)
     def handle_url(self, url):
         # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
         parts = urlparse.urlparse(url)
