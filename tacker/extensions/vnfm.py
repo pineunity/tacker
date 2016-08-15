@@ -339,13 +339,13 @@ SUB_RESOURCE_ATTRIBUTE_MAP = {
             },
             'trigger': {
                 'parameters': {
-                    'policy_id': {
+                    'policy_name': {
                         'allow_post': True,
                         'allow_put': False,
                         'is_visible': True,
                         'validate': {'type:string': None}
                     },
-                    'action_id': {
+                    'action_name': {
                         'allow_post': True,
                         'allow_put': False,
                         'is_visible': True,
