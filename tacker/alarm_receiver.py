@@ -35,7 +35,7 @@ class AlarmReceiver(wsgi.Middleware):
                       auth_url="http://127.0.0.1:35357/v2.0", tenant_name="admin")
         token_identity = token.create_token()
         req.headers['X_AUTH_TOKEN'] = token_identity
-        LOG.debug('Body alarm: %s', req.body)
+        LOG.debug('Body alarm before parsing: %s', req.body)
         # Change the body request
         if 'alarm_id' in req.body:
             body_dict = dict()
