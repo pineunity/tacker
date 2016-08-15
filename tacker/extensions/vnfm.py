@@ -336,6 +336,28 @@ SUB_RESOURCE_ATTRIBUTE_MAP = {
                         'is_visible': False
                     },
                 }
+            },
+            'trigger': {
+                'parameters': {
+                    'policy_id': {
+                        'allow_post': True,
+                        'allow_put': False,
+                        'is_visible': True,
+                        'validate': {'type:string': None}
+                    },
+                    'action_id': {
+                        'allow_post': True,
+                        'allow_put': False,
+                        'is_visible': True,
+                        'validate': {'type:string': None}
+                    },
+                    'params': {
+                        'allow_post': True,
+                        'allow_put': False,
+                        'is_visible': True,
+                        'validate': {'type:dict_or_none': None}
+                    }
+                }
             }
         }
     }
@@ -461,3 +483,9 @@ class VNFMPluginBase(service_base.NFVPluginBase):
     def create_vnf_scale(
             self, context, vnf_id, scale):
         pass
+
+    @abc.abstractmethod
+    def create_vnf_trigger(
+            self, context, vnf_id, trigger):
+        pass
+

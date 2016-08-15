@@ -514,6 +514,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                           policy)
                 _handle_vnf_scaling_post(constants.ACTIVE, mgmt_url)
                 # TODO(kanagaraj-manickam): Add support for config and mgmt
+                # Monitoring policy here
             except Exception as e:
                 LOG.error(_("Policy %s action is failed to complete") %
                           policy)
@@ -614,3 +615,10 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         self._handle_vnf_scaling(context, policy_)
 
         return scale['scale']
+
+    def create_vnf_trigger(
+            self, context, vnf_id, trigger):
+        # action: scaling, refer to template to find specific scaling policy
+        # we can extend in future to support other policies
+
+        return trigger['trigger']
