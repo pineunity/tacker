@@ -11,18 +11,15 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+from oslo_serialization import jsonutils
 import copy
 import logging
-from oslo_config import cfg
 from six.moves.urllib import parse as urlparse
 from tacker import wsgi
-# from tacker.vm.monitor_drivers.token import Token
-from tacker.common import clients
+from tacker.vm.monitor_drivers.token import Token
 # check alarm url with db --> move to plugin
 
 LOG = logging.getLogger(__name__)
-CONF = cfg.CONF
-
 
 class AlarmReceiver(wsgi.Middleware):
     def process_request(self, req):
@@ -32,18 +29,22 @@ class AlarmReceiver(wsgi.Middleware):
         if not self.handle_url(url):
             return
         LOG.debug(_('tung triggered: %s'), url)
-        device_id, params = self.handle_url(req.url)
+        info, params = self.handle_url(req.url)
+        device_id = info[3]
         self.validate_url(device_id)
-        LOG.debug('type check: %s', type(req.method))
-        # token = Token(username='admin', password='devstack',
-        #              auth_url="http://127.0.0.1:35357/v2.0", tenant_name="admin")
-
-        # keystone v2.0 specific
-        authtoken = CONF.keystone_authtoken
-        token = clients.OpenstackClients().auth_token
-        token_identity = token['id']
+        token = Token(username='admin', password='devstack',
+                      auth_url="http://127.0.0.1:35357/v2.0", tenant_name="admin")
+        token_identity = token.create_token()
         req.headers['X_AUTH_TOKEN'] = token_identity
-        LOG.debug('token: %s', token_identity)
+        LOG.debug('Body alarm: %s', req.body)
+        if 'alarm_id' in req.body:
+            body_dict = dict()
+            body_dict['trigger'] = {}
+            body_dict['trigger']['params'] = jsonutils.loads(req.body)
+            body_dict['trigger']['policy_name'] = info[4]
+            body_dict['trigger']['action_name'] = info[5]
+            req.body = jsonutils.dumps(body_dict)
+            LOG.debug('Body alarm: %s', req.body)
 
     def handle_url(self, url):
         # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
@@ -57,7 +58,7 @@ class AlarmReceiver(wsgi.Middleware):
             return None
         qs = urlparse.parse_qs(parts.query)
         params = dict((k, v[0]) for k, v in qs.items())
-        return p[3], params
+        return p, params
 
     def validate_url(self, device_id):
         '''Validate with db'''
