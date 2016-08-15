@@ -49,6 +49,7 @@ class AlarmReceiver(wsgi.Middleware):
         # Need to change url because of mandatory
         req.environ['PATH_INFO'] = prefix + 'actions'
         req.environ['QUERY_STRING'] = ''
+        LOG.debug('alarm url in receiver: %s', req.url)
 
     def handle_url(self, url):
         # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
