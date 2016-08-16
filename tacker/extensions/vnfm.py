@@ -411,11 +411,11 @@ class Vnfm(extensions.ExtensionDescriptor):
                                                   allow_bulk=True,
                                                   parent=parent)
 
-            resource = extensions.ResourceExtension(
-                collection_name,
-                controller, parent,
-                attr_map=params)
-            resources.append(resource)
+                resource = extensions.ResourceExtension(
+                    collection_name,
+                    controller, parent,
+                    attr_map=params)
+                resources.append(resource)
         return resources
 
     @classmethod
