@@ -30,6 +30,7 @@ class AlarmReceiver(wsgi.Middleware):
             return
         LOG.debug(_('tung triggered: %s'), url)
         prefix, info, params = self.handle_url(req.url)
+        LOG.debug(_('tung triggered: %s'), prefix)
         device_id = info[3]
         self.validate_url(device_id)
         token = Token(username='admin', password='devstack',
@@ -48,6 +49,7 @@ class AlarmReceiver(wsgi.Middleware):
             LOG.debug('Body alarm: %s', req.body)
         # Need to change url because of mandatory
         req.environ['PATH_INFO'] = prefix + 'actions'
+        LOG.debug(_('tung triggered: %s'), req.environ['PATH_INFO'])
         req.environ['QUERY_STRING'] = ''
         LOG.debug('alarm url in receiver: %s', req.url)
 
@@ -63,7 +65,7 @@ class AlarmReceiver(wsgi.Middleware):
             return None
         qs = urlparse.parse_qs(parts.query)
         params = dict((k, v[0]) for k, v in qs.items())
-        prefix_url = '/%(version)s/%(collec)s/%(vnf-uuid)s/' % {'version': p[1], 'collec': p[2], 'vnf-uuid': p[3]}
+        prefix_url = '/%(version)s/%(collec)s/%(vnf_uuid)s/' % {'version': p[1], 'collec': p[2], 'vnf_uuid': p[3]}
         return prefix_url, p, params
 
     def validate_url(self, device_id):
