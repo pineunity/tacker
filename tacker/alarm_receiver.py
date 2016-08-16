@@ -65,7 +65,7 @@ class AlarmReceiver(wsgi.Middleware):
             return None
         qs = urlparse.parse_qs(parts.query)
         params = dict((k, v[0]) for k, v in qs.items())
-        prefix_url = '/%(version)s/%(collec)s/%(vnf_uuid)s/' % {'version': p[1], 'collec': p[2], 'vnf_uuid': p[3]}
+        prefix_url = '/%(collec)s/%(vnf_uuid)s/' % {'collec': p[2], 'vnf_uuid': p[3]}
         return prefix_url, p, params
 
     def validate_url(self, device_id):
