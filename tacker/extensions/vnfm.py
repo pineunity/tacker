@@ -356,6 +356,13 @@ SUB_RESOURCE_ATTRIBUTE_MAP = {
                         'allow_put': False,
                         'is_visible': True,
                         'validate': {'type:dict_or_none': None}
+                    },
+                    'tenant_id': {
+                        'allow_post': True,
+                        'allow_put': False,
+                        'validate': {'type:string': None},
+                        'required_by_policy': False,
+                        'is_visible': False
                     }
                 }
             }
