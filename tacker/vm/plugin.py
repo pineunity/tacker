@@ -618,6 +618,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
 
     def create_vnf_trigger(
             self, context, vnf_id, trigger):
+        # Verified API
         # action: scaling, refer to template to find specific scaling policy
         # we can extend in future to support other policies
 

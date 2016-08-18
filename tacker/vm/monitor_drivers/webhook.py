@@ -57,10 +57,8 @@ class Webhook(object):
         access_key = ''.join(
             random.SystemRandom().choice(string.ascii_lowercase + string.digits)
             for _ in range(8))
-        params = {'key':access_key}
-        ordered_params = sorted(params.items(), key=lambda t: t[0])
         alarm_url = "".join([origin, '/', vnf_id, '/', monitoring_policy_name, '/',
-                             alarm_action_name, '?', urlparse.urlencode(ordered_params)])
+                             alarm_action_name, '/', access_key])
         if self.driver in DRIVER:
             return alarm_url
 

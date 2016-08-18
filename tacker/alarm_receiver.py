@@ -31,8 +31,6 @@ class AlarmReceiver(wsgi.Middleware):
         LOG.debug(_('tung triggered: %s'), url)
         prefix, info, params = self.handle_url(req.url)
         LOG.debug(_('tung triggered: %s'), prefix)
-        device_id = info[3]
-        self.validate_url(device_id)
         token = Token(username='admin', password='devstack',
                       auth_url="http://127.0.0.1:35357/v2.0", tenant_name="admin")
         token_identity = token.create_token()
@@ -42,7 +40,11 @@ class AlarmReceiver(wsgi.Middleware):
         if 'alarm_id' in req.body:
             body_dict = dict()
             body_dict['trigger'] = {}
-            body_dict['trigger']['params'] = jsonutils.loads(req.body)
+            # Update params in the body request
+            alarm_dict = jsonutils.loads(req.body)
+            body_dict['trigger']['params']['alarm'] = alarm_dict
+            body_dict['trigger']['params']['credential'] = info[6]
+            # Update policy and action
             body_dict['trigger']['policy_name'] = info[4]
             body_dict['trigger']['action_name'] = info[5]
             req.body = jsonutils.dumps(body_dict)
@@ -54,11 +56,11 @@ class AlarmReceiver(wsgi.Middleware):
         LOG.debug('alarm url in receiver: %s', req.url)
 
     def handle_url(self, url):
-        # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
+        # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name/8785'
         parts = urlparse.urlparse(url)
         p = parts.path.split('/')
-        # expected: ['', 'v1.0', 'vnfs', 'vnf-uuid', 'monitoring-policy-name', 'action-name']
-        if len(p) != 6:
+        # expected: ['', 'v1.0', 'vnfs', 'vnf-uuid', 'monitoring-policy-name', 'action-name', '8785']
+        if len(p) != 7:
             return None
 
         if any((p[0] != '', p[2] != 'vnfs')):
@@ -68,7 +70,3 @@ class AlarmReceiver(wsgi.Middleware):
         prefix_url = '/%(collec)s/%(vnf_uuid)s/' % {'collec': p[2], 'vnf_uuid': p[3]}
         return prefix_url, p, params
 
-    def validate_url(self, device_id):
-        '''Validate with db'''
-        LOG.debug(_('Alarm url triggered: %s'), device_id)
-        return True
