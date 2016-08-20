@@ -562,8 +562,8 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
 
     def _make_policy_dict(self, vnf, name, policy):
         p = {}
-        p['type'] = policy['type']
-        p['properties'] = policy['properties']
+        p['type'] = policy.get['type']
+        p['properties'] = policy.get['properties'] or policy.get['triggers']
         p['vnf'] = vnf
         p['name'] = name
         p['id'] = p['name']
@@ -616,10 +616,41 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
 
         return scale['scale']
 
+    def _validate_alarming_policy(self, context, vnf_id, policy):
+        # validate policy type
+        type = policy['type']
+        if type not in constants.POLICY_ALARMING:
+            raise exceptions.VnfPolicyTypeInvalid(
+                type=type,
+                valid_types=constants.POLICY_ALARMING,
+                policy=policy['id']
+            )
+        # validate policy action
+        action = policy['action_name']
+        policies = self.get_vnf_policies(context, vnf_id, filters={'name': action})
+        if not policies:
+            raise exceptions.VnfPolicyNotFound(
+                vnf_id=action,
+                policy=policy['id']
+            )
+        LOG.debug(_("Policy %s is validated successfully") % policy)
+        # validate url
+
+    def _handle_vnf_monitoring(self, context, policy):
+
+        return True
+
     def create_vnf_trigger(
             self, context, vnf_id, trigger):
-        # Verified API
+        # Verified API: pending
+        # Need to use: _make_policy_dict, get_vnf_policies, get_vnf_policy
         # action: scaling, refer to template to find specific scaling policy
         # we can extend in future to support other policies
+        policy_ = self.get_vnf_policy(context,
+                                      trigger['trigger']['policy_name'],
+                                      vnf_id)
+        policy_.update({'action_name': trigger['trigger']['action_name']})
+        self._validate_alarming_policy(context, vnf_id, policy_)
+        self._handle_vnf_monitoring(context, policy_)
 
         return trigger['trigger']

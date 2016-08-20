@@ -50,3 +50,4 @@ POLICY_SCALING = 'tosca.policy.tacker.Scaling'
 POLICY_SCALING_ACTIONS = (ACTION_SCALE_OUT,
                           ACTION_SCALE_IN) = ('out', 'in')
 POLICY_ACTIONS = {POLICY_SCALING: POLICY_SCALING_ACTIONS}
+POLICY_ALARMING = 'tosca.policies.tacker.Alarming'
