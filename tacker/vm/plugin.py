@@ -637,7 +637,10 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         # validate url
 
     def _handle_vnf_monitoring(self, context, policy):
+        # Auto-scaling
 
+        # Respawning
+        # Log
         return True
 
     def create_vnf_trigger(
