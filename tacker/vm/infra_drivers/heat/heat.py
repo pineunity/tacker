@@ -474,9 +474,9 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
                 # TODO(anyone) extend to support any low level design.
                 whook = Webhook(mon_driver)
                 alarm_url = whook.create_alarm_url(name, mon_policy_dict,device)
-                LOG.debug('Alarm url %s', alarm_url)
-                properties['alarm_actions'] = [alarm_url]
-#                mon_policy['properties'] = properties
+                if alarm_url:
+                    LOG.debug('Alarm url %s', alarm_url)
+                    properties['alarm_actions'] = [alarm_url]
                 return properties
 
             def _convert_to_heat_monitoring_resource(mon_policy):

@@ -53,7 +53,13 @@ class Webhook(object):
         origin = "http://%(host)s:%(port)s/v1.0/vnfs" % {'host': host, 'port': port}
         vnf_id = device['id']
         monitoring_policy_name = policy_name
-        alarm_action_name = policy_dict['triggers']['resize_compute']['action']['resize_compute']
+        alarm_action = policy_dict['triggers']['resize_compute'].get('action')
+        if not alarm_action:
+            return
+        alarm_action_name = alarm_action.get('resize_compute')
+        if not alarm_action_name:
+            return
+        alarm_action_name = 'respawn'
         access_key = ''.join(
             random.SystemRandom().choice(string.ascii_lowercase + string.digits)
             for _ in range(8))

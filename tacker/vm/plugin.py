@@ -514,7 +514,6 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                           policy)
                 _handle_vnf_scaling_post(constants.ACTIVE, mgmt_url)
                 # TODO(kanagaraj-manickam): Add support for config and mgmt
-                # Monitoring policy here
             except Exception as e:
                 LOG.error(_("Policy %s action is failed to complete") %
                           policy)
@@ -628,7 +627,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         # validate policy action
         action = policy['action_name']
         policies = self.get_vnf_policies(context, vnf_id, filters={'name': action})
-        if not policies:
+        if not policies and action not in constants.DEFAULT_ALARM_ACTIONS:
             raise exceptions.VnfPolicyNotFound(
                 vnf_id=action,
                 policy=policy['id']
@@ -638,10 +637,23 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
 
     def _handle_vnf_monitoring(self, context, policy):
         # Auto-scaling
+        # is_monitored = True
+        # self._handle_vnf_scaling(self, context, policy, is_monitored)
+        # Monitoring is only supported actions which monitoring is enabled.
+        # EX: for auto-scaling, monitoring is one of supports. Because, auto-scaling could be achieved by CLI
 
-        # Respawning
-        # Log
-        return True
+        # Re-spawning
+        # From device_id ---> get device_dict
+        if policy['action_name'] == 'respawn':
+            vnf_dict = policy['vnf']
+            vim_auth = self.get_vim(context, vnf_dict)
+
+            def create_device_wait_for_alarming():
+                self._create_device_wait(context, vnf_dict, vim_auth)
+                self.config_device(context, vnf_dict)
+
+            self.spawn_n(create_device_wait_for_alarming)
+        return policy
 
     def create_vnf_trigger(
             self, context, vnf_id, trigger):
@@ -649,6 +661,8 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         # Need to use: _make_policy_dict, get_vnf_policies, get_vnf_policy
         # action: scaling, refer to template to find specific scaling policy
         # we can extend in future to support other policies
+
+        # Monitoring policy should be describe in heat_template_yaml. Create first
         policy_ = self.get_vnf_policy(context,
                                       trigger['trigger']['policy_name'],
                                       vnf_id)
