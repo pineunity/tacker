@@ -628,7 +628,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         # validate policy action
         action = policy['action_name']
         policies = self.get_vnf_policies(context, vnf_id, filters={'name': action})
-        if not policies:
+        if not policies and action not in constants.DEFAULT_ALARM_ACTIONS:
             raise exceptions.VnfPolicyNotFound(
                 vnf_id=action,
                 policy=policy['id']
