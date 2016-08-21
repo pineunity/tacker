@@ -40,6 +40,7 @@ class AlarmReceiver(wsgi.Middleware):
         if 'alarm_id' in req.body:
             body_dict = dict()
             body_dict['trigger'] = {}
+            body_dict['trigger'].setdefault('params', {})
             # Update params in the body request
             alarm_dict = jsonutils.loads(req.body)
             body_dict['trigger']['params']['alarm'] = alarm_dict
