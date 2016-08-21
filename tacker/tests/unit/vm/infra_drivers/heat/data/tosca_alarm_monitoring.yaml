@@ -54,4 +54,4 @@ topology_template:
                     method: avg
                     comparison_operator: gt
                 action:
-                  resize_compute: vdu1_scaling_out
+                  resize_compute: ''
