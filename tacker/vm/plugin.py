@@ -562,8 +562,8 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
 
     def _make_policy_dict(self, vnf, name, policy):
         p = {}
-        p['type'] = policy.get['type']
-        p['properties'] = policy.get['properties'] or policy.get['triggers']
+        p['type'] = policy.get('type')
+        p['properties'] = policy.get('properties') or policy.get('triggers')
         p['vnf'] = vnf
         p['name'] = name
         p['id'] = p['name']
