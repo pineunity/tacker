@@ -651,6 +651,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             vnf_pre['vnfd_id'] = vnf_device.pop('template_id')
             vnf_pre['attributes'] = {}
             vnf_pre['name'] = vnf_device.pop('name')
+            vnf_pre['vim_id'] = vnf_device.pop('vim_id')
             vnf['device'] = vnf_pre
             result = self.create_device(context, vnf)
         return result
