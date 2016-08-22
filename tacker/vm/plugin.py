@@ -645,8 +645,10 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         # Re-spawning
         # From device_id ---> get device_dict
         if policy['action_name'] == 'respawn':
-            vnf_dict = policy['vnf']
-            vnf = self.create_device(context, vnf_dict)
+            vnf_dict = {}
+            vnf = policy['vnf']
+            vnf_dict['device'] = vnf
+            vnf_device = self.create_device(context, vnf_dict)
         return vnf
 
     def create_vnf_trigger(
