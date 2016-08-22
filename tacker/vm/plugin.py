@@ -646,14 +646,8 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         # From device_id ---> get device_dict
         if policy['action_name'] == 'respawn':
             vnf_dict = policy['vnf']
-            vim_auth = self.get_vim(context, vnf_dict)
-
-            def create_device_wait_for_alarming():
-                self._create_device_wait(context, vnf_dict, vim_auth)
-                self.config_device(context, vnf_dict)
-
-            self.spawn_n(create_device_wait_for_alarming)
-        return policy
+            vnf = self.create_device(context, vnf_dict)
+        return vnf
 
     def create_vnf_trigger(
             self, context, vnf_id, trigger):
