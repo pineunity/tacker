@@ -59,7 +59,6 @@ class Webhook(object):
         alarm_action_name = alarm_action.get('resize_compute')
         if not alarm_action_name:
             return
-        alarm_action_name = 'respawn'
         access_key = ''.join(
             random.SystemRandom().choice(string.ascii_lowercase + string.digits)
             for _ in range(8))
