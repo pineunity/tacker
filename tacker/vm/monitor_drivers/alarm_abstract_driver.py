@@ -1,3 +1,5 @@
+# vim: tabstop=4 shiftwidth=4 softtabstop=4
+#
 # All Rights Reserved.
 #
 #
@@ -12,6 +14,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#+
+# Just for alarm. Tomorrow if you want to use it for other driver. totally, it makes sense.
 
 import abc
 
@@ -21,14 +25,12 @@ from tacker.api import extensions
 
 
 @six.add_metaclass(abc.ABCMeta)
-class VNFMonitorAbstractDriver(extensions.PluginInterface):
+class VNFMonitorAbstractAlarmDriver(extensions.PluginInterface):
 
-    @abc.abstractmethod 
+    @abc.abstractmethod
     def get_type(self):
         """Return one of predefined type of the hosting device drivers."""
         pass
-
-
 
     @abc.abstractmethod
     def get_name(self):
@@ -78,7 +80,44 @@ class VNFMonitorAbstractDriver(extensions.PluginInterface):
         """
         pass
 
+    @abc.abstractmethod
     def monitor_service_driver(self, plugin, context, device,
                                service_instance):
         # use same monitor driver to communicate with service
         return self.get_name()
+
+    @abc.abstractmethod
+    def get_alarm(self, plugin, device):
+        """Monitor.
+
+        Get alarm url from the low-level design
+
+
+        :param plugin:
+        :param device:
+        """
+        pass
+
+    @abc.abstractmethod
+    def process_alarm(self, plugin, device):
+        """Monitor.
+
+        Process alarm url from the low-level design
+
+
+        :param plugin:
+        :param device:
+        """
+        pass
+
+    @abc.abstractmethod
+    def process_notification(self, plugin, device):
+        """Notification.
+
+        Send messages to Tacker users
+
+
+        :param plugin:
+        :param device:
+        """
+        pass
