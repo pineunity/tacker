@@ -127,6 +127,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             'tacker.tacker.device.drivers',
             cfg.CONF.tacker.infra_driver)
         self._vnf_monitor = monitor.VNFMonitor(self.boot_wait)
+        self._vnf_alarm_monitor = monitor.VNFAlarmMonitor()
 
     def spawn_n(self, function, *args, **kwargs):
         self._pool.spawn_n(function, *args, **kwargs)

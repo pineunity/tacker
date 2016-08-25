@@ -176,6 +176,10 @@ class VNFMonitor(object):
                             device=device_dict, kwargs=kwargs)
 
 
+class VNFAlarmMonitor(object):
+    """VNF Alarm monitor"""
+
+
 @six.add_metaclass(abc.ABCMeta)
 class ActionPolicy(object):
     @classmethod
