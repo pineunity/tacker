@@ -178,6 +178,21 @@ class VNFMonitor(object):
 
 class VNFAlarmMonitor(object):
     """VNF Alarm monitor"""
+    OPTS = [
+        cfg.ListOpt(
+            'alarm_monitor_driver', default=['Ceilometer', 'Monasca', 'StackStorm'],
+            help=_('Alarm monitoring driver to communicate with '
+                   'Hosting VNF/logical service '
+                   'instance tacker plugin will use')),
+    ]
+    cfg.CONF.register_opts(OPTS, 'tacker')
+
+    # get alarm here
+    def __init__(self):
+
+    def create_alarm_url(self, plugin, device):
+        alarm_url = ''
+        return alarm_url
 
 
 @six.add_metaclass(abc.ABCMeta)
