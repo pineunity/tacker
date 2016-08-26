@@ -190,7 +190,7 @@ class VNFAlarmMonitor(object):
     # get alarm here
     def __init__(self):
         self._monitor_manager = driver_manager.DriverManager(
-            'tacker.tacker.monitor.drivers',
+            'tacker.tacker.alarm.monitor.drivers',
             cfg.CONF.tacker.monitor_driver)
 
     def create_alarm_url(self, plugin, device):
