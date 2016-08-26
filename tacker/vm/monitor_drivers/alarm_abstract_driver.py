@@ -42,52 +42,8 @@ class VNFMonitorAbstractAlarmDriver(extensions.PluginInterface):
         """Return description of VNF Monitor plugin."""
         pass
 
-    def monitor_get_config(self, plugin, context, device):
-        """Return dict of monitor configuration data.
-
-        :param plugin:
-        :param context:
-        :param device:
-        :returns: dict
-        :returns: dict of monitor configuration data
-        """
-        return {}
-
     @abc.abstractmethod
-    def monitor_url(self, plugin, context, device):
-        """Return the url of device to monitor.
-
-        :param plugin:
-        :param context:
-        :param device:
-        :returns: string
-        :returns: url of device to monitor
-        """
-        pass
-
-    @abc.abstractmethod
-    def monitor_call(self, device, kwargs):
-        """Monitor.
-
-        Return boolean value True if VNF is healthy
-        or return a event string like 'failure' or 'calls-capacity-reached'
-        for specific VNF health condition.
-
-        :param device:
-        :param kwargs:
-        :returns: boolean
-        :returns: True if VNF is healthy
-        """
-        pass
-
-    @abc.abstractmethod
-    def monitor_service_driver(self, plugin, context, device,
-                               service_instance):
-        # use same monitor driver to communicate with service
-        return self.get_name()
-
-    @abc.abstractmethod
-    def get_alarm(self, plugin, device):
+    def get_alarm_url(self, plugin, device):
         """Monitor.
 
         Get alarm url from the low-level design

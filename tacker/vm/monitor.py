@@ -189,13 +189,18 @@ class VNFAlarmMonitor(object):
 
     # get alarm here
     def __init__(self):
-        self._monitor_manager = driver_manager.DriverManager(
+        self._alarm_monitor_manager = driver_manager.DriverManager(
             'tacker.tacker.alarm.monitor.drivers',
             cfg.CONF.tacker.monitor_driver)
 
-    def create_alarm_url(self, plugin, device):
-        alarm_url = ''
-        return alarm_url
+    def _invoke(self, driver, **kwargs):
+        method = inspect.stack()[1][3]
+        return self._alarm_monitor_manager.invoke(
+            driver, method, **kwargs)
+
+    def get_alarm_url(self, driver, device_dict, kwargs):
+        return self._invoke(driver,
+                            device=device_dict, kwargs=kwargs)
 
 
 @six.add_metaclass(abc.ABCMeta)

@@ -17,8 +17,7 @@ from oslo_log import log as logging
 
 from tacker._i18n import _LW
 from tacker.common import log
-from tacker.vm.monitor_drivers import abstract_alarm_driver
-from tacker.vm.monitor_drivers import alarm_receiver
+from tacker.vm.monitor_drivers import alarm_abstract_driver
 
 
 LOG = logging.getLogger(__name__)
@@ -38,7 +37,7 @@ def config_opts():
     return [('ceilometer_driver', OPTS)]
 
 
-class VNFMonitorCeilometer(abstract_alarm_driver.VNFMonitorAbstractAlarmDriver):
+class VNFMonitorCeilometer(alarm_abstract_driver.VNFMonitorAbstractAlarmDriver):
     def get_type(self):
         return 'Ceiloemter'
 
@@ -69,6 +68,10 @@ class VNFMonitorCeilometer(abstract_alarm_driver.VNFMonitorAbstractAlarmDriver):
 
         return 'resize_compute'
 
+    def get_alarm_url(self, plugin, device):
+        url = ''
+
+        return url
     @log.log
     def monitor_call(self, device, kwargs):
         if not kwargs['mgmt_ip']:
