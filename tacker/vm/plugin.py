@@ -665,6 +665,11 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             result = ''
             return result
 
+        if policy['bckend_policy']:
+            bckend_policy = policy['bckend_policy']
+            bckend_policy_type = bckend_policy['type']
+            '''Handle autoscaling action'''
+            if bckend_policy_type == constants.POLICY_SCALING:
 
 
     def create_vnf_trigger(
@@ -680,7 +685,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                                       vnf_id)
         policy_.update({'action_name': trigger['trigger']['action_name']})
         policies = self._validate_alarming_policy(context, vnf_id, policy_)
-        policy_.update({'bkend_policy': policies})
+        policy_.update({'bckend_policy': policies})
         self._handle_vnf_monitoring(context, policy_)
 
         return trigger['trigger']
