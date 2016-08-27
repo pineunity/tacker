@@ -203,6 +203,7 @@ class VNFAlarmMonitor(object):
                             device=device_dict, kwargs=kwargs)
 
 
+
 @six.add_metaclass(abc.ABCMeta)
 class ActionPolicy(object):
     @classmethod
@@ -292,6 +293,13 @@ class ActionRespawnHeat(ActionPolicy):
                                                            device_dict)
             plugin.config_device(context, update_device_dict)
             plugin.add_device_to_monitor(update_device_dict, auth_attr)
+
+
+@ActionPolicy.register('autoscaling', 'heat')
+class ActionAutoscalingHeat(ActionPolicy):
+    @classmethod
+    def execute_action(cls, plugin, device_dict, auth_attr):
+        '''call scaling function from plugin here'''
 
 
 @ActionPolicy.register('log')
