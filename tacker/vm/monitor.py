@@ -193,6 +193,11 @@ class VNFAlarmMonitor(object):
             'tacker.tacker.alarm.monitor.drivers',
             cfg.CONF.tacker.monitor_driver)
 
+    def update_device_with_alarm(self, device):
+        vnfd_yaml = device['device_template']['vnfd']
+
+
+
     def _invoke(self, driver, **kwargs):
         method = inspect.stack()[1][3]
         return self._alarm_monitor_manager.invoke(

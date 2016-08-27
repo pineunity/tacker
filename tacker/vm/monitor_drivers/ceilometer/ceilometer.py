@@ -46,7 +46,7 @@ class VNFMonitorCeilometer(alarm_abstract_driver.VNFMonitorAbstractAlarmDriver):
     def get_description(self):
         return 'Tacker VNFMonitor Ceilometer Driver'
 
-    def _create_alarm_url(self, device, policy_name, policy_dict):
+    def _create_alarm_url(self, vnf_id, mon_policy_name, mon_policy_action):
         # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
         host = cfg.CONF.trigger.host
         port = cfg.CONF.trigger.port
@@ -54,21 +54,13 @@ class VNFMonitorCeilometer(alarm_abstract_driver.VNFMonitorAbstractAlarmDriver):
                  {'host': host,
                   'port': port})
         origin = "http://%(host)s:%(port)s/v1.0/vnfs" % {'host': host, 'port': port}
-        vnf_id = device['id']
-        monitoring_policy_name = policy_name
-        alarm_action = policy_dict['triggers']['resize_compute'].get('action')
-        if not alarm_action:
-            return
-        alarm_action_name = alarm_action.get('resize_compute')
-        if not alarm_action_name:
-            return
         access_key = ''.join(
             random.SystemRandom().choice(string.ascii_lowercase + string.digits)
             for _ in range(8))
-        alarm_url = "".join([origin, '/', vnf_id, '/', monitoring_policy_name, '/',
-                             alarm_action_name, '/', access_key])
+        alarm_url = "".join([origin, '/', vnf_id, '/', mon_policy_name, '/',
+                             mon_policy_action, '/', access_key])
         return alarm_url
 
     def get_alarm_url(self, device, kwargs):
         '''must be used after call heat-create in plugin'''
-        return self._create_alarm_url(device, **kwargs)
+        return self._create_alarm_url(**kwargs)
