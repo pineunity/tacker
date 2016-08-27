@@ -35,12 +35,6 @@ cfg.CONF.register_opts(trigger_opts, group='trigger')
 def config_opts():
     return [('trigger', trigger_opts)]
 
-DRIVER = ['Ceilometer', 'Monasca', 'StackStorm']
-
-
-def config_opts():
-    return [('ceilometer_driver', OPTS)]
-
 
 class VNFMonitorCeilometer(alarm_abstract_driver.VNFMonitorAbstractAlarmDriver):
     def get_type(self):
@@ -78,4 +72,3 @@ class VNFMonitorCeilometer(alarm_abstract_driver.VNFMonitorAbstractAlarmDriver):
     def get_alarm_url(self, device, kwargs):
         '''must be used after call heat-create in plugin'''
         return self._create_alarm_url(device, **kwargs)
-
