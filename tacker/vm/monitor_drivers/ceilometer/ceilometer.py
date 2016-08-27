@@ -11,26 +11,31 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-import yaml
+
 from oslo_config import cfg
 from oslo_log import log as logging
-
-from tacker._i18n import _LW
+import random
+import string
 from tacker.common import log
+from tacker.common import utils
+from tacker._i18n import _LW
 from tacker.vm.monitor_drivers import alarm_abstract_driver
 
 
 LOG = logging.getLogger(__name__)
 
-OPTS = [
-    cfg.StrOpt('period', default='60',
-               help=_('period time')),
-    cfg.StrOpt('evaluation_period', default='1',
-               help=_('evaluation period')),
-    cfg.StrOpt('threshold', default='70',
-               help=_('threshold'))
+trigger_opts = [
+    cfg.StrOpt('host', default=utils.get_hostname(),
+               help=_('Address which drivers use to trigger')),
+    cfg.PortOpt('port', default=9890,
+               help=_('number of seconds to wait for a response'))
 ]
-cfg.CONF.register_opts(OPTS, 'ceilometer_driver')
+cfg.CONF.register_opts(trigger_opts, group='trigger')
+
+def config_opts():
+    return [('trigger', trigger_opts)]
+
+DRIVER = ['Ceilometer', 'Monasca', 'StackStorm']
 
 
 def config_opts():
@@ -47,34 +52,30 @@ class VNFMonitorCeilometer(alarm_abstract_driver.VNFMonitorAbstractAlarmDriver):
     def get_description(self):
         return 'Tacker VNFMonitor Ceilometer Driver'
 
-    def monitor_url(self, plugin, context, device):
-        LOG.debug(_('monitor_url %s'), device)
-        return device.get('monitor_url', '')
-
-    def _is_alarmed(self, device, **kwargs):
-        """Checks whether a VM reaches to threshold.
-        threshold gets from device
-        :param device
-        :return: bool - string 'resize_compute' when reaching threshold
-        Check if device[id]==vnn-id --> device
-        call wsgi function
-        """
-        vnfd_yaml = device['template_dict']['attribute']['vnfd']
-        vnfd_dict = yaml.load(vnfd_yaml)
-
-
-
-        LOG.warning(_LW("Device %s is reaching to threshold"), device['id'])
-
-        return 'resize_compute'
-
-    def get_alarm_url(self, plugin, device):
-        url = ''
-
-        return url
-    @log.log
-    def monitor_call(self, device, kwargs):
-        if not kwargs['mgmt_ip']:
+    def _create_alarm_url(self, device, policy_name, policy_dict):
+        # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy-name/action-name?key=8785'
+        host = cfg.CONF.trigger.host
+        port = cfg.CONF.trigger.port
+        LOG.info(_("Tacker in heat listening on %(host)s:%(port)s"),
+                 {'host': host,
+                  'port': port})
+        origin = "http://%(host)s:%(port)s/v1.0/vnfs" % {'host': host, 'port': port}
+        vnf_id = device['id']
+        monitoring_policy_name = policy_name
+        alarm_action = policy_dict['triggers']['resize_compute'].get('action')
+        if not alarm_action:
             return
+        alarm_action_name = alarm_action.get('resize_compute')
+        if not alarm_action_name:
+            return
+        access_key = ''.join(
+            random.SystemRandom().choice(string.ascii_lowercase + string.digits)
+            for _ in range(8))
+        alarm_url = "".join([origin, '/', vnf_id, '/', monitoring_policy_name, '/',
+                             alarm_action_name, '/', access_key])
+        return alarm_url
 
-        return self._is_pingable(**kwargs)
+    def get_alarm_url(self, device, kwargs):
+        '''must be used after call heat-create in plugin'''
+        return self._create_alarm_url(device, **kwargs)
+
