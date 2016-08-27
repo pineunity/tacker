@@ -634,10 +634,11 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                 policy=policy['id']
             )
         LOG.debug(_("Policy %s is validated successfully") % policy)
+        return policies
         # validate url
 
     def _handle_vnf_monitoring(self, context, policy):
-        # Auto-scaling
+        # Auto-scaling ---> call backend functions from monitor
         # is_monitored = True
         # self._handle_vnf_scaling(self, context, policy, is_monitored)
         # Monitoring is only supported actions which monitoring is enabled.
@@ -646,6 +647,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         # Re-spawning
         # From device_id ---> get device_dict
         if policy['action_name'] == 'respawn':
+            '''Better to call backend functions in monitor'''
             vnf_device = policy['vnf']
             vnf = {}
             vnf_pre = {}
@@ -655,7 +657,15 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             vnf_pre['vim_id'] = vnf_device.pop('vim_id')
             vnf['device'] = vnf_pre
             result = self.create_device(context, vnf)
-        return result
+            return result
+
+        if policy['action_name'] == 'log':
+            '''call backend action in monitor'''
+            vnf_device = policy['vnf']
+            result = ''
+            return result
+
+
 
     def create_vnf_trigger(
             self, context, vnf_id, trigger):
@@ -669,7 +679,8 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                                       trigger['trigger']['policy_name'],
                                       vnf_id)
         policy_.update({'action_name': trigger['trigger']['action_name']})
-        self._validate_alarming_policy(context, vnf_id, policy_)
+        policies = self._validate_alarming_policy(context, vnf_id, policy_)
+        policy_.update({'bkend_policy': policies})
         self._handle_vnf_monitoring(context, policy_)
 
         return trigger['trigger']

@@ -302,6 +302,7 @@ class ActionAutoscalingHeat(ActionPolicy):
         '''call scaling function from plugin here'''
 
 
+
 @ActionPolicy.register('log')
 class ActionLogOnly(ActionPolicy):
     @classmethod
