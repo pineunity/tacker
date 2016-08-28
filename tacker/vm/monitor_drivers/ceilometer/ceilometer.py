@@ -61,6 +61,6 @@ class VNFMonitorCeilometer(alarm_abstract_driver.VNFMonitorAbstractAlarmDriver):
                              mon_policy_action, '/', access_key])
         return alarm_url
 
-    def get_alarm_url(self, device, kwargs):
+    def call_alarm_url(self, device, kwargs):
         '''must be used after call heat-create in plugin'''
         return self._create_alarm_url(**kwargs)
