@@ -43,7 +43,7 @@ class VNFMonitorAbstractAlarmDriver(extensions.PluginInterface):
         pass
 
     @abc.abstractmethod
-    def call_alarm_url(self, plugin, device):
+    def call_alarm_url(self, device, kwargs):
         """Monitor.
 
         Get alarm url from the low-level design
