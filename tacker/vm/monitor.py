@@ -313,7 +313,7 @@ class ActionAutoscalingHeat(ActionPolicy):
     @classmethod
     def execute_action(cls, plugin, device_dict, auth_attr):
         '''call scaling function from plugin here'''
-
+        return
 
 
 @ActionPolicy.register('log')
