@@ -193,9 +193,8 @@ class VNFAlarmMonitor(object):
             'tacker.tacker.alarm.monitor.drivers',
             cfg.CONF.tacker.monitor_driver)
 
-    def update_device_with_alarm(self, device, mon_policy):
+    def update_device_with_alarm(self, device, policy_name, policy_dict):
         vnf_id = device['id']
-        policty_name, policy_dict = mon_policy.items()[0]
         driver = policy_dict['triggers']['resize_compute']['event_type']['implementation']
         policy_action = policy_dict['triggers']['resize_compute'].get('action')
         if not policy_action:
@@ -203,7 +202,7 @@ class VNFAlarmMonitor(object):
         alarm_action_name = policy_action.get('resize_compute')
         if not alarm_action_name:
             return
-        alarm_url = self.call_alarm_url(driver, vnf_id, policty_name, policy_action)
+        alarm_url = self.call_alarm_url(driver, vnf_id, policy_name, policy_action)
         return alarm_url
         # device['attribute']['alarm_url'] = alarm_url ---> create by plugin or vm_db
 
