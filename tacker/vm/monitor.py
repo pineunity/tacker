@@ -206,7 +206,6 @@ class VNFAlarmMonitor(object):
         return alarm_url
         # device['attribute']['alarm_url'] = alarm_url ---> create by plugin or vm_db
 
-
     def _invoke(self, driver, **kwargs):
         method = inspect.stack()[1][3]
         return self._alarm_monitor_manager.invoke(

@@ -201,7 +201,6 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                     device_dict['attributes']['alarm_url'] = alarm_url
                     break
 
-
     def config_device(self, context, device_dict):
         config = device_dict['attributes'].get('config')
         if not config:
@@ -661,16 +660,15 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         # From device_id ---> get device_dict
         if policy['action_name'] == 'respawn':
             '''Better to call backend functions in monitor'''
+            action = 'respawn'
             vnf_device = policy['vnf']
-            vnf = {}
-            vnf_pre = {}
-            vnf_pre['template_id'] = vnf_device.pop('template_id')
-            vnf_pre['attributes'] = {}
-            vnf_pre['name'] = vnf_device.pop('name')
-            vnf_pre['vim_id'] = vnf_device.pop('vim_id')
-            vnf['device'] = vnf_pre
-            result = self.create_device(context, vnf)
-            return result
+            vim_auth = self.get_vim(context, vnf_device)
+            action_cls = monitor.ActionPolicy.get_policy(action,
+                                                         vnf_device)
+            if action_cls:
+                action_cls.execute_action(self, vnf_device,
+                                          vim_auth)
+            return
 
         if policy['action_name'] == 'log':
             '''call backend action in monitor'''
@@ -683,7 +681,8 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             bckend_policy_type = bckend_policy['type']
             '''Handle autoscaling action'''
             if bckend_policy_type == constants.POLICY_SCALING:
-
+                result = ''
+                return result
 
     def create_vnf_trigger(
             self, context, vnf_id, trigger):
