@@ -190,6 +190,17 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             LOG.debug('hosting_vnf: %s', hosting_vnf)
             self._vnf_monitor.add_hosting_vnf(hosting_vnf)
 
+    def add_alarm_url_to_device(self, device_dict, vim_auth):
+        vnfd_dict = yaml.load(device_dict['device_template']['attributes']['vnfd'])
+        if vnfd_dict.get('tosca_definitions_version'):
+            polices = vnfd_dict['topology_template'].get('policies', [])
+            for policy_dict in polices:
+                name, policy = policy_dict.items()
+                if policy[type] in constants.POLICY_ALARMING:
+                    self._vnf_alarm_monitor.update_device_with_alarm(device_dict, policy)
+                    break
+
+
     def config_device(self, context, device_dict):
         config = device_dict['attributes'].get('config')
         if not config:

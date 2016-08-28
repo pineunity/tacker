@@ -205,10 +205,7 @@ class VNFAlarmMonitor(object):
             return
         alarm_url = self.call_alarm_url(driver, vnf_id, policty_name, policy_action)
         return alarm_url
-
-
         # device['attribute']['alarm_url'] = alarm_url ---> create by plugin or vm_db
-
 
 
     def _invoke(self, driver, **kwargs):
