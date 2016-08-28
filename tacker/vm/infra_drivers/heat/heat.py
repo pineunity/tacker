@@ -33,7 +33,6 @@ from tacker.extensions import vnfm
 from tacker.vm.infra_drivers import abstract_driver
 from tacker.vm.infra_drivers import scale_driver
 from tacker.vm.tosca import utils as toscautils
-from tacker.vm.monitor_drivers.webhook import Webhook
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -469,11 +468,7 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
                 properties['description'] = tpl_condition['constraint']
                 properties['threshold'] = tpl_condition['threshold']
                 # alarm url process here
-                mon_driver = \
-                    tpl_trigger_name['event_type']['implementation']
-                # TODO(anyone) extend to support any low level design.
-                whook = Webhook(mon_driver)
-                alarm_url = whook.create_alarm_url(name, mon_policy_dict,device)
+                alarm_url = device['attributes']['alarm_url']
                 if alarm_url:
                     LOG.debug('Alarm url %s', alarm_url)
                     properties['alarm_actions'] = [alarm_url]
