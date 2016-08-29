@@ -73,7 +73,7 @@ class VimDuplicateUrlException(exceptions.TackerException):
                 "duplicate VIM")
 
 
-class VimPorjectDomainNameMissingException(exceptions.TackerException):
+class VimProjectDomainNameMissingException(exceptions.TackerException):
     message = _("'project_domain_name' is missing")
 
 
@@ -157,6 +157,17 @@ RESOURCE_ATTRIBUTE_MAP = {
         'is_default': {
             'allow_post': True,
             'allow_put': True,
+            'is_visible': True,
+            'default': False
+        },
+        'created_at': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'updated_at': {
+            'allow_post': False,
+            'allow_put': False,
             'is_visible': True,
         },
     }
