@@ -38,10 +38,10 @@ def config_opts():
 
 class VNFMonitorCeilometer(alarm_abstract_driver.VNFMonitorAbstractAlarmDriver):
     def get_type(self):
-        return 'Ceiloemter'
+        return 'ceilometer'
 
     def get_name(self):
-        return 'Ceilometer'
+        return 'ceilometer'
 
     def get_description(self):
         return 'Tacker VNFMonitor Ceilometer Driver'
