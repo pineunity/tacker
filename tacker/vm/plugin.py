@@ -196,7 +196,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             polices = vnfd_dict['topology_template'].get('policies', [])
             for policy_dict in polices:
                 name, policy = policy_dict.items()[0]
-                if policy[type] in constants.POLICY_ALARMING:
+                if policy['type'] in constants.POLICY_ALARMING:
                     alarm_url = self._vnf_alarm_monitor.update_device_with_alarm(device_dict, name, policy)
                     device_dict['attributes']['alarm_url'] = alarm_url
                     break
