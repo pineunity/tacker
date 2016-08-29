@@ -180,7 +180,7 @@ class VNFAlarmMonitor(object):
     """VNF Alarm monitor"""
     OPTS = [
         cfg.ListOpt(
-            'alarm_monitor_driver', default=['Ceilometer', 'Monasca', 'StackStorm'],
+            'alarm_monitor_driver', default=['ceilometer', 'monasca'],
             help=_('Alarm monitoring driver to communicate with '
                    'Hosting VNF/logical service '
                    'instance tacker plugin will use')),
