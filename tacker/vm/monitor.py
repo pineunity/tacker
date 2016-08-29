@@ -191,7 +191,7 @@ class VNFAlarmMonitor(object):
     def __init__(self):
         self._alarm_monitor_manager = driver_manager.DriverManager(
             'tacker.tacker.alarm.monitor.drivers',
-            cfg.CONF.tacker.monitor_driver)
+            cfg.CONF.tacker.alarm_monitor_driver)
 
     def update_device_with_alarm(self, device, policy_name, policy_dict):
         params = dict()
