@@ -55,7 +55,10 @@ POLICY_ACTIONS = {POLICY_SCALING: POLICY_SCALING_ACTIONS}
 <<<<<<< HEAD
 POLICY_ALARMING = 'tosca.policies.tacker.Alarming'
 DEFAULT_ALARM_ACTIONS = ['respawn', 'log', 'notify']
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 8776bca494579eb272e5b0388d0ccd6ea1e0fbf5
 
 RES_TYPE_VNFD = "vnfd"
 RES_TYPE_VNF = "vnf"
@@ -69,4 +72,7 @@ RES_EVT_VNFD_NA_STATE = "Not Applicable"
 RES_EVT_CREATED_FLD = "created_at"
 RES_EVT_DELETED_FLD = "deleted_at"
 RES_EVT_UPDATED_FLD = "updated_at"
+<<<<<<< HEAD
 >>>>>>> master
+=======
+>>>>>>> 8776bca494579eb272e5b0388d0ccd6ea1e0fbf5
