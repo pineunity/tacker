@@ -470,7 +470,7 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
                 # alarm url process here
                 alarm_url = device['attributes']['alarm_url']
                 if alarm_url:
-                    LOG.debug('Alarm url %s', alarm_url)
+                    LOG.debug('Alarm url in heat %s', alarm_url)
                     properties['alarm_actions'] = [alarm_url]
                 return properties
 

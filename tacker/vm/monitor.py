@@ -202,7 +202,7 @@ class VNFAlarmMonitor(object):
         alarm_action_name = policy_action.get('resize_compute')
         if not alarm_action_name:
             return
-        alarm_url = self.call_alarm_url(driver, vnf_id, policy_name, policy_action)
+        alarm_url = self.call_alarm_url(driver, device, vnf_id, policy_name, policy_action)
         return alarm_url
         # device['attribute']['alarm_url'] = alarm_url ---> create by plugin or vm_db
 
