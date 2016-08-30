@@ -29,7 +29,7 @@ class VNFMonitorAbstractAlarmDriver(extensions.PluginInterface):
 
     @abc.abstractmethod
     def get_type(self):
-        """Return one of predefined type of the hosting device drivers."""
+        """Return one of predefined type of the hosting vnf drivers."""
         pass
 
     @abc.abstractmethod
@@ -43,35 +43,35 @@ class VNFMonitorAbstractAlarmDriver(extensions.PluginInterface):
         pass
 
     @abc.abstractmethod
-    def call_alarm_url(self, device, kwargs):
+    def call_alarm_url(self, vnf, kwargs):
         """Monitor.
 
         Get alarm url from the low-level design
 
 
         :param plugin:
-        :param device:
+        :param vnf:
         """
         pass
 
-    def process_alarm(self, plugin, device):
+    def process_alarm(self, plugin, vnf):
         """Monitor.
 
         Process alarm url from the low-level design
 
 
         :param plugin:
-        :param device:
+        :param vnf:
         """
         pass
 
-    def process_notification(self, plugin, device):
+    def process_notification(self, plugin, vnf):
         """Notification.
 
         Send messages to Tacker users
 
 
         :param plugin:
-        :param device:
+        :param vnf:
         """
         pass
