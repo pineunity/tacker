@@ -17,7 +17,7 @@ from oslo_log import log as logging
 import random
 import string
 from tacker.common import utils
-from tacker.vm.monitor_drivers import alarm_abstract_driver
+from tacker.vnfm.monitor_drivers import alarm_abstract_driver
 
 
 LOG = logging.getLogger(__name__)
