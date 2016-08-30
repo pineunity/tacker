@@ -16,9 +16,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import random
 import string
-from tacker.common import log
 from tacker.common import utils
-from tacker._i18n import _LW
 from tacker.vm.monitor_drivers import alarm_abstract_driver
 
 
@@ -31,6 +29,7 @@ trigger_opts = [
                help=_('number of seconds to wait for a response'))
 ]
 cfg.CONF.register_opts(trigger_opts, group='trigger')
+
 
 def config_opts():
     return [('trigger', trigger_opts)]

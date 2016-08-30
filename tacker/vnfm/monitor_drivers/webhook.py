@@ -18,9 +18,6 @@ import string
 from oslo_config import cfg
 from oslo_log import log as logging
 from tacker.common import utils
-from six.moves.urllib import parse as urlparse
-from collections import OrderedDict
-# from tacker.db.vm import vm_db
 
 LOG = logging.getLogger(__name__)
 
