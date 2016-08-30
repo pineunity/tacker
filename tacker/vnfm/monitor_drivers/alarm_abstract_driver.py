@@ -14,8 +14,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-#+
-# Just for alarm. Tomorrow if you want to use it for other driver. totally, it makes sense.
+#
 
 import abc
 
