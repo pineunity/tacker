@@ -35,7 +35,7 @@ cfg.CONF.register_opts(trigger_opts, group='trigger')
 def config_opts():
     return [('trigger', trigger_opts)]
 
-DRIVER = ['Ceilometer', 'Monasca', 'StackStorm']
+DRIVER = ['ceilometer', 'monasca', 'stackstorm']
 
 
 class Webhook(object):

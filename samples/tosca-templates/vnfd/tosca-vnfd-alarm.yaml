@@ -43,7 +43,7 @@ topology_template:
             resize_compute:
                 event_type:
                     type: tosca.events.resource.utilization
-                    implementation: Ceilometer
+                    implementation: ceilometer
                     targets: [VDU1]
                 metrics: cpu_util
                 condition:
