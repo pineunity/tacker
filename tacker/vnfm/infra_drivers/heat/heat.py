@@ -475,7 +475,7 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
                     tpl_trigger_name['event_type']['implementation']
                 # TODO(anyone) extend to support any low level design.
                 whook = Webhook(mon_driver)
-                alarm_url = whook.create_alarm_url(name, mon_policy_dict,device)
+                alarm_url = whook.create_alarm_url(name, mon_policy_dict, vnf)
                 if alarm_url:
                     LOG.debug('Alarm url %s', alarm_url)
                     properties['alarm_actions'] = [alarm_url]
