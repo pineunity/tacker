@@ -15,7 +15,7 @@ from oslo_serialization import jsonutils
 import logging
 from six.moves.urllib import parse as urlparse
 from tacker import wsgi
-from tacker.vm.monitor_drivers.token import Token
+from tacker.vnfm.monitor_drivers.token import Token
 # check alarm url with db --> move to plugin
 
 LOG = logging.getLogger(__name__)
