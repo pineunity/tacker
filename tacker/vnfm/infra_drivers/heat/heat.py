@@ -104,7 +104,7 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
         vnfd_yaml = vnfd_dict['attributes'].get('vnfd')
         if vnfd_yaml is None:
             return
-
+        LOG.debug(_('vnfd_yaml: %s'), vnfd_yaml)
         inner_vnfd_dict = yaml.load(vnfd_yaml)
         LOG.debug(_('vnfd_dict: %s'), inner_vnfd_dict)
 
