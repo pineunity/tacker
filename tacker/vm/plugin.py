@@ -283,9 +283,9 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             context, vnf) if not vnf.get('id') else vnf
         vnf_id = vnf_dict['id']
         driver_name = self._infra_driver_name(vnf_dict)
-        LOG.debug(_('vnf_dict %s'), vnf_dict)
         self.mgmt_create_pre(context, vnf_dict)
         self.add_alarm_url_to_vnf(vnf_dict)
+        LOG.debug(_('vnf_dict %s'), vnf_dict)
         try:
             instance_id = self._vnf_manager.invoke(
                 driver_name, 'create', plugin=self,

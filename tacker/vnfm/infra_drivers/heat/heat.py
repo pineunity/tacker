@@ -492,7 +492,7 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
                             _convert_to_heat_monitoring_resource(policy_dict)
                         break
 
-            heat_tpl_yaml = yaml.safe_dump(heat_dict)
+            heat_tpl_yaml = yaml.dump(heat_dict)
             return (is_enabled_alarm,
                     heat_tpl_yaml)
 
