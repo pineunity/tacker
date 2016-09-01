@@ -318,6 +318,7 @@ class ActionRespawnHeat(ActionPolicy):
                 heatclient = heat.HeatClient(auth_attr=auth_attr,
                                              region_name=region_name)
                 heatclient.delete(vnf_dict['instance_id'])
+                vnf_dict['attribute'].pop('alarm_url')
 
                 # TODO(anyone) set the current request ctxt instead of admin ctxt
                 context = t_context.get_admin_context()
