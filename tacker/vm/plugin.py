@@ -193,6 +193,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                 vnf_dict, action_cb)
             LOG.debug('hosting_vnf: %s', hosting_vnf)
             self._vnf_monitor.add_hosting_vnf(hosting_vnf)
+            return hosting_vnf
 
     def add_alarm_url_to_vnf(self, vnf_dict):
         vnfd_dict = yaml.load(vnf_dict['vnfd']['attributes']['vnfd'])
@@ -204,7 +205,6 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                     alarm_url = self._vnf_alarm_monitor.update_vnf_with_alarm(vnf_dict, name, policy)
                     vnf_dict['attributes']['alarm_url'] = alarm_url
                     break
-
 
     def config_vnf(self, context, vnf_dict):
         config = vnf_dict['attributes'].get('config')
@@ -676,6 +676,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             '''Better to call backend functions in monitor'''
             action = 'respawn'
             vnf_dict = policy['vnf']
+            LOG.debug(_('vnf for monitoring: %s'), vnf_dict)
             vim_auth = self.get_vim(context, vnf_dict)
             action_cls = monitor.ActionPolicy.get_policy(action,
                                                          vnf_dict)

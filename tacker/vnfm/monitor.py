@@ -289,27 +289,41 @@ class ActionRespawnHeat(ActionPolicy):
         vnf_id = vnf_dict['id']
         LOG.error(_('vnf %s dead'), vnf_id)
         if plugin._mark_vnf_dead(vnf_dict['id']):
-            plugin._vnf_monitor.mark_dead(vnf_dict['id'])
-            attributes = vnf_dict['attributes']
-            failure_count = int(attributes.get('failure_count', '0')) + 1
-            failure_count_str = str(failure_count)
-            attributes['failure_count'] = failure_count_str
-            attributes['dead_instance_id_' + failure_count_str] = vnf_dict[
-                'instance_id']
-            placement_attr = vnf_dict.get('placement_attr', {})
-            region_name = placement_attr.get('region_name')
-            # kill heat stack
-            heatclient = heat.HeatClient(auth_attr=auth_attr,
-                                         region_name=region_name)
-            heatclient.delete(vnf_dict['instance_id'])
+            if plugin.add_vnf_to_monitor(vnf_dict, auth_attr):
+                plugin._vnf_monitor.mark_dead(vnf_dict['id'])
+                attributes = vnf_dict['attributes']
+                failure_count = int(attributes.get('failure_count', '0')) + 1
+                failure_count_str = str(failure_count)
+                attributes['failure_count'] = failure_count_str
+                attributes['dead_instance_id_' + failure_count_str] = vnf_dict[
+                    'instance_id']
+                placement_attr = vnf_dict.get('placement_attr', {})
+                region_name = placement_attr.get('region_name')
+                # kill heat stack
+                heatclient = heat.HeatClient(auth_attr=auth_attr,
+                                             region_name=region_name)
+                heatclient.delete(vnf_dict['instance_id'])
 
-            # TODO(anyone) set the current request ctxt instead of admin ctxt
-            context = t_context.get_admin_context()
-            update_vnf_dict = plugin.create_vnf_sync(context,
-                                                     vnf_dict)
-            plugin.config_vnf(context, update_vnf_dict)
-            plugin.add_vnf_to_monitor(update_vnf_dict, auth_attr)
+                # TODO(anyone) set the current request ctxt instead of admin ctxt
+                context = t_context.get_admin_context()
+                update_vnf_dict = plugin.create_vnf_sync(context,
+                                                         vnf_dict)
+                plugin.config_vnf(context, update_vnf_dict)
+                plugin.add_vnf_to_monitor(update_vnf_dict, auth_attr)
 
+            if vnf_dict['attributes'].get('alarm_url'):
+                placement_attr = vnf_dict.get('placement_attr', {})
+                region_name = placement_attr.get('region_name')
+                # kill heat stack
+                heatclient = heat.HeatClient(auth_attr=auth_attr,
+                                             region_name=region_name)
+                heatclient.delete(vnf_dict['instance_id'])
+
+                # TODO(anyone) set the current request ctxt instead of admin ctxt
+                context = t_context.get_admin_context()
+                update_vnf_dict = plugin.create_vnf_sync(context,
+                                                         vnf_dict)
+                plugin.config_vnf(context, update_vnf_dict)
 
 @ActionPolicy.register('autoscaling', 'heat')
 class ActionAutoscalingHeat(ActionPolicy):
