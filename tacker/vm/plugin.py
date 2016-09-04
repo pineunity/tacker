@@ -675,12 +675,18 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             action = policy['action_name']
             vnf_dict = policy['vnf']
             LOG.debug(_('vnf for monitoring: %s'), vnf_dict)
-            vim_auth = self.get_vim(context, vnf_dict)
-            action_cls = monitor.ActionPolicy.get_policy(action,
-                                                         vnf_dict)
-            if action_cls:
-                action_cls.execute_action(self, vnf_dict,
-                                          vim_auth)
+            if action == 'respawn':
+                vim_auth = self.get_vim(context, vnf_dict)
+                action_cls = monitor.ActionPolicy.get_policy(action,
+                                                             vnf_dict)
+                if action_cls:
+                    action_cls.execute_action(self, vnf_dict,
+                                              vim_auth)
+            if action in ['log', 'log_and_kill']:
+                action_cls = monitor.ActionPolicy.get_policy(action,
+                                                             vnf_dict)
+                if action_cls:
+                    action_cls.execute_action(self, vnf_dict)
 
         if policy['bckend_policy']:
             bckend_policy = policy['bckend_policy']

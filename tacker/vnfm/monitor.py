@@ -289,7 +289,7 @@ class ActionRespawnHeat(ActionPolicy):
         vnf_id = vnf_dict['id']
         LOG.error(_('vnf %s dead'), vnf_id)
         if plugin._mark_vnf_dead(vnf_dict['id']):
-            if plugin.add_vnf_to_monitor(vnf_dict, auth_attr):
+            if vnf_dict['attributes'].get('monitoring_policy'):
                 plugin._vnf_monitor.mark_dead(vnf_dict['id'])
                 attributes = vnf_dict['attributes']
                 failure_count = int(attributes.get('failure_count', '0')) + 1
@@ -349,6 +349,7 @@ class ActionLogAndKill(ActionPolicy):
     def execute_action(cls, plugin, vnf_dict):
         vnf_id = vnf_dict['id']
         if plugin._mark_vnf_dead(vnf_dict['id']):
-            plugin._vnf_monitor.mark_dead(vnf_dict['id'])
-            plugin.delete_vnf(t_context.get_admin_context(), vnf_id)
+            if vnf_dict['attributes'].get('monitoring_policy'):
+                plugin._vnf_monitor.mark_dead(vnf_dict['id'])
+        plugin.delete_vnf(t_context.get_admin_context(), vnf_id)
         LOG.error(_('vnf %s dead'), vnf_id)
