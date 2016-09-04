@@ -671,10 +671,8 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         # self._handle_vnf_scaling(self, context, policy, is_monitored)
         # Monitoring is only supported actions which monitoring is enabled.
         # EX: for auto-scaling, monitoring is one of supports. Because, auto-scaling could be achieved by CLI
-
-        if policy['action_name'] == 'respawn':
-            '''Better to call backend functions in monitor'''
-            action = 'respawn'
+        if policy['action_name'] in constants.DEFAULT_ALARM_ACTIONS:
+            action = policy['action_name']
             vnf_dict = policy['vnf']
             LOG.debug(_('vnf for monitoring: %s'), vnf_dict)
             vim_auth = self.get_vim(context, vnf_dict)
@@ -683,13 +681,6 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             if action_cls:
                 action_cls.execute_action(self, vnf_dict,
                                           vim_auth)
-            return
-
-        if policy['action_name'] == 'log':
-            '''call backend action in monitor'''
-            vnf_dict = policy['vnf']
-            result = ''
-            return result
 
         if policy['bckend_policy']:
             bckend_policy = policy['bckend_policy']
