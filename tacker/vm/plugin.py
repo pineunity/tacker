@@ -197,7 +197,6 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
     def add_alarm_url_to_vnf(self, vnf_dict):
         vnfd_yaml = vnf_dict['vnfd']['attributes'].get('vnfd', '')
         vnfd_dict = yaml.load(vnfd_yaml)
-        LOG.debug(_("vnfd_dict with alarm: %s") % vnfd_dict)
         if vnfd_dict and vnfd_dict.get('tosca_definitions_version'):
             polices = vnfd_dict['topology_template'].get('policies', [])
             for policy_dict in polices:
@@ -288,6 +287,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         LOG.debug(_('vnf_dict %s'), vnf_dict)
         self.mgmt_create_pre(context, vnf_dict)
         self.add_alarm_url_to_vnf(vnf_dict)
+        LOG.debug(_("vnf_dict with alarm: %s") % vnf_dict)
         try:
             instance_id = self._vnf_manager.invoke(
                 driver_name, 'create', plugin=self,
