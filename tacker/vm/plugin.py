@@ -196,6 +196,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
 
     def add_alarm_url_to_vnf(self, vnf_dict):
         vnfd_dict = yaml.load(vnf_dict['vnfd']['attributes']['vnfd'])
+        LOG.debug(_("vnfd_dict with alarm: %s") % vnfd_dict)
         if vnfd_dict and vnfd_dict.get('tosca_definitions_version'):
             polices = vnfd_dict['topology_template'].get('policies', [])
             for policy_dict in polices:
