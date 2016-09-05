@@ -42,7 +42,10 @@ CONF.register_opts(OPTS, group='monitor')
 
 
 def config_opts():
-    return [('monitor', OPTS), ('tacker', VNFMonitor.OPTS), ('tacker', VNFAlarmMonitor.OPTS)]
+    return [('monitor', OPTS),
+            ('tacker',
+            VNFMonitor.OPTS),
+            ('tacker', VNFAlarmMonitor.OPTS), ]
 
 
 class VNFMonitor(object):
@@ -197,7 +200,8 @@ class VNFAlarmMonitor(object):
         params = dict()
         params['vnf_id'] = vnf['id']
         params['mon_policy_name'] = policy_name
-        driver = policy_dict['triggers']['resize_compute']['event_type']['implementation']
+        driver = policy_dict['triggers']['resize_compute'][
+            'event_type']['implementation']
         policy_action = policy_dict['triggers']['resize_compute'].get('action')
         if not policy_action:
             return
@@ -207,7 +211,8 @@ class VNFAlarmMonitor(object):
         params['mon_policy_action'] = alarm_action_name
         alarm_url = self.call_alarm_url(driver, vnf, params)
         return alarm_url
-        # vnf['attribute']['alarm_url'] = alarm_url ---> create by plugin or vm_db
+        # vnf['attribute']['alarm_url'] = alarm_url ---> create
+        # by plugin or vm_db
 
     def _invoke(self, driver, **kwargs):
         method = inspect.stack()[1][3]
@@ -217,7 +222,6 @@ class VNFAlarmMonitor(object):
     def call_alarm_url(self, driver, vnf_dict, kwargs):
         return self._invoke(driver,
                             vnf=vnf_dict, kwargs=kwargs)
-
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -304,7 +308,7 @@ class ActionRespawnHeat(ActionPolicy):
                                              region_name=region_name)
                 heatclient.delete(vnf_dict['instance_id'])
 
-                # TODO(anyone) set the current request ctxt instead of admin ctxt
+                # TODO(anyone) set the current request ctxt
                 context = t_context.get_admin_context()
                 update_vnf_dict = plugin.create_vnf_sync(context,
                                                          vnf_dict)
@@ -318,21 +322,21 @@ class ActionRespawnHeat(ActionPolicy):
                 heatclient = heat.HeatClient(auth_attr=auth_attr,
                                              region_name=region_name)
                 heatclient.delete(vnf_dict['instance_id'])
-                # vnf_dict['attributes'].pop('alarm_url')
-                vnf_dict['attributes'] = dict()
+                vnf_dict['attributes'].pop('alarm_url')
 
-                # TODO(anyone) set the current request ctxt instead of admin ctxt
+                # TODO(anyone) set the current request ctxt
                 context = t_context.get_admin_context()
                 update_vnf_dict = plugin.create_vnf_sync(context,
                                                          vnf_dict)
                 plugin.config_vnf(context, update_vnf_dict)
 
-@ActionPolicy.register('autoscaling', 'heat')
+
+@ActionPolicy.register('scaling')
 class ActionAutoscalingHeat(ActionPolicy):
     @classmethod
-    def execute_action(cls, plugin, vnf_dict, auth_attr):
-        '''call scaling function from plugin here'''
-        return
+    def execute_action(cls, plugin, vnf_dict, scale):
+        vnf_id = vnf_dict['id']
+        plugin.create_vnf_scale(t_context.get_admin_context(), vnf_id, scale)
 
 
 @ActionPolicy.register('log')
@@ -351,5 +355,5 @@ class ActionLogAndKill(ActionPolicy):
         if plugin._mark_vnf_dead(vnf_dict['id']):
             if vnf_dict['attributes'].get('monitoring_policy'):
                 plugin._vnf_monitor.mark_dead(vnf_dict['id'])
-        plugin.delete_vnf(t_context.get_admin_context(), vnf_id)
+            plugin.delete_vnf(t_context.get_admin_context(), vnf_id)
         LOG.error(_('vnf %s dead'), vnf_id)
