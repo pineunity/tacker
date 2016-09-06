@@ -470,7 +470,7 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
                 properties['description'] = tpl_condition['constraint']
                 properties['threshold'] = tpl_condition['threshold']
                 # alarm url process here
-                alarm_url = vnf['attributes'].get('alarm_url')
+                alarm_url = str(vnf['attributes'].get('alarm_url'))
                 if alarm_url:
                     LOG.debug('Alarm url in heat %s', alarm_url)
                     properties['alarm_actions'] = [alarm_url]
