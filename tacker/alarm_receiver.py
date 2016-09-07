@@ -32,7 +32,7 @@ class AlarmReceiver(wsgi.Middleware):
         prefix, info, params = self.handle_url(req.url)
         LOG.debug(_('tung triggered: %s'), prefix)
         token = Token(username='admin', password='devstack',
-                      auth_url="http://127.0.0.1:35357/v3", project_name="tacker")
+                      auth_url="http://127.0.0.1:35357/v3", project_name="admin")
         token_identity = token.create_token()
         req.headers['X_AUTH_TOKEN'] = token_identity
         LOG.debug('Body alarm before parsing: %s', req.body)
