@@ -12,7 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import keystoneclient.v2_0.client as ksclient
+import keystoneclient.v3.client as ks_client
 
 
 class Token(object):
@@ -23,7 +23,7 @@ class Token(object):
         self.tenant_name = tenant_name
 
     def create_token(self):
-        keystone = ksclient.Client(username=self.username,
+        keystone = ks_client.Client(username=self.username,
                                    password=self.password,
                                    auth_url=self.auth_url,
                                    tenant_name=self.tenant_name)
