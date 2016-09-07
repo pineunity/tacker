@@ -333,8 +333,8 @@ class ActionRespawnHeat(ActionPolicy):
 
                 # TODO(anyone) set the current request ctxt
                 context = t_context.get_admin_context()
-		_log_monitor_events(context, vnf_dict,
-				                "ActionRespawnHeat invoked")
+                _log_monitor_events(context, vnf_dict,
+                                    "ActionRespawnHeat invoked")
                 update_vnf_dict = plugin.create_vnf_sync(context,
                                                          vnf_dict)
                 plugin.config_vnf(context, update_vnf_dict)

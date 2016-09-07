@@ -16,17 +16,17 @@ import keystoneclient.v3.client as ks_client
 
 
 class Token(object):
-    def __init__(self, username, password, auth_url, tenant_name):
+    def __init__(self, username, password, auth_url, project_name):
         self.username = username
         self.password = password
         self.auth_url = auth_url
-        self.tenant_name = tenant_name
+        self.project_name = project_name
 
     def create_token(self):
         keystone = ks_client.Client(username=self.username,
-                                   password=self.password,
-                                   auth_url=self.auth_url,
-                                   tenant_name=self.tenant_name)
+                                    password=self.password,
+                                    auth_url=self.auth_url,
+                                    project_name=self.project_name)
 
-        token = keystone.auth_ref['token']['id']
-        return token
+        kstoken = keystone.service_catalog.get_token()
+        return kstoken['id']
