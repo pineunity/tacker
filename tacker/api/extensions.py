@@ -24,11 +24,7 @@ import routes
 import six
 import webob.dec
 import webob.exc
-<<<<<<< HEAD
-from tacker.api.v1 import attributes
-=======
 
->>>>>>> master
 from tacker.common import exceptions
 import tacker.extensions
 from tacker import policy
