@@ -22,9 +22,9 @@ from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from six import iteritems
-from toscaparser.tosca_template import ToscaTemplate
+from toscaparser import tosca_template
 from toscaparser.utils import yamlparser
-from translator.hot.tosca_translator import TOSCATranslator
+from translator.hot import tosca_translator
 import yaml
 
 from tacker.common import clients
@@ -114,8 +114,8 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
             toscautils.updateimports(inner_vnfd_dict)
 
             try:
-                tosca = ToscaTemplate(a_file=False,
-                                      yaml_dict_tpl=inner_vnfd_dict)
+                tosca = tosca_template.ToscaTemplate(
+                    a_file=False, yaml_dict_tpl=inner_vnfd_dict)
             except Exception as e:
                 LOG.exception(_("tosca-parser error: %s"), str(e))
                 raise vnfm.ToscaParserFailed(error_msg_details=str(e))
@@ -320,9 +320,9 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
             toscautils.updateimports(vnfd_dict)
 
             try:
-                tosca = ToscaTemplate(parsed_params=parsed_params,
-                                      a_file=False,
-                                      yaml_dict_tpl=vnfd_dict)
+                tosca = tosca_template.ToscaTemplate(
+                    parsed_params=parsed_params, a_file=False,
+                    yaml_dict_tpl=vnfd_dict)
 
             except Exception as e:
                 LOG.debug("tosca-parser error: %s", str(e))
@@ -334,7 +334,8 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
                                                     STACK_FLAVOR_EXTRA)
             toscautils.post_process_template(tosca)
             try:
-                translator = TOSCATranslator(tosca, parsed_params)
+                translator = tosca_translator.TOSCATranslator(tosca,
+                                                              parsed_params)
                 heat_template_yaml = translator.translate()
             except Exception as e:
                 LOG.debug("heat-translator error: %s", str(e))
@@ -904,6 +905,21 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
 
         return jsonutils.dumps(mgmt_ips)
 
+    def get_resource_info(self, plugin, context, vnf_info, auth_attr,
+                          region_name=None):
+        stack_id = vnf_info['instance_id']
+        heatclient_ = HeatClient(auth_attr, region_name)
+        try:
+            resources_ids = heatclient_.resource_get_list(stack_id)
+            details_dict = {resource.resource_name:
+                           {"id": resource.physical_resource_id,
+                           "type": resource.resource_type}
+                           for resource in resources_ids}
+            return details_dict
+        # Raise exception when Heat API service is not available
+        except Exception:
+            raise vnfm.InfraDriverUnreachable(service="Heat API service")
+
 
 class HeatClient(object):
     def __init__(self, auth_attr, region_name=None):
@@ -911,6 +927,7 @@ class HeatClient(object):
         self.heat = clients.OpenstackClients(auth_attr, region_name).heat
         self.stacks = self.heat.stacks
         self.resource_types = self.heat.resource_types
+        self.resources = self.heat.resources
 
     def create(self, fields):
         fields = fields.copy()

@@ -44,14 +44,19 @@ class VnfTestCreate(base.BaseTackerTest):
         self.validate_vnf_instance(vnfd_instance, vnf_instance)
 
         vnf_id = vnf_instance['vnf']['id']
-        vnf_current_status = self.wait_until_vnf_active(
+        self.wait_until_vnf_active(
             vnf_id,
             constants.VNF_CIRROS_CREATE_TIMEOUT,
             constants.ACTIVE_SLEEP_TIME)
-        self.assertEqual('ACTIVE', vnf_current_status)
         self.assertIsNotNone(self.client.show_vnf(vnf_id)['vnf']['mgmt_url'])
         if vim_id:
             self.assertEqual(vim_id, vnf_instance['vnf']['vim_id'])
+
+        # Get vnf details when vnf is in active state
+        vnf_details = self.client.list_vnf_resources(vnf_id)['resources'][0]
+        self.assertIn('name', vnf_details)
+        self.assertIn('id', vnf_details)
+        self.assertIn('type', vnf_details)
 
         # Delete vnf_instance with vnf_id
         try:

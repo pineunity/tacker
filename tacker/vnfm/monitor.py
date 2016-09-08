@@ -60,6 +60,16 @@ def _log_monitor_events(context, vnf_dict, evt_details):
                              details=evt_details)
 
 
+def _log_monitor_events(context, vnf_dict, evt_details):
+    _cos_db_plg = common_services_db.CommonServicesPluginDb()
+    _cos_db_plg.create_event(context, res_id=vnf_dict['id'],
+                             res_type=constants.RES_TYPE_VNF,
+                             res_state=vnf_dict['status'],
+                             evt_type=constants.RES_EVT_MONITOR,
+                             tstamp=timeutils.utcnow(),
+                             details=evt_details)
+
+
 class VNFMonitor(object):
     """VNF Monitor."""
 
@@ -101,6 +111,7 @@ class VNFMonitor(object):
             with self._lock:
                 for hosting_vnf in self._hosting_vnfs.values():
                     if hosting_vnf.get('dead', False):
+                        LOG.debug('monitor skips dead vnf %s', hosting_vnf)
                         continue
 
                     self.run_monitor(hosting_vnf)
@@ -314,7 +325,7 @@ class ActionRespawnHeat(ActionPolicy):
     @classmethod
     def execute_action(cls, plugin, vnf_dict, auth_attr):
         vnf_id = vnf_dict['id']
-        LOG.error(_('vnf %s dead'), vnf_id)
+        LOG.info(_('vnf %s dead and to be respawned'), vnf_id)
         if plugin._mark_vnf_dead(vnf_dict['id']):
             if vnf_dict['attributes'].get('monitoring_policy'):
                 plugin._vnf_monitor.mark_dead(vnf_dict['id'])
@@ -356,6 +367,8 @@ class ActionRespawnHeat(ActionPolicy):
 
                 # TODO(anyone) set the current request ctxt
                 context = t_context.get_admin_context()
+                _log_monitor_events(context, vnf_dict,
+                                    "ActionRespawnHeat invoked")
                 update_vnf_dict = plugin.create_vnf_sync(context,
                                                          vnf_dict)
                 plugin.config_vnf(context, update_vnf_dict)
