@@ -11,6 +11,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+from oslo_config import cfg
 from oslo_serialization import jsonutils
 import logging
 from six.moves.urllib import parse as urlparse
@@ -19,6 +20,22 @@ from tacker.vnfm.monitor_drivers.token import Token
 # check alarm url with db --> move to plugin
 
 LOG = logging.getLogger(__name__)
+
+core_opts = [
+            cfg.StrOpt('username', default='tacker',
+                       help=('Username to use for tacker API requests')),
+            cfg.StrOpt('password', default = 'devstack',
+                       help=('Password to use for tacker API requests')),
+            cfg.StrOpt('project_name', default='service',
+                       help=('Project name to use for tacker API requests')),
+            cfg.StrOpt('auth_uri', default='http://127.0.0.1:5000',
+                       help=('The keystone auth URI')),
+        ]
+
+ks_authtoken = cfg.OptGroup(name='ks_authtoken',
+                                          title='keystone options for alarm request')
+# Register the configuration options
+cfg.CONF.register_opts(core_opts, group=ks_authtoken)
 
 
 class AlarmReceiver(wsgi.Middleware):
@@ -31,8 +48,12 @@ class AlarmReceiver(wsgi.Middleware):
         LOG.debug(_('tung triggered: %s'), url)
         prefix, info, params = self.handle_url(req.url)
         LOG.debug(_('tung triggered: %s'), prefix)
-        token = Token(username='admin', password='devstack',
-                      auth_url="http://127.0.0.1:35357/v3", project_name="admin")
+        username = cfg.CONF.ks_authtoken.username
+        password = cfg.CONF.ks_authtoken.password
+        auth_url = cfg.CONF.ks_authtoken.auth_uri + "/v3"
+        project_name = cfg.CONF.ks_authtoken.project_name
+        token = Token(username, password,
+                      auth_url, project_name)
         token_identity = token.create_token()
         req.headers['X_AUTH_TOKEN'] = token_identity
         LOG.debug('Body alarm before parsing: %s', req.body)
