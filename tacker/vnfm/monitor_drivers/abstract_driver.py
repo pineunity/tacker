@@ -80,3 +80,15 @@ class VNFMonitorAbstractDriver(extensions.PluginInterface):
                                service_instance):
         # use same monitor driver to communicate with service
         return self.get_name()
+
+    @abc.abstractmethod
+    def call_alarm_url(self, vnf, kwargs):
+        """Monitor.
+
+        Get alarm url from the low-level design
+
+
+        :param plugin:
+        :param vnf:
+        """
+        pass
