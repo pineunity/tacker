@@ -86,7 +86,7 @@ class VNFMonitorCeilometer(alarm_abstract_driver.VNFMonitorAbstractAlarmDriver):
         return self._process_alarm(**kwargs)
 
     def _process_notification(self, rc_email_address, content):
-        mail = smtplib.SMTP('smtp.gmail.com', 9890)
+        mail = smtplib.SMTP('smtp.gmail.com', 9895)
         mail.ehlo()
         mail.starttls()
         mail.login(TACKER_EMAIL['email'], TACKER_EMAIL['password'])
