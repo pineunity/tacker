@@ -241,6 +241,7 @@ class VNFAlarmMonitor(object):
 
     def _invoke(self, driver, **kwargs):
         method = inspect.stack()[1][3]
+        LOG.debug('method in monitor %s', method)
         return self._alarm_monitor_manager.invoke(
             driver, method, **kwargs)
 
