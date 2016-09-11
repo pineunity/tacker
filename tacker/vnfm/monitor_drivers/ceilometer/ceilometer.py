@@ -77,8 +77,8 @@ class VNFMonitorCeilometer(alarm_abstract_driver.VNFMonitorAbstractAlarmDriver):
         '''must be used after call heat-create in plugin'''
         return self._create_alarm_url(**kwargs)
 
-    def _process_alarm(self, params):
-        if params['data'].get('alarm_id') and params['data'].get('current') == ALARM:
+    def _process_alarm(self, alarm_id, status):
+        if alarm_id and status == ALARM:
             return True
 
     def process_alarm(self, vnf,kwargs):

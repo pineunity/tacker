@@ -251,7 +251,7 @@ class VNFAlarmMonitor(object):
         mon_prop = policy['properties']
         alarm_dict = dict()
         alarm_dict['alarm_id'] = params['data'].get('alarm_id')
-        alarm_dict['current'] = params['data'].get('current')
+        alarm_dict['status'] = params['data'].get('current')
         driver = mon_prop['resize_compute']['event_type']['implementation']
         return self.process_alarm(driver, vnf, alarm_dict)
 
