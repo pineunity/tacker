@@ -32,6 +32,8 @@ class AlarmReceiver(wsgi.Middleware):
         if req.method != 'POST' or not self.handle_url(req.url):
             return
         prefix, info, params = self.handle_url(req.url)
+        LOG.debug('token in receiver: %(username)s %(password)s %(project_name)',
+                  {'username':username,'password': password, 'project_name': project_name})
         token = Token(username, password,
                       project_name, auth_url="http://localhost:35357/v3")
         token_identity = token.create_token()
