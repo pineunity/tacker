@@ -56,4 +56,4 @@ topology_template:
                 action:
                   resize_compute:
                     action_name: notify
-                    constrant: jshayne3i@gmail.com
+                    constraint: jshayne3i@gmail.com
