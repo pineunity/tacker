@@ -54,4 +54,6 @@ topology_template:
                     method: avg
                     comparison_operator: gt
                 action:
-                  resize_compute: respawn
+                  resize_compute:
+                    action_name: notify
+                    constrant: jshayne3i@gmail.com

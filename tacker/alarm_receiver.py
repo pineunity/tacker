@@ -58,13 +58,13 @@ class AlarmReceiver(wsgi.Middleware):
         req.headers['X_AUTH_TOKEN'] = token_identity
         LOG.debug('Body alarm before parsing: %s', req.body)
         # Change the body request
-        if 'alarm_id' in req.body:
+        if req.body:
             body_dict = dict()
             body_dict['trigger'] = {}
             body_dict['trigger'].setdefault('params', {})
             # Update params in the body request
-            alarm_dict = jsonutils.loads(req.body)
-            body_dict['trigger']['params']['alarm'] = alarm_dict
+            body_info = jsonutils.loads(req.body)
+            body_dict['trigger']['params']['data'] = body_dict
             body_dict['trigger']['params']['credential'] = info[6]
             # Update policy and action
             body_dict['trigger']['policy_name'] = info[4]

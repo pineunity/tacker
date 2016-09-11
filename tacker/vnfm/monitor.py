@@ -235,7 +235,7 @@ class VNFAlarmMonitor(object):
         policy_action = policy_dict['triggers']['resize_compute'].get('action')
         if not policy_action:
             return
-        alarm_action_name = policy_action.get('resize_compute')
+        alarm_action_name = policy_action['resize_compute'].get('action_name')
         if not alarm_action_name:
             return
         params['mon_policy_action'] = alarm_action_name
@@ -244,12 +244,44 @@ class VNFAlarmMonitor(object):
         # vnf['attribute']['alarm_url'] = alarm_url ---> create
         # by plugin or vm_db
 
+    def process_alarm_for_vnf(self, policy):
+        '''call in plugin'''
+        vnf = policy['vnf']
+        params = policy['params']
+        mon_prop = policy['properties']
+        alarm_dict = dict()
+        alarm_dict['alarm_id'] = params['data'].get('alarm_id')
+        alarm_dict['current'] = params['data'].get('current')
+        driver = mon_prop['resize_compute']['event_type']['implementation']
+        return self.process_alarm(driver, vnf, alarm_dict)
+
+    def process_notification_for_vnf(self, policy):
+        '''call in action'''
+        vnf = policy['vnf']
+        mon_prop = policy['properties']
+        driver = mon_prop['resize_compute']['event_type']['implementation']
+        ntf_dict = dict()
+        rc_email_address = mon_prop['resize_compute']['action']['resize_compute'].get('constraint')
+        ntf_dict['rc_email_address'] = rc_email_address
+        content = 'Tacker notification: vnf' + vnf['id'] + 'get overloaded'
+        ntf_dict['content'] = content
+        return self.process_notification(driver, vnf, ntf_dict)
+
     def _invoke(self, driver, **kwargs):
         method = inspect.stack()[1][3]
+        LOG.debug('method in monitor %s', method)
         return self._alarm_monitor_manager.invoke(
             driver, method, **kwargs)
 
     def call_alarm_url(self, driver, vnf_dict, kwargs):
+        return self._invoke(driver,
+                            vnf=vnf_dict, kwargs=kwargs)
+
+    def process_alarm(self, driver, vnf_dict, kwargs):
+        return self._invoke(driver,
+                            vnf=vnf_dict, kwargs=kwargs)
+
+    def process_notification(self, driver, vnf_dict, kwargs):
         return self._invoke(driver,
                             vnf=vnf_dict, kwargs=kwargs)
 
@@ -406,3 +438,17 @@ class ActionLogAndKill(ActionPolicy):
                 plugin._vnf_monitor.mark_dead(vnf_dict['id'])
             plugin.delete_vnf(t_context.get_admin_context(), vnf_id)
         LOG.error(_('vnf %s dead'), vnf_id)
+
+
+@ActionPolicy.register('notify')
+class ActionNotify(ActionPolicy):
+    @classmethod
+    def execute_action(cls, plugin, policy_dict, auth_attr):
+        vnf_dict = policy_dict['vnf']
+        _log_monitor_events(t_context.get_admin_context(),
+                            vnf_dict,
+                            "ActionNotify invoked")
+        if vnf_dict['attributes'].get('alarm_url'):
+            if not plugin._vnf_alarm_monitor.process_notification_for_vnf(policy_dict):
+                LOG.debug('Receiver email address is unreachable')
+
