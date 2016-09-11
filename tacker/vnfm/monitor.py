@@ -263,7 +263,7 @@ class VNFAlarmMonitor(object):
         ntf_dict = dict()
         rc_email_address = mon_prop['resize_compute']['action']['resize_compute'].get('constraint')
         ntf_dict['rc_email_address'] = rc_email_address
-        content = 'Tacker notification: vnf' + vnf['id'] + 'get overloaded'
+        content = 'VNF get overloaded'
         ntf_dict['content'] = content
         return self.process_notification(driver, vnf, ntf_dict)
 

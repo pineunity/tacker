@@ -101,7 +101,3 @@ class VNFMonitorCeilometer(alarm_abstract_driver.VNFMonitorAbstractAlarmDriver):
 
     def process_notification(self, vnf, kwargs):
         return self._process_notification(**kwargs)
-
-
-
-
