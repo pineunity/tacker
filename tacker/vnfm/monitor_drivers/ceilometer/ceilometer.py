@@ -40,7 +40,7 @@ ALARM_INFO = (
     INSUFFICIENT_DATA_ACTIONS, DESCRIPTION, ENABLED, TIME_CONSTRAINTS,
     SEVERITY,
 ) = (
-    'alarm_actions', 'ok_actions', 'repeat_actions', 'alarm'
+    'alarm_actions', 'ok_actions', 'repeat_actions', 'alarm',
     'insufficient_data_actions', 'description', 'enabled', 'time_constraints',
     'severity',
 )

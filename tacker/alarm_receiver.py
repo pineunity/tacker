@@ -64,7 +64,7 @@ class AlarmReceiver(wsgi.Middleware):
             body_dict['trigger'].setdefault('params', {})
             # Update params in the body request
             body_info = jsonutils.loads(req.body)
-            body_dict['trigger']['params']['data'] = body_dict
+            body_dict['trigger']['params']['data'] = body_info
             body_dict['trigger']['params']['credential'] = info[6]
             # Update policy and action
             body_dict['trigger']['policy_name'] = info[4]
