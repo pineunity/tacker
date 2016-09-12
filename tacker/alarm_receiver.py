@@ -40,7 +40,10 @@ cfg.CONF.register_opts(core_opts, group=ks_authtoken)
 
 class AlarmReceiver(wsgi.Middleware):
     def process_request(self, req):
-        if req.method != 'POST' and not self.handle_url(req.url):
+        if req.method != 'POST':
+            return
+        url = req.url
+        if not self.handle_url(url):
             return
         prefix, info, params = self.handle_url(req.url)
         username = cfg.CONF.ks_authtoken.username
