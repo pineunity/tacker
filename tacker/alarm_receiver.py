@@ -12,7 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 import logging
-import os
+from oslo_config import cfg
 from oslo_serialization import jsonutils
 from six.moves.urllib import parse as urlparse
 from tacker.vnfm.monitor_drivers.token import Token
@@ -21,10 +21,21 @@ from tacker import wsgi
 
 LOG = logging.getLogger(__name__)
 
-# Getting keystone auth credentials from env
-username = os.getenv('OS_USERNAME')
-password = os.getenv('OS_PASSWORD')
-project_name = os.getenv('OS_PROJECT_NAME')
+core_opts = [
+            cfg.StrOpt('username', default='tacker',
+                       help=('Username to use for tacker API requests')),
+            cfg.StrOpt('password', default = 'devstack',
+                       help=('Password to use for tacker API requests')),
+            cfg.StrOpt('project_name', default='service',
+                       help=('Project name to use for tacker API requests')),
+            cfg.StrOpt('auth_uri', default='http://127.0.0.1:5000',
+                       help=('The keystone auth URI')),
+        ]
+
+ks_authtoken = cfg.OptGroup(name='ks_authtoken',
+                                          title='keystone options for alarm request')
+# Register the configuration options
+cfg.CONF.register_opts(core_opts, group=ks_authtoken)
 
 
 class AlarmReceiver(wsgi.Middleware):
@@ -32,8 +43,12 @@ class AlarmReceiver(wsgi.Middleware):
         if req.method != 'POST' and not self.handle_url(req.url):
             return
         prefix, info, params = self.handle_url(req.url)
+        username = cfg.CONF.ks_authtoken.username
+        password = cfg.CONF.ks_authtoken.password
+        auth_url = cfg.CONF.ks_authtoken.auth_uri + "/v3"
+        project_name = cfg.CONF.ks_authtoken.project_name
         token = Token(username, password,
-                      project_name, auth_url="http://localhost:35357/v3")
+                      auth_url, project_name)
         token_identity = token.create_token()
         req.headers['X_AUTH_TOKEN'] = token_identity
         # Change the body request
