@@ -46,13 +46,42 @@ described firstly like other TOSCA templates in Tacker.
                     method: avg
                     comparison_operator: gt
                 action:
-                  resize_compute: respawn
+                  resize_compute:
+                    action_name: respawn
 
 Alarm framework already supported the some default backend actions like
-**repsawn, log, and log_and_kill**. Tacker users could change the desired
-action as described in the above example. In the future, the backend actions
-could be pointed to the specific policy which is also described in TOSCA template
-like scaling policy.
+**repsawn, notify, log, and log_and_kill**. Another example with "notify function":
+
+.. code-block:: yaml
+
+  policies:
+    - vdu1_cpu_usage_monitoring_policy:
+        type: tosca.policies.tacker.Alarming
+        triggers:
+            resize_compute:
+                event_type:
+                    type: tosca.events.resource.utilization
+                    implementation: ceilometer
+                    targets: [VDU1]
+                metrics: cpu_util
+                condition:
+                    threshold: 5
+                    constraint: utilization greater_than 50%
+                    period: 65
+                    evaluations: 1
+                    method: avg
+                    comparison_operator: gt
+                action:
+                  resize_compute:
+                    action_name: notify
+                    constraint: abc@gmail.com
+
+In the above example, Tacker users can write down their email address in "constraint" field.
+When CPU reaches to the threshold, an message will be automatically sent to them.
+
+Tacker users could change the desired action as described in the above example.
+In the future, the backend actions could be pointed to the specific policy which
+is also described in TOSCA template like scaling policy.
 
 How to setup environment
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -135,7 +164,7 @@ Another way could be used to check if backend action is handled well in Tacker:
 
 .. code-block::ini
 
-curl -H "Content-Type: application/json" -X POST -d '{"trigger":{"policy_name":"vdu1_cpu_usage_monitoring_policy","action_name":"respawn", "params": {"key":"g0jtsxu9"}}}' http://ubuntu:9890/v1.0/vnfs/6f3e523d-9e12-4973-a2e8-ea04b9601253/vdu1_cpu_usage_monitoring_policy/respawn/g0jtsxu9
+curl -H "Content-Type: application/json" -X POST -d '{"alarm_id": "35a80852-e24f-46ed-bd34-e2f831d00172", "current": "alarm"}' http://ubuntu:9890/v1.0/vnfs/6f3e523d-9e12-4973-a2e8-ea04b9601253/vdu1_cpu_usage_monitoring_policy/respawn/g0jtsxu9
 
 Then, users can check Horizon to know if vnf is respawned. Please note that the url used
 in the above command could be captured from "**ceilometer alarm-show** command as shown before.

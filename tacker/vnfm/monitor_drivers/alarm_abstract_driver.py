@@ -53,6 +53,7 @@ class VNFMonitorAbstractAlarmDriver(extensions.PluginInterface):
         """
         pass
 
+    @abc.abstractmethod
     def process_alarm(self, plugin, vnf):
         """Monitor.
 

@@ -29,10 +29,7 @@ project_name = os.getenv('OS_PROJECT_NAME')
 
 class AlarmReceiver(wsgi.Middleware):
     def process_request(self, req):
-        if req.method != 'POST':
-            return
-        url = req.url
-        if not self.handle_url(url):
+        if req.method != 'POST' and not self.handle_url(req.url):
             return
         prefix, info, params = self.handle_url(req.url)
         token = Token(username, password,
@@ -40,13 +37,13 @@ class AlarmReceiver(wsgi.Middleware):
         token_identity = token.create_token()
         req.headers['X_AUTH_TOKEN'] = token_identity
         # Change the body request
-        if 'alarm_id' in req.body:
+        if req.body:
             body_dict = dict()
             body_dict['trigger'] = {}
             body_dict['trigger'].setdefault('params', {})
             # Update params in the body request
-            alarm_dict = jsonutils.loads(req.body)
-            body_dict['trigger']['params']['alarm'] = alarm_dict
+            body_info = jsonutils.loads(req.body)
+            body_dict['trigger']['params']['data'] = body_info
             body_dict['trigger']['params']['credential'] = info[6]
             # Update policy and action
             body_dict['trigger']['policy_name'] = info[4]
@@ -59,6 +56,7 @@ class AlarmReceiver(wsgi.Middleware):
         LOG.debug('alarm url in receiver: %s', req.url)
 
     def handle_url(self, url):
+        # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/mon-policy-name/action-name/8ef785' # noqa
         parts = urlparse.urlparse(url)
         p = parts.path.split('/')
         if len(p) != 7:

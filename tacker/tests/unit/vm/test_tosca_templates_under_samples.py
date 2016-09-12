@@ -40,10 +40,8 @@ class TestSamples(testtools.TestCase):
                     sample = base_path + tosca_file
                     list_of_samples.append(sample)
                 return list_of_samples
-            else:
-                return [base_path + tosca_files]
 
-    def test_samples(self, files=None):
+    def _test_samples(self, files):
         if files:
             for f in self._get_list_of_sample(files):
                 with open(f, 'r') as _f:
@@ -81,13 +79,13 @@ class TestSamples(testtools.TestCase):
                         hot,
                         "Heat-translator failed to translate %s" % f)
 
-    def test_scale_sample(self, files='tosca-vnfd-scale.yaml'):
-        self.test_samples(files)
+    def test_scale_sample(self, tosca_file=['tosca-vnfd-scale.yaml']):
+        self._test_samples(tosca_file)
 
-    def test_alarm_sample(self, files='tosca-vnfd-alarm.yaml'):
-        self.test_samples(files)
+    def test_alarm_sample(self, tosca_file=['tosca-vnfd-alarm.yaml']):
+        self._test_samples(tosca_file)
 
     def test_list_samples(self,
                           files=['tosca-vnfd-scale.yaml',
                                  'tosca-vnfd-alarm.yaml']):
-        self.test_samples(files)
+        self._test_samples(files)

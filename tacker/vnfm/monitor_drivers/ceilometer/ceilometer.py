@@ -15,6 +15,7 @@
 from oslo_config import cfg
 from oslo_log import log as logging
 import random
+import smtplib
 import string
 from tacker.common import utils
 from tacker.vnfm.monitor_drivers import alarm_abstract_driver
@@ -33,6 +34,17 @@ cfg.CONF.register_opts(OPTS, group='ceilometer')
 
 def config_opts():
     return [('ceilometer', OPTS)]
+
+ALARM_INFO = (
+    ALARM_ACTIONS, OK_ACTIONS, REPEAT_ACTIONS, ALARM,
+    INSUFFICIENT_DATA_ACTIONS, DESCRIPTION, ENABLED, TIME_CONSTRAINTS,
+    SEVERITY,
+) = ('alarm_actions', 'ok_actions', 'repeat_actions', 'alarm',
+     'insufficient_data_actions', 'description', 'enabled', 'time_constraints',
+     'severity',
+     )
+
+TACKER_EMAIL = {'email': 'message.tacker@gmail.com', 'password': 'tacker123'}
 
 
 class VNFMonitorCeilometer(
@@ -67,3 +79,28 @@ class VNFMonitorCeilometer(
     def call_alarm_url(self, vnf, kwargs):
         '''must be used after call heat-create in plugin'''
         return self._create_alarm_url(**kwargs)
+
+    def _process_alarm(self, alarm_id, status):
+        if alarm_id and status == ALARM:
+            return True
+
+    def process_alarm(self, vnf, kwargs):
+        '''Check alarm state. if available, will be processed'''
+        return self._process_alarm(**kwargs)
+
+    def _process_notification(self, rc_email_address, content):
+        mail = smtplib.SMTP('smtp.gmail.com', 587)
+        mail.ehlo()
+        mail.starttls()
+        mail.login(TACKER_EMAIL['email'], TACKER_EMAIL['password'])
+        # Send message
+        try:
+            mail.sendmail(TACKER_EMAIL['email'], rc_email_address, content)
+            return True
+        except Exception:
+            return False
+        finally:
+            mail.close()
+
+    def process_notification(self, vnf, kwargs):
+        return self._process_notification(**kwargs)

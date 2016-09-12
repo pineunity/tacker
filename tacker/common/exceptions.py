@@ -245,9 +245,8 @@ class MgmtDriverException(TackerException):
     message = _("VNF configuration failed")
 
 
-class AlarmUrlNotFound(NotFound):
-    message = _("Alarm url with key %(key_id)s does not exist for"
-                "VNF %(vnf_id)s")
+class AlarmUrlInvalid(BadRequest):
+    message = _("Invalid alarm url for VNF %(vnf_id)s")
 
 
 class VnfPolicyNotFound(NotFound):
