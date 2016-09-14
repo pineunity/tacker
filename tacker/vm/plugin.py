@@ -716,8 +716,8 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                                       vnf_id)
         policy_.update({'action_name': trigger['trigger']['action_name']})
         policy_.update({'params': trigger['trigger']['params']})
-        policies = self._validate_alarming_policy(context, policy_)
-        policy_.update({'bckend_policy': policies})
+        bk_policy = self._validate_alarming_policy(context, policy_)
+        policy_.update({'bckend_policy': bk_policy})
         self._handle_vnf_monitoring(context, policy_)
 
         return trigger['trigger']
