@@ -697,8 +697,9 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             if bckend_policy_type == constants.POLICY_SCALING:
                 action = 'scaling'
                 scale = {}
-                scale['type'] = 'out' if cp == 'gt' else 'in'
-                scale['policy'] = bckend_policy['name']
+                scale.setdefault('scale', {})
+                scale['scale']['type'] = 'out' if cp == 'gt' else 'in'
+                scale['scale']['policy'] = bckend_policy['name']
                 action_cls = monitor.ActionPolicy.get_policy(action,
                                                              vnf_dict)
                 if action_cls:
