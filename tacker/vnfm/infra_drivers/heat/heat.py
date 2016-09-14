@@ -603,20 +603,22 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
                 (is_enabled_alarm, heat_tpl_yaml) = \
                     generate_hot_alarm_resource(vnfd_dict['topology_template'],
                                                 heat_template_yaml)
-                if is_enabled_alarm:
+                if is_enabled_alarm and not is_scaling_needed:
                     heat_template_yaml = heat_tpl_yaml
                     fields['template'] = heat_template_yaml
 
                 if is_scaling_needed:
                     main_yaml = yaml.dump(main_dict)
                     fields['template'] = main_yaml
-                    fields['files'] = {'scaling.yaml': heat_template_yaml}
+                    fields['files'] = {'scaling.yaml': heat_tpl_yaml}\
+                        if is_enabled_alarm else {'scaling.yaml': heat_template_yaml}
                     vnf['attributes']['heat_template'] = main_yaml
                     # TODO(kanagaraj-manickam) when multiple groups are
                     # supported, make this scaling atribute as
                     # scaling name vs scaling template map and remove
                     # scaling_group_names
-                    vnf['attributes']['scaling.yaml'] = heat_template_yaml
+                    vnf['attributes']['scaling.yaml'] = heat_tpl_yaml \
+                        if is_enabled_alarm else heat_template_yaml
                     vnf['attributes'][
                         'scaling_group_names'] = jsonutils.dumps(
                         scaling_group_names
