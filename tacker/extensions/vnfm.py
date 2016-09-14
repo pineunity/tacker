@@ -71,6 +71,10 @@ class VNFCreateWaitFailed(exceptions.TackerException):
     message = _('%(reason)s')
 
 
+class VNFScaleWaitFailed(exceptions.TackerException):
+    message = _('%(reason)s')
+
+
 class VNFDeleteFailed(exceptions.TackerException):
     message = _('deleting VNF %(vnf_id)s failed')
 
@@ -365,6 +369,35 @@ SUB_RESOURCE_ATTRIBUTE_MAP = {
                         'is_visible': False
                     },
                 }
+            },
+            'trigger': {
+                'parameters': {
+                    'policy_name': {
+                        'allow_post': True,
+                        'allow_put': False,
+                        'is_visible': True,
+                        'validate': {'type:string': None}
+                    },
+                    'action_name': {
+                        'allow_post': True,
+                        'allow_put': False,
+                        'is_visible': True,
+                        'validate': {'type:string': None}
+                    },
+                    'params': {
+                        'allow_post': True,
+                        'allow_put': False,
+                        'is_visible': True,
+                        'validate': {'type:dict_or_none': None}
+                    },
+                    'tenant_id': {
+                        'allow_post': True,
+                        'allow_put': False,
+                        'validate': {'type:string': None},
+                        'required_by_policy': False,
+                        'is_visible': False
+                    }
+                }
             }
         }
     },
@@ -445,11 +478,11 @@ class Vnfm(extensions.ExtensionDescriptor):
                                                   allow_bulk=True,
                                                   parent=parent)
 
-            resource = extensions.ResourceExtension(
-                collection_name,
-                controller, parent,
-                attr_map=params)
-            resources.append(resource)
+                resource = extensions.ResourceExtension(
+                    collection_name,
+                    controller, parent,
+                    attr_map=params)
+                resources.append(resource)
         return resources
 
     @classmethod
@@ -520,4 +553,9 @@ class VNFMPluginBase(service_base.NFVPluginBase):
     @abc.abstractmethod
     def create_vnf_scale(
             self, context, vnf_id, scale):
+        pass
+
+    @abc.abstractmethod
+    def create_vnf_trigger(
+            self, context, vnf_id, trigger):
         pass

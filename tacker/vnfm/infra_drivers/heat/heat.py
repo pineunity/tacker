@@ -34,7 +34,6 @@ from tacker.vnfm.infra_drivers import abstract_driver
 from tacker.vnfm.infra_drivers import scale_driver
 from tacker.vnfm.tosca import utils as toscautils
 
-
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
@@ -48,8 +47,8 @@ OPTS = [
                help=_("Wait time (in seconds) between consecutive stack"
                       " create/delete retries")),
     cfg.DictOpt('flavor_extra_specs',
-               default={},
-               help=_("Flavor Extra Specs")),
+                default={},
+                help=_("Flavor Extra Specs")),
 ]
 
 CONF.register_opts(OPTS, group='tacker_heat')
@@ -150,7 +149,7 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
             if service_types:
                 vnfd_dict.setdefault('service_types', []).extend(
                     [{'service_type': service_type}
-                    for service_type in service_types])
+                     for service_type in service_types])
             # TODO(anyone)  - this code assumes one mgmt_driver per VNFD???
             for vdu in inner_vnfd_dict.get('vdus', {}).values():
                 mgmt_driver = vdu.get('mgmt_driver')
@@ -437,7 +436,7 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
             #         type: tosca.policy.tacker.Scaling
             if 'policies' in vnfd_dict:
                 for policy_dict in vnfd_dict['policies']:
-                    name, policy = policy_dict.items()[0]
+                    name, policy = list(policy_dict.items())[0]
                     if policy['type'] == 'tosca.policy.tacker.Scaling':
                         _convert_to_heat_scaling_policy(policy['properties'],
                                                         name)
@@ -452,6 +451,51 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
             return ((len(template_dict['resources']) > 0),
                     scaling_group_names,
                     template_dict)
+
+        def generate_hot_alarm_resource(topology_tpl_dict, heat_tpl):
+            heat_dict = yamlparser.simple_ordered_parse(heat_tpl)
+            is_enabled_alarm = False
+
+            def _convert_to_heat_monitoring_prop(mon_policy):
+                name, mon_policy_dict = mon_policy.items()[0]
+                tpl_trigger_name = \
+                    mon_policy_dict['triggers']['resize_compute']
+                tpl_condition = tpl_trigger_name['condition']
+                properties = {}
+                properties['meter_name'] = tpl_trigger_name['metrics']
+                properties['comparison_operator'] = \
+                    tpl_condition['comparison_operator']
+                properties['period'] = tpl_condition['period']
+                properties['evaluation_periods'] = tpl_condition['evaluations']
+                properties['statistic'] = tpl_condition['method']
+                properties['description'] = tpl_condition['constraint']
+                properties['threshold'] = tpl_condition['threshold']
+                # alarm url process here
+                alarm_url = str(vnf['attributes']['alarm_url'])
+                if alarm_url:
+                    LOG.debug('Alarm url in heat %s', alarm_url)
+                    properties['alarm_actions'] = [alarm_url]
+                return properties
+
+            def _convert_to_heat_monitoring_resource(mon_policy):
+                mon_policy_hot = {'type': 'OS::Aodh::Alarm'}
+                mon_policy_hot['properties'] = \
+                    _convert_to_heat_monitoring_prop(mon_policy)
+                return mon_policy_hot
+
+            if 'policies' in topology_tpl_dict:
+                for policy_dict in topology_tpl_dict['policies']:
+                    name, policy_tpl_dict = list(policy_dict.items())[0]
+                    if policy_tpl_dict['type'] == \
+                            'tosca.policies.tacker.Alarming':
+                        is_enabled_alarm = True
+                        heat_dict['resources'][name] = \
+                            _convert_to_heat_monitoring_resource(policy_dict)
+                        break
+
+            heat_tpl_yaml = yaml.dump(heat_dict)
+            return (is_enabled_alarm,
+                    heat_tpl_yaml)
 
         def generate_hot_from_legacy(vnfd_dict):
             assert 'template' not in fields
@@ -484,8 +528,10 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
                     properties[key] = vdu_dict[vdu_key]
                 if 'network_interfaces' in vdu_dict:
                     self._process_vdu_network_interfaces(vdu_id,
-                     vdu_dict, properties, template_dict,
-                     unsupported_res_prop)
+                                                         vdu_dict,
+                                                         properties,
+                                                         template_dict,
+                                                         unsupported_res_prop)
                 if ('user_data' in vdu_dict and
                         'user_data_format' in vdu_dict):
                     properties['user_data_format'] = vdu_dict[
@@ -549,30 +595,37 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
                  monitoring_dict) = generate_hot_from_legacy(vnfd_dict)
 
             fields['template'] = heat_template_yaml
-
-            # Handle scaling here
             if is_tosca_format:
-                (is_scaling_needed,
-                 scaling_group_names,
+                (is_scaling_needed, scaling_group_names,
                  main_dict) = generate_hot_scaling(
                     vnfd_dict['topology_template'],
                     'scaling.yaml')
+                (is_enabled_alarm, heat_tpl_yaml) = \
+                    generate_hot_alarm_resource(vnfd_dict['topology_template'],
+                                                heat_template_yaml)
+                if is_enabled_alarm and not is_scaling_needed:
+                    heat_template_yaml = heat_tpl_yaml
+                    fields['template'] = heat_template_yaml
 
                 if is_scaling_needed:
                     main_yaml = yaml.dump(main_dict)
                     fields['template'] = main_yaml
-                    fields['files'] = {'scaling.yaml': heat_template_yaml}
+                    fields['files'] = {'scaling.yaml': heat_tpl_yaml}\
+                        if is_enabled_alarm else {
+                        'scaling.yaml': heat_template_yaml}
                     vnf['attributes']['heat_template'] = main_yaml
                     # TODO(kanagaraj-manickam) when multiple groups are
                     # supported, make this scaling atribute as
                     # scaling name vs scaling template map and remove
                     # scaling_group_names
-                    vnf['attributes']['scaling.yaml'] = heat_template_yaml
+                    vnf['attributes']['scaling.yaml'] = heat_tpl_yaml \
+                        if is_enabled_alarm else heat_template_yaml
                     vnf['attributes'][
                         'scaling_group_names'] = jsonutils.dumps(
                         scaling_group_names
                     )
-                else:
+
+                elif not is_scaling_needed:
                     if not vnf['attributes'].get('heat_template'):
                         vnf['attributes'][
                             'heat_template'] = fields['template']
@@ -777,12 +830,12 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
 
         mgmt_ips = {}
         for group_name in group_names:
+            # Get scale group
             grp = heat_client.resource_get(instance_id,
                                            group_name)
-            # Get scale group
             for rsc in heat_client.resource_get_list(
                     grp.physical_resource_id):
-                # Get list of resoruces in scale group
+                # Get list of resources in scale group
                 scale_rsc = heat_client.resource_get(
                     grp.physical_resource_id,
                     rsc.resource_name)
@@ -804,11 +857,21 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
               policy,
               region_name):
         heatclient_ = HeatClient(auth_attr, region_name)
-        return heatclient_.resource_signal(policy['instance_id'],
-                                           get_scaling_policy_name(
+        policy_rsc = get_scaling_policy_name(
             policy_name=policy['id'],
             action=policy['action']
-        ))
+        )
+        events = heatclient_.resource_event_list(
+            policy['instance_id'],
+            policy_rsc,
+            limit=1,
+            sort_dir='desc',
+            sort_keys='event_time'
+        )
+
+        heatclient_.resource_signal(policy['instance_id'],
+                                    policy_rsc)
+        return events[0].id
 
     @log.log
     def scale_wait(self,
@@ -816,29 +879,59 @@ class DeviceHeat(abstract_driver.DeviceAbstractDriver,
                    plugin,
                    auth_attr,
                    policy,
-                   region_name):
+                   region_name,
+                   last_event_id):
         heatclient_ = HeatClient(auth_attr, region_name)
 
         # TODO(kanagaraj-manickam) make wait logic into separate utility method
         # and make use of it here and other actions like create and delete
+        stack_retries = STACK_RETRIES
         while (True):
-            time.sleep(STACK_RETRY_WAIT)
             try:
-                rsc = heatclient_.resource_get(
-                    policy['instance_id'],
-                    get_scaling_policy_name(policy_name=policy['id'],
-                                            action=policy['action']))
-            except Exception:
-                LOG.exception(_("VNF scaling may not have "
-                                "happened because Heat API request failed "
-                                "while waiting for the stack %(stack)s to be "
-                                "scaled"), {'stack': policy['instance_id']})
-                break
+                time.sleep(STACK_RETRY_WAIT)
+                stack_id = policy['instance_id']
+                policy_name = get_scaling_policy_name(
+                    policy_name=policy['id'],
+                    action=policy['action'])
+                events = heatclient_.resource_event_list(
+                    stack_id,
+                    policy_name,
+                    limit=1,
+                    sort_dir='desc',
+                    sort_keys='event_time')
 
-            if rsc.resource_status == 'SIGNAL_IN_PROGRESS':
-                continue
+                if events[0].id != last_event_id:
+                    if events[0].resource_status == 'SIGNAL_COMPLETE':
+                        break
+            except Exception as e:
+                error_reason = _("VNF scaling failed for stack %(stack)s with "
+                                 "error %(error)s") % {
+                    'stack': policy['instance_id'],
+                    'error': e.message
+                }
+                LOG.warning(error_reason)
+                raise vnfm.VNFScaleWaitFailed(
+                    vnf_id=policy['vnf']['id'],
+                    reason=error_reason)
 
-            break
+            if stack_retries == 0:
+                metadata = heatclient_.resource_metadata(stack_id, policy_name)
+                if not metadata['scaling_in_progress']:
+                    error_reason = _('when signal occurred within cool down '
+                                     'window, no events generated from heat, '
+                                     'so ignore it')
+                    LOG.warning(error_reason)
+                    break
+                error_reason = _(
+                    "VNF scaling failed to complete within %{wait}s seconds "
+                    "while waiting for the stack %(stack)s to be "
+                    "scaled.") % {'stack': stack_id,
+                                  'wait': STACK_RETRIES * STACK_RETRY_WAIT}
+                LOG.warning(error_reason)
+                raise vnfm.VNFScaleWaitFailed(
+                    vnf_id=policy['vnf']['id'],
+                    reason=error_reason)
+            stack_retries -= 1
 
         def _fill_scaling_group_name():
             vnf = policy['vnf']
@@ -916,3 +1009,9 @@ class HeatClient(object):
 
     def resource_get(self, stack_id, rsc_name):
         return self.heat.resources.get(stack_id, rsc_name)
+
+    def resource_event_list(self, stack_id, rsc_name, **kwargs):
+        return self.heat.events.list(stack_id, rsc_name, **kwargs)
+
+    def resource_metadata(self, stack_id, rsc_name):
+        return self.heat.resources.metadata(stack_id, rsc_name)
