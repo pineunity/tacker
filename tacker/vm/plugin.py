@@ -663,16 +663,14 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
 
         # validate policy action
         action = policy['action_name']
-        policies = self.get_vnf_policies(context,
-                                         vnf_id,
-                                         filters={'name': action})
-        if not policies and action not in constants.DEFAULT_ALARM_ACTIONS:
+        policy_ = self.get_vnf_policy(context, action, vnf_id)
+        if not policy_ and action not in constants.DEFAULT_ALARM_ACTIONS:
             raise exceptions.VnfPolicyNotFound(
                 vnf_id=action,
                 policy=policy['id']
             )
         LOG.debug(_("Policy %s is validated successfully") % policy)
-        return policies
+        return policy_
         # validate url
 
     def _handle_vnf_monitoring(self, context, policy):
