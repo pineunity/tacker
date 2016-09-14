@@ -65,7 +65,7 @@ Alarm framework already supported the some default backend actions like
                     targets: [VDU1]
                 metrics: cpu_util
                 condition:
-                    threshold: 5
+                    threshold: 50
                     constraint: utilization greater_than 50%
                     period: 65
                     evaluations: 1
@@ -168,5 +168,5 @@ curl -H "Content-Type: application/json" -X POST -d '{"alarm_id": "35a80852-e24f
 
 Then, users can check Horizon to know if vnf is respawned. Please note that the url used
 in the above command could be captured from "**ceilometer alarm-show** command as shown before.
-"key" atribute in body request need to be captured from the url. The reason is that key will be authenticated
+"key" attribute in body request need to be captured from the url. The reason is that key will be authenticated
 so that the url is requested only one time.

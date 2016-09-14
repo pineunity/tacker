@@ -18,7 +18,7 @@ import random
 import smtplib
 import string
 from tacker.common import utils
-from tacker.vnfm.monitor_drivers import alarm_abstract_driver
+from tacker.vnfm.monitor_drivers import abstract_driver
 
 
 LOG = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ TACKER_EMAIL = {'email': 'message.tacker@gmail.com', 'password': 'tacker123'}
 
 
 class VNFMonitorCeilometer(
-        alarm_abstract_driver.VNFMonitorAbstractAlarmDriver):
+        abstract_driver.VNFMonitorAbstractDriver):
     def get_type(self):
         return 'ceilometer'
 
@@ -104,3 +104,9 @@ class VNFMonitorCeilometer(
 
     def process_notification(self, vnf, kwargs):
         return self._process_notification(**kwargs)
+
+    def monitor_url(self, plugin, context, vnf):
+        pass
+
+    def monitor_call(self, vnf, kwargs):
+        pass

@@ -11,8 +11,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-import logging
 from oslo_config import cfg
+from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from six.moves.urllib import parse as urlparse
 from tacker.vnfm.monitor_drivers.token import Token
@@ -21,37 +21,26 @@ from tacker import wsgi
 
 LOG = logging.getLogger(__name__)
 
-core_opts = [
-            cfg.StrOpt('username', default='tacker',
-                       help=('Username to use for tacker API requests')),
-            cfg.StrOpt('password', default = 'devstack',
-                       help=('Password to use for tacker API requests')),
-            cfg.StrOpt('project_name', default='service',
-                       help=('Project name to use for tacker API requests')),
-            cfg.StrOpt('auth_uri', default='http://127.0.0.1:5000',
-                       help=('The keystone auth URI')),
-        ]
-
-ks_authtoken = cfg.OptGroup(name='ks_authtoken',
-                                          title='keystone options for alarm request')
-# Register the configuration options
-cfg.CONF.register_opts(core_opts, group=ks_authtoken)
+OPTS = [
+    cfg.StrOpt('url', default='http://localhost:35357/v3',
+        help=_('url for keystone')),
+]
+cfg.CONF.register_opts(OPTS, 'keystone_authtoken')
 
 
 class AlarmReceiver(wsgi.Middleware):
     def process_request(self, req):
+        LOG.debug(_('Process request: %s'), req)
         if req.method != 'POST':
             return
         url = req.url
         if not self.handle_url(url):
             return
         prefix, info, params = self.handle_url(req.url)
-        username = cfg.CONF.ks_authtoken.username
-        password = cfg.CONF.ks_authtoken.password
-        auth_url = cfg.CONF.ks_authtoken.auth_uri + "/v3"
-        project_name = cfg.CONF.ks_authtoken.project_name
-        token = Token(username, password,
-                      auth_url, project_name)
+        token = Token(cfg.CONF.keystone_authtoken.username,
+                      cfg.CONF.keystone_authtoken.password,
+                      cfg.CONF.keystone_authtoken.project_name,
+                      auth_url=cfg.CONF.keystone_authtoken.url)
         token_identity = token.create_token()
         req.headers['X_AUTH_TOKEN'] = token_identity
         # Change the body request

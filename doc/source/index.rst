@@ -54,7 +54,8 @@ Feature Documentation
    devref/enhanced_placement_awareness_usage_guide.rst
    devref/multisite_vim_usage_guide.rst
    devref/mistral_workflows_usage_guide.rst
-   devsrf/alarm_monitoring_usage_guide.rst
+   devref/scale_usage_guide.rst
+   devref/alarm_monitoring_usage_guide.rst
 
 API Documentation
 =================

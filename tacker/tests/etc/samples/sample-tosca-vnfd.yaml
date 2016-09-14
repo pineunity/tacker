@@ -6,10 +6,20 @@ metadata:
   template_name: sample-tosca-vnfd
 
 topology_template:
+  inputs:
+    vdu-name:
+      type: string
+      description: Vdu name
+      default: test-vdu
+    cp-name:
+      type: string
+      description: Cp name
+      default: test-cp
   node_templates:
     VDU1:
       type: tosca.nodes.nfv.VDU.Tacker
       properties:
+        name: {get_input : vdu-name}
         image: cirros-0.3.4-x86_64-uec
         flavor: m1.tiny
         key_name: userKey
@@ -22,6 +32,7 @@ topology_template:
     CP1:
       type: tosca.nodes.nfv.CP.Tacker
       properties:
+        name: {get_input : cp-name}
         management: true
         anti_spoofing_protection: false
       requirements:

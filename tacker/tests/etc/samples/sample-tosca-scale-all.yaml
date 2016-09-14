@@ -1,9 +1,10 @@
+
 tosca_definitions_version: tosca_simple_profile_for_nfv_1_0_0
 
-description: Demo example with key_name
+description: sample-tosca-vnfd-scaling
 
 metadata:
-  template_name: sample-tosca-vnfd-keyname
+  template_name: sample-tosca-vnfd-scaling
 
 topology_template:
   node_templates:
@@ -17,18 +18,13 @@ topology_template:
             disk_size: 1 GB
       properties:
         image: cirros-0.3.4-x86_64-uec
-        availability_zone: nova
         mgmt_driver: noop
-        key_name: userKey
-        config: |
-          param0: key1
-          param1: key2
+        availability_zone: nova
 
     CP1:
       type: tosca.nodes.nfv.CP.Tacker
       properties:
         management: true
-        order: 0
         anti_spoofing_protection: false
       requirements:
         - virtualLink:
@@ -39,5 +35,16 @@ topology_template:
     VL1:
       type: tosca.nodes.nfv.VL
       properties:
-        network_name: net1
+        network_name: net_mgmt
         vendor: Tacker
+
+  policies:
+    - SP1:
+        type: tosca.policy.tacker.Scaling
+        properties:
+          increment: 1
+          cooldown: 60
+          min_instances: 1
+          max_instances: 3
+          default_instances: 2
+          targets: [VDU1]
