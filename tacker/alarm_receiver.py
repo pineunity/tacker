@@ -58,7 +58,7 @@ class AlarmReceiver(wsgi.Middleware):
             req.body = jsonutils.dumps(body_dict)
             LOG.debug('Body alarm: %s', req.body)
         # Need to change url because of mandatory
-        req.environ['PATH_INFO'] = prefix + 'actions'
+        req.environ['PATH_INFO'] = prefix + 'triggers'
         req.environ['QUERY_STRING'] = ''
         LOG.debug('alarm url in receiver: %s', req.url)
 
