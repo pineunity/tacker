@@ -370,37 +370,45 @@ SUB_RESOURCE_ATTRIBUTE_MAP = {
                     },
                 }
             },
-            'trigger': {
-                'parameters': {
-                    'policy_name': {
-                        'allow_post': True,
-                        'allow_put': False,
-                        'is_visible': True,
-                        'validate': {'type:string': None}
-                    },
-                    'action_name': {
-                        'allow_post': True,
-                        'allow_put': False,
-                        'is_visible': True,
-                        'validate': {'type:string': None}
-                    },
-                    'params': {
-                        'allow_post': True,
-                        'allow_put': False,
-                        'is_visible': True,
-                        'validate': {'type:dict_or_none': None}
-                    },
-                    'tenant_id': {
-                        'allow_post': True,
-                        'allow_put': False,
-                        'validate': {'type:string': None},
-                        'required_by_policy': False,
-                        'is_visible': False
-                    }
-                }
-            }
         }
     },
+    'triggers': {
+            'parent': {
+                'collection_name': 'vnfs',
+                'member_name': 'vnf'
+            },
+            'members': {
+                'trigger': {
+                    'parameters': {
+                        'policy_name': {
+                            'allow_post': True,
+                            'allow_put': False,
+                            'is_visible': True,
+                            'validate': {'type:string': None}
+                        },
+                        'action_name': {
+                            'allow_post': True,
+                            'allow_put': False,
+                            'is_visible': True,
+                            'validate': {'type:string': None}
+                        },
+                        'params': {
+                            'allow_post': True,
+                            'allow_put': False,
+                            'is_visible': True,
+                            'validate': {'type:dict_or_none': None}
+                        },
+                        'tenant_id': {
+                            'allow_post': True,
+                            'allow_put': False,
+                            'validate': {'type:string': None},
+                            'required_by_policy': False,
+                            'is_visible': False
+                        }
+                    }
+                },
+            }
+        },
     'resources': {
         'parent': {
             'collection_name': 'vnfs',
@@ -478,11 +486,11 @@ class Vnfm(extensions.ExtensionDescriptor):
                                                   allow_bulk=True,
                                                   parent=parent)
 
-                resource = extensions.ResourceExtension(
-                    collection_name,
-                    controller, parent,
-                    attr_map=params)
-                resources.append(resource)
+            resource = extensions.ResourceExtension(
+                collection_name,
+                controller, parent,
+                attr_map=params)
+            resources.append(resource)
         return resources
 
     @classmethod

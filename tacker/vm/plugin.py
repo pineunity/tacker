@@ -682,7 +682,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             action_cls = monitor.ActionPolicy.get_policy(action,
                                                          vnf_dict)
             if action_cls:
-                if action == 'notify':
+                if action == 'notify':git
                     action_cls.execute_action(self, policy, vim_auth)
                 else:
                     action_cls.execute_action(self, vnf_dict, vim_auth)
