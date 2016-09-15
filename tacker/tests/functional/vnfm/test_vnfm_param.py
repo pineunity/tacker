@@ -14,6 +14,7 @@
 
 import yaml
 
+from tacker.plugins.common import constants as evt_constants
 from tacker.tests import constants
 from tacker.tests.functional import base
 from tacker.tests.utils import read_file
@@ -21,18 +22,23 @@ from tacker.tests.utils import read_file
 
 class VnfmTestParam(base.BaseTackerTest):
     def _test_vnfd_create(self, vnfd_file):
-        yaml_input = dict()
-        yaml_input['tosca'] = read_file(vnfd_file)
+        yaml_input = read_file(vnfd_file)
         vnfd_name = 'sample_cirros_vnf'
-        toscal = yaml_input['tosca']
+        # TODO(anyone) remove this condition check once old templates
+        # are deprecated
+        if "tosca_definitions_version" in yaml_input:
+            yaml_input = yaml.safe_load(yaml_input)
         req_dict = {'vnfd': {'name': vnfd_name,
-                    'attributes': {'vnfd': toscal}}}
+                    'attributes': {'vnfd': yaml_input}}}
 
         # Create vnfd
         vnfd_instance = self.client.create_vnfd(body=req_dict)
         self.assertIsNotNone(vnfd_instance)
         vnfd_id = vnfd_instance['vnfd']['id']
         self.assertIsNotNone(vnfd_id)
+        self.verify_vnfd_events(
+            vnfd_id, evt_constants.RES_EVT_CREATE,
+            vnfd_instance['vnfd'][evt_constants.RES_EVT_CREATED_FLD])
         return vnfd_instance
 
     def _test_vnfd_delete(self, vnfd_instance):
@@ -43,38 +49,40 @@ class VnfmTestParam(base.BaseTackerTest):
             self.client.delete_vnfd(vnfd_id)
         except Exception:
             assert False, "vnfd Delete failed"
+        self.verify_vnfd_events(vnfd_id, evt_constants.RES_EVT_DELETE)
         try:
             vfnd_d = self.client.show_vnfd(vnfd_id)
         except Exception:
             assert True, "Vnfd Delete success" + str(vfnd_d) + str(Exception)
 
-    def _test_vnf_create(self, vnfd_instance, vnf_name, vnf_value_file):
+    def _test_vnf_create(self, vnfd_instance, vnf_name, param_values):
         # Create the vnf with values
         vnfd_id = vnfd_instance['vnfd']['id']
-        values_str = read_file(vnf_value_file)
-
         # Create vnf with values file
         vnf_dict = dict()
         vnf_dict = {'vnf': {'vnfd_id': vnfd_id, 'name': vnf_name,
-                    'attributes': {'param_values': values_str}}}
+                    'attributes': {'param_values': param_values}}}
         vnf_instance = self.client.create_vnf(body=vnf_dict)
 
         self.validate_vnf_instance(vnfd_instance, vnf_instance)
         vnf_id = vnf_instance['vnf']['id']
-        vnf_current_status = self.wait_until_vnf_active(
+        self.wait_until_vnf_active(
             vnf_id,
             constants.VNF_CIRROS_CREATE_TIMEOUT,
             constants.ACTIVE_SLEEP_TIME)
-        self.assertEqual('ACTIVE', vnf_current_status)
         self.assertIsNotNone(self.client.show_vnf(vnf_id)['vnf']['mgmt_url'])
         vnf_instance = self.client.show_vnf(vnf_id)
 
+        self.verify_vnf_crud_events(
+            vnf_id, evt_constants.RES_EVT_CREATE,
+            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
+
         # Verify values dictionary is same as param values from vnf_show
-        input_dict = yaml.load(values_str)
+
         param_values = vnf_instance['vnf']['attributes']['param_values']
-        param_values_dict = yaml.load(param_values)
-        self.assertEqual(input_dict, param_values_dict)
-        return vnf_instance
+        param_values_dict = yaml.safe_load(param_values)
+
+        return vnf_instance, param_values_dict
 
     def _test_vnf_delete(self, vnf_instance):
         # Delete Vnf
@@ -83,6 +91,7 @@ class VnfmTestParam(base.BaseTackerTest):
             self.client.delete_vnf(vnf_id)
         except Exception:
             assert False, "vnf Delete failed"
+        self.verify_vnf_crud_events(vnf_id, evt_constants.RES_EVT_DELETE)
 
         try:
             vfn_d = self.client.show_vnf(vnf_id)
@@ -90,27 +99,45 @@ class VnfmTestParam(base.BaseTackerTest):
             assert True, "Vnf Delete success" + str(vfn_d) + str(Exception)
 
     def test_vnf_param(self):
-        vnfd_instance = self._test_vnfd_create('sample_cirros_vnf_param.yaml')
-        vnf_instance = self._test_vnf_create(vnfd_instance,
+        vnfd_instance = self._test_vnfd_create(
+            'sample_cirros_vnf_param.yaml')
+        values_str = read_file('sample_cirros_vnf_values.yaml')
+        vnf_instance, param_values_dict = self._test_vnf_create(vnfd_instance,
                                              'test_vnf_with_parameters',
-                                             'sample_cirros_vnf_values.yaml')
+                                             values_str)
+        # Verify values dictionary is same as param values from vnf_show
+        input_dict = yaml.safe_load(values_str)
+        self.assertEqual(input_dict, param_values_dict)
         self._test_vnf_delete(vnf_instance)
         vnf_id = vnf_instance['vnf']['id']
+        self.verify_vnf_crud_events(
+            vnf_id, evt_constants.RES_EVT_CREATE,
+            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
+        self.verify_vnf_crud_events(vnf_id, evt_constants.RES_EVT_DELETE)
         self.addCleanup(self.client.delete_vnfd, vnfd_instance['vnfd']['id'])
         self.addCleanup(self.wait_until_vnf_delete, vnf_id,
             constants.VNF_CIRROS_DELETE_TIMEOUT)
 
     def test_vnfd_param_tosca_template(self):
-        vnfd_instance = self._test_vnfd_create('sample-tosca-vnfd-param.yaml')
+        vnfd_instance = self._test_vnfd_create(
+            'sample-tosca-vnfd-param.yaml')
         self._test_vnfd_delete(vnfd_instance)
 
     def test_vnf_param_tosca_template(self):
-        vnfd_instance = self._test_vnfd_create('sample-tosca-vnfd-param.yaml')
-        vnf_instance = self._test_vnf_create(vnfd_instance,
+        vnfd_instance = self._test_vnfd_create(
+            'sample-tosca-vnfd-param.yaml')
+        values_str = read_file('sample-tosca-vnf-values.yaml')
+        values_dict = yaml.safe_load(values_str)
+        vnf_instance, param_values_dict = self._test_vnf_create(vnfd_instance,
                                     'test_vnf_with_parameters_tosca_template',
-                                             'sample-tosca-vnf-values.yaml')
+                                                                values_dict)
+        self.assertEqual(values_dict, param_values_dict)
         self._test_vnf_delete(vnf_instance)
         vnf_id = vnf_instance['vnf']['id']
+        self.verify_vnf_crud_events(
+            vnf_id, evt_constants.RES_EVT_CREATE,
+            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
+        self.verify_vnf_crud_events(vnf_id, evt_constants.RES_EVT_DELETE)
         self.addCleanup(self.client.delete_vnfd, vnfd_instance['vnfd']['id'])
         self.addCleanup(self.wait_until_vnf_delete, vnf_id,
             constants.VNF_CIRROS_DELETE_TIMEOUT)

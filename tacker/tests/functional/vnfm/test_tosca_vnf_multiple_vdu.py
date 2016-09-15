@@ -12,27 +12,26 @@
 #    under the License.
 
 from oslo_config import cfg
-from toscaparser.tosca_template import ToscaTemplate
+from toscaparser import tosca_template
 import yaml
 
 from tacker.common import utils
+from tacker.plugins.common import constants as evt_constants
 from tacker.tests import constants
 from tacker.tests.functional import base
 from tacker.tests.utils import read_file
-from tacker.vm.tosca import utils as toscautils
+from tacker.vnfm.tosca import utils as toscautils
 
 CONF = cfg.CONF
 
 
 class VnfTestToscaMultipleVDU(base.BaseTackerTest):
     def test_create_delete_tosca_vnf_with_multiple_vdus(self):
-        data = dict()
         input_yaml = read_file('sample-tosca-vnfd-multi-vdu.yaml')
-        data['tosca'] = input_yaml
-        toscal = data['tosca']
+        tosca_dict = yaml.safe_load(input_yaml)
         vnfd_name = 'sample-tosca-vnfd-multi-vdu'
         tosca_arg = {'vnfd': {'name': vnfd_name,
-                              'attributes': {'vnfd': toscal}}}
+                              'attributes': {'vnfd': tosca_dict}}}
 
         # Create vnfd with tosca template
         vnfd_instance = self.client.create_vnfd(body=tosca_arg)
@@ -52,6 +51,10 @@ class VnfTestToscaMultipleVDU(base.BaseTackerTest):
                          self.client.show_vnf(vnf_id)['vnf']['status'])
         self.validate_vnf_instance(vnfd_instance, vnf_instance)
 
+        self.verify_vnf_crud_events(
+            vnf_id, evt_constants.RES_EVT_CREATE,
+            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
+
         # Validate mgmt_url with input yaml file
         mgmt_url = self.client.show_vnf(vnf_id)['vnf']['mgmt_url']
         self.assertIsNotNone(mgmt_url)
@@ -60,7 +63,7 @@ class VnfTestToscaMultipleVDU(base.BaseTackerTest):
         input_dict = yaml.load(input_yaml)
         toscautils.updateimports(input_dict)
 
-        tosca = ToscaTemplate(parsed_params={}, a_file=False,
+        tosca = tosca_template.ToscaTemplate(parsed_params={}, a_file=False,
                           yaml_dict_tpl=input_dict)
 
         vdus = toscautils.findvdus(tosca)
@@ -75,6 +78,8 @@ class VnfTestToscaMultipleVDU(base.BaseTackerTest):
             self.client.delete_vnf(vnf_id)
         except Exception:
             assert False, "vnf Delete of test_vnf_with_multiple_vdus failed"
+
+        self.verify_vnf_crud_events(vnf_id, evt_constants.RES_EVT_DELETE)
 
         # Delete vnfd_instance
         self.addCleanup(self.client.delete_vnfd, vnfd_id)

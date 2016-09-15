@@ -14,6 +14,7 @@
 
 from oslo_config import cfg
 
+from tacker.plugins.common import constants as evt_constants
 from tacker.tests import constants
 from tacker.tests.functional import base
 from tacker.tests.utils import read_file
@@ -44,20 +45,31 @@ class VnfTestCreate(base.BaseTackerTest):
         self.validate_vnf_instance(vnfd_instance, vnf_instance)
 
         vnf_id = vnf_instance['vnf']['id']
-        vnf_current_status = self.wait_until_vnf_active(
+        self.wait_until_vnf_active(
             vnf_id,
             constants.VNF_CIRROS_CREATE_TIMEOUT,
             constants.ACTIVE_SLEEP_TIME)
-        self.assertEqual('ACTIVE', vnf_current_status)
         self.assertIsNotNone(self.client.show_vnf(vnf_id)['vnf']['mgmt_url'])
         if vim_id:
             self.assertEqual(vim_id, vnf_instance['vnf']['vim_id'])
+
+        # Get vnf details when vnf is in active state
+        vnf_details = self.client.list_vnf_resources(vnf_id)['resources'][0]
+        self.assertIn('name', vnf_details)
+        self.assertIn('id', vnf_details)
+        self.assertIn('type', vnf_details)
+
+        self.verify_vnf_crud_events(
+            vnf_id, evt_constants.RES_EVT_CREATE,
+            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
 
         # Delete vnf_instance with vnf_id
         try:
             self.client.delete_vnf(vnf_id)
         except Exception:
             assert False, "vnf Delete failed"
+
+        self.verify_vnf_crud_events(vnf_id, evt_constants.RES_EVT_DELETE)
 
         # Delete vnfd_instance
         self.addCleanup(self.client.delete_vnfd, vnfd_id)

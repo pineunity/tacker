@@ -15,6 +15,7 @@
 
 import codecs
 import os
+import yaml
 
 
 def _get_template(name):
@@ -30,6 +31,10 @@ ipparams = _get_template('vnf_cirros_param_values_ipaddr.yaml')
 vnfd_userdata_template = _get_template('vnf_cirros_template_user_data.yaml')
 userdata_params = _get_template('vnf_cirros_param_values_user_data.yaml')
 config_data = _get_template('config_data.yaml')
+vnffgd_template = yaml.load(_get_template('vnffgd_template.yaml'))
+vnffgd_tosca_template = yaml.load(_get_template('tosca_vnffgd_template.yaml'))
+vnffgd_invalid_tosca_template = yaml.load(_get_template(
+    'tosca_invalid_vnffgd_template.yaml'))
 
 
 def get_dummy_vnfd_obj():
@@ -38,7 +43,7 @@ def get_dummy_vnfd_obj():
                       'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
                       u'mgmt_driver': u'noop',
                       u'infra_driver': u'fake_driver',
-                      u'attributes': {u'vnfd': vnfd_openwrt},
+                      u'attributes': {u'vnfd': yaml.safe_load(vnfd_openwrt)},
                       'description': 'dummy_vnfd_description'},
             u'auth': {u'tenantName': u'admin', u'passwordCredentials': {
                 u'username': u'admin', u'password': u'devstack'}}}
@@ -61,8 +66,9 @@ def get_dummy_vnf_config_obj():
 def get_dummy_device_obj():
     return {'status': 'PENDING_CREATE', 'instance_id': None, 'name':
         u'test_openwrt', 'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
-        'template_id': u'eb094833-995e-49f0-a047-dfb56aaf7c4e',
-        'device_template': {'service_types': [{'service_type': u'vnfd',
+        'vnfd_id': u'eb094833-995e-49f0-a047-dfb56aaf7c4e',
+        'vnfd': {
+            'service_types': [{'service_type': u'vnfd',
             'id': u'4a4c2d44-8a52-4895-9a75-9d1c76c3e738'}],
             'description': u'OpenWRT with services',
             'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
@@ -80,8 +86,8 @@ def get_dummy_device_obj():
 def get_dummy_device_obj_config_attr():
     return {'status': 'PENDING_CREATE', 'instance_id': None, 'name':
         u'test_openwrt', 'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
-        'template_id': u'eb094833-995e-49f0-a047-dfb56aaf7c4e',
-        'device_template': {'service_types': [{'service_type': u'vnfd',
+        'vnfd_id': u'eb094833-995e-49f0-a047-dfb56aaf7c4e',
+        'vnfd': {'service_types': [{'service_type': u'vnfd',
             'id': u'4a4c2d44-8a52-4895-9a75-9d1c76c3e738'}],
             'description': u'OpenWRT with services',
             'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
@@ -96,22 +102,22 @@ def get_dummy_device_obj_config_attr():
 
 
 def get_dummy_device_update_config_attr():
-    return {'device': {u'attributes': {u'config': u"vdus:\n  vdu1:\n    "
-                                                  u"config:\n      firewall: |"
-                                                  u"\n        package firewall"
-                                                  u"\n\n        config default"
-                                                  u"s\n                "
-                                                  u"option syn_flood '10'\n   "
-                                                  u"             option input "
-                                                  u"'REJECT'\n                "
-                                                  u"option output 'REJECT'\n  "
-                                                  u"              option "
-                                                  u"forward 'REJECT'\n"}}}
+    return {'vnf': {u'attributes': {u'config': u"vdus:\n  vdu1:\n    "
+                                               u"config:\n      firewall: |"
+                                               u"\n        package firewall"
+                                               u"\n\n        config default"
+                                               u"s\n                "
+                                               u"option syn_flood '10'\n   "
+                                               u"             option input "
+                                               u"'REJECT'\n                "
+                                               u"option output 'REJECT'\n  "
+                                               u"              option "
+                                               u"forward 'REJECT'\n"}}}
 
 
 def get_dummy_device_obj_ipaddr_attr():
     return {'status': 'PENDING_CREATE',
-        'device_template': {'service_types':
+        'vnfd': {'service_types':
             [{'service_type': u'vnfd', 'id':
                 u'16f8b3f7-a9ff-4338-bbe5-eee48692c468'}, {'service_type':
                 u'router', 'id': u'58878cb7-689f-47a5-9c2d-654e49e2357f'},
@@ -129,7 +135,7 @@ def get_dummy_device_obj_ipaddr_attr():
         'instance_id': None, 'mgmt_url': None, 'service_context': [],
         'services': [],
         'attributes': {u'param_values': ipparams},
-        'template_id': u'24c31ea1-2e28-4de2-a6cb-8d389a502c75',
+        'vnfd_id': u'24c31ea1-2e28-4de2-a6cb-8d389a502c75',
         'description': u'Parameterized VNF descriptor for IP addresses'}
 
 
@@ -137,8 +143,8 @@ def get_dummy_device_obj_userdata_attr():
     return {'status': 'PENDING_CREATE', 'instance_id': None,
         'name': u'test_userdata',
         'tenant_id': u'8273659b56fc46b68bd05856d1f08d14',
-        'template_id': u'206e343f-c580-4494-a739-525849edab7f',
-        'device_template': {'service_types': [{'service_type': u'firewall',
+        'vnfd_id': u'206e343f-c580-4494-a739-525849edab7f',
+        'vnfd': {'service_types': [{'service_type': u'firewall',
             'id': u'1fcc2d7c-a6b6-4263-8cac-9590f059a555'}, {'service_type':
             u'router', 'id': u'8c99106d-826f-46eb-91a1-08dfdc78c04b'},
             {'service_type': u'vnfd', 'id':
@@ -163,3 +169,31 @@ def get_vim_auth_obj():
             'auth_url': 'http://localhost:5000/v3',
             'user_domain_name': 'default',
             'project_domain_name': 'default'}
+
+
+def get_dummy_vnffgd_obj():
+    return {u'vnffgd': {'name': 'dummy_vnfd',
+                        'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
+                        u'template': {u'vnffgd': vnffgd_tosca_template},
+                        'description': 'dummy_vnfd_description'}}
+
+
+def get_dummy_vnffg_obj():
+    return {'vnffg': {'description': 'dummy_vnf_description',
+                      'vnffgd_id': u'eb094833-995e-49f0-a047-dfb56aaf7c4e',
+                      'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
+                      'name': 'dummy_vnffg',
+                      'vnf_mapping': {},
+                      'symmetrical': False}}
+
+
+def get_dummy_vnffg_obj_vnf_mapping():
+    return {'vnffg': {'description': 'dummy_vnf_description',
+                      'vnffgd_id': u'eb094833-995e-49f0-a047-dfb56aaf7c4e',
+                      'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
+                      'name': 'dummy_vnffg',
+                      'vnf_mapping': {
+                          'VNF1': '91e32c20-6d1f-47a4-9ba7-08f5e5effe07',
+                          'VNF3': '7168062e-9fa1-4203-8cb7-f5c99ff3ee1b'
+                      },
+                      'symmetrical': False}}

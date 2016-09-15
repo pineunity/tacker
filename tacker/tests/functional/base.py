@@ -14,12 +14,13 @@
 
 import time
 
+from neutronclient.v2_0 import client as neutron_client
 from novaclient import client as nova_client
 from oslo_config import cfg
-from tempest_lib.tests import base
+from tempest.lib import base
 import yaml
 
-from tacker.common.exceptions import TackerException
+from tacker.plugins.common import constants as evt_constants
 from tacker.tests import constants
 from tacker.tests.utils import read_file
 from tacker import version
@@ -29,11 +30,12 @@ from tackerclient.v1_0 import client as tacker_client
 CONF = cfg.CONF
 
 
-class BaseTackerTest(base.TestCase):
+class BaseTackerTest(base.BaseTestCase):
     """Base test case class for all Tacker API tests."""
 
     @classmethod
     def setUpClass(cls):
+        super(BaseTackerTest, cls).setUpClass()
         kwargs = {}
 
         cfg.CONF(args=['--config-file', '/etc/tacker/tacker.conf'],
@@ -66,43 +68,47 @@ class BaseTackerTest(base.TestCase):
                                   vim_params['auth_url'])
 
     @classmethod
-    def wait_until_vnf_status(cls, vnf_id, target_status, timeout,
+    def neutronclient(cls):
+        vim_params = cls.get_credentials()
+        return neutron_client.Client(**vim_params)
+
+    def wait_until_vnf_status(self, vnf_id, target_status, timeout,
                               sleep_interval):
         start_time = int(time.time())
         while True:
-                vnf_result = cls.client.show_vnf(vnf_id)
+                vnf_result = self.client.show_vnf(vnf_id)
                 status = vnf_result['vnf']['status']
                 if (status == target_status) or (
                         (int(time.time()) - start_time) > timeout):
                     break
                 time.sleep(sleep_interval)
 
-        if (status == target_status):
-            return target_status
+        self.assertEqual(status, target_status,
+                         "vnf %(vnf_id)s with status %(status)s is"
+                         " expected to be %(target)s" %
+                         {"vnf_id": vnf_id, "status": status,
+                          "target": target_status})
 
-    @classmethod
-    def wait_until_vnf_active(cls, vnf_id, timeout, sleep_interval):
-        return cls.wait_until_vnf_status(vnf_id, 'ACTIVE', timeout,
-                                         sleep_interval)
+    def wait_until_vnf_active(self, vnf_id, timeout, sleep_interval):
+        self.wait_until_vnf_status(vnf_id, 'ACTIVE', timeout,
+                                   sleep_interval)
 
-    @classmethod
-    def wait_until_vnf_delete(cls, vnf_id, timeout):
+    def wait_until_vnf_delete(self, vnf_id, timeout):
         start_time = int(time.time())
         while True:
             try:
-                vnf_result = cls.client.show_vnf(vnf_id)
+                vnf_result = self.client.show_vnf(vnf_id)
                 time.sleep(1)
             except Exception:
                 return
             status = vnf_result['vnf']['status']
             if (status != 'PENDING_DELETE') or ((
                     int(time.time()) - start_time) > timeout):
-                raise TackerException(_("Failed with status: %s"), status)
+                raise Exception("Failed with status: %s" % status)
 
-    @classmethod
-    def wait_until_vnf_dead(cls, vnf_id, timeout, sleep_interval):
-        return cls.wait_until_vnf_status(vnf_id, 'DEAD', timeout,
-                                         sleep_interval)
+    def wait_until_vnf_dead(self, vnf_id, timeout, sleep_interval):
+        self.wait_until_vnf_status(vnf_id, 'DEAD', timeout,
+                                   sleep_interval)
 
     def validate_vnf_instance(self, vnfd_instance, vnf_instance):
         self.assertIsNotNone(vnf_instance)
@@ -113,25 +119,56 @@ class BaseTackerTest(base.TestCase):
 
     def verify_vnf_restart(self, vnfd_instance, vnf_instance):
         vnf_id = vnf_instance['vnf']['id']
-        vnf_current_status = self.wait_until_vnf_active(
+        self.wait_until_vnf_active(
             vnf_id,
             constants.VNF_CIRROS_CREATE_TIMEOUT,
             constants.ACTIVE_SLEEP_TIME)
-        self.assertEqual('ACTIVE', vnf_current_status)
         self.validate_vnf_instance(vnfd_instance, vnf_instance)
         self.assertIsNotNone(self.client.show_vnf(vnf_id)['vnf']['mgmt_url'])
 
-        vnf_current_status = self.wait_until_vnf_dead(
+        self.wait_until_vnf_dead(
             vnf_id,
             constants.VNF_CIRROS_DEAD_TIMEOUT,
             constants.DEAD_SLEEP_TIME)
-        self.assertEqual('DEAD', vnf_current_status)
-        vnf_current_status = self.wait_until_vnf_active(
+        self.wait_until_vnf_active(
             vnf_id,
             constants.VNF_CIRROS_CREATE_TIMEOUT,
             constants.ACTIVE_SLEEP_TIME)
-        self.assertEqual('ACTIVE', vnf_current_status)
         self.validate_vnf_instance(vnfd_instance, vnf_instance)
+
+    def verify_vnf_monitor_events(self, vnf_id, vnf_state_list):
+        for state in vnf_state_list:
+            params = {'resource_id': vnf_id, 'resource_state': state,
+                      'event_type': evt_constants.RES_EVT_MONITOR}
+            vnf_evt_list = self.client.list_vnf_events(params)
+            mesg = ("%s - state transition expected." % state)
+            self.assertIsNotNone(vnf_evt_list, mesg)
+
+    def verify_vnf_crud_events(self, vnf_id, evt_type, tstamp=None, cnt=1):
+        params = {'resource_id': vnf_id,
+                  'resource_type': evt_constants.RES_TYPE_VNF,
+                  'event_type': evt_type}
+        if tstamp:
+            params['timestamp'] = tstamp
+
+        vnf_evt_list = self.client.list_vnf_events(params)
+
+        self.assertIsNotNone(vnf_evt_list,
+                             "List of VNF events are Empty")
+        self.assertEqual(cnt, len(vnf_evt_list))
+
+    def verify_vnfd_events(self, vnfd_id, evt_type, tstamp=None, cnt=1):
+        params = {'resource_id': vnfd_id,
+                  'resource_type': evt_constants.RES_TYPE_VNFD,
+                  'event_type': evt_type}
+        if tstamp:
+            params['timestamp'] = tstamp
+
+        vnfd_evt_list = self.client.list_vnfd_events(params)
+
+        self.assertIsNotNone(vnfd_evt_list,
+                             "List of VNFD events are Empty")
+        self.assertEqual(cnt, len(vnfd_evt_list))
 
     def get_vim(self, vim_list, vim_name):
         if len(vim_list.values()) == 0:

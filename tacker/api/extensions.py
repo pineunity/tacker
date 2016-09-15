@@ -25,7 +25,6 @@ import six
 import webob.dec
 import webob.exc
 
-from tacker.api.v1 import attributes
 from tacker.common import exceptions
 import tacker.extensions
 from tacker import policy
@@ -417,7 +416,7 @@ class ExtensionManager(object):
         resources = []
         resources.append(ResourceExtension('extensions',
                                            ExtensionController(self)))
-        for ext in self.extensions.itervalues():
+        for ext in self.extensions.values():
             try:
                 resources.extend(ext.get_resources())
             except AttributeError:
@@ -429,7 +428,7 @@ class ExtensionManager(object):
     def get_actions(self):
         """Returns a list of ActionExtension objects."""
         actions = []
-        for ext in self.extensions.itervalues():
+        for ext in self.extensions.values():
             try:
                 actions.extend(ext.get_actions())
             except AttributeError:
@@ -441,7 +440,7 @@ class ExtensionManager(object):
     def get_request_extensions(self):
         """Returns a list of RequestExtension objects."""
         request_exts = []
-        for ext in self.extensions.itervalues():
+        for ext in self.extensions.values():
             try:
                 request_exts.extend(ext.get_request_extensions())
             except AttributeError:
@@ -486,19 +485,9 @@ class ExtensionManager(object):
                             attr_map[resource].update(resource_attrs)
                         else:
                             attr_map[resource] = resource_attrs
-                    if extended_attrs:
-                        attributes.EXT_NSES[ext.get_alias()] = (
-                            ext.get_namespace())
                 except AttributeError:
                     LOG.exception(_("Error fetching extended attributes for "
                                     "extension '%s'"), ext.get_name())
-                try:
-                    comp_map = ext.get_alias_namespace_compatibility_map()
-                    attributes.EXT_NSES_BC.update(comp_map)
-                except AttributeError:
-                    LOG.info(_("Extension '%s' provides no backward "
-                               "compatibility map for extended attributes"),
-                             ext.get_name())
                 processed_exts.add(ext_name)
                 del exts_to_process[ext_name]
             if len(processed_exts) == processed_ext_count:

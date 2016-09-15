@@ -18,9 +18,11 @@ import uuid
 import mock
 
 from tacker import context
+from tacker.db.common_services import common_services_db
 from tacker.db.nfvo import nfvo_db
 from tacker.db.vm import vm_db
 from tacker.extensions import vnfm
+from tacker.plugins.common import constants
 from tacker.tests.unit.db import base as db_base
 from tacker.tests.unit.db import utils
 from tacker.vm import plugin
@@ -30,6 +32,10 @@ class FakeDriverManager(mock.Mock):
     def invoke(self, *args, **kwargs):
         if 'create' in args:
             return str(uuid.uuid4())
+        if 'get_resource_info' in args:
+            return {'resources': {'name': 'dummy_vnf',
+                                  'type': 'dummy',
+                                  'id': str(uuid.uuid4())}}
 
 
 class FakeVNFMonitor(mock.Mock):
@@ -56,6 +62,10 @@ class TestVNFMPlugin(db_base.SqlTestCase):
         self._mock_green_pool()
         self._insert_dummy_vim()
         self.vnfm_plugin = plugin.VNFMPlugin()
+        mock.patch('tacker.db.common_services.common_services_db.'
+                   'CommonServicesPluginDb.create_event'
+                   ).start()
+        self._cos_db_plugin = common_services_db.CommonServicesPluginDb()
 
     def _mock_device_manager(self):
         self._device_manager = mock.Mock(wraps=FakeDriverManager())
@@ -71,7 +81,7 @@ class TestVNFMPlugin(db_base.SqlTestCase):
         fake_vim_client = mock.Mock()
         fake_vim_client.return_value = self.vim_client
         self._mock(
-            'tacker.vm.vim_client.VimClient', fake_vim_client)
+            'tacker.vnfm.vim_client.VimClient', fake_vim_client)
 
     def _stub_get_vim(self):
         vim_obj = {'vim_id': '6261579e-d6f3-49ad-8bc3-a9cb974778ff',
@@ -93,11 +103,11 @@ class TestVNFMPlugin(db_base.SqlTestCase):
         fake_vnf_monitor = mock.Mock()
         fake_vnf_monitor.return_value = self._vnf_monitor
         self._mock(
-            'tacker.vm.monitor.VNFMonitor', fake_vnf_monitor)
+            'tacker.vnfm.monitor.VNFMonitor', fake_vnf_monitor)
 
     def _insert_dummy_device_template(self):
         session = self.context.session
-        device_template = vm_db.DeviceTemplate(
+        device_template = vm_db.VNFD(
             id='eb094833-995e-49f0-a047-dfb56aaf7c4e',
             tenant_id='ad7ebc56538745a08ef7c5e97f8bd437',
             name='fake_template',
@@ -110,13 +120,13 @@ class TestVNFMPlugin(db_base.SqlTestCase):
 
     def _insert_dummy_device(self):
         session = self.context.session
-        device_db = vm_db.Device(
+        device_db = vm_db.VNF(
             id='6261579e-d6f3-49ad-8bc3-a9cb974778ff',
             tenant_id='ad7ebc56538745a08ef7c5e97f8bd437',
             name='fake_device',
             description='fake_device_description',
             instance_id='da85ea1a-4ec4-4201-bbb2-8d9249eca7ec',
-            template_id='eb094833-995e-49f0-a047-dfb56aaf7c4e',
+            vnfd_id='eb094833-995e-49f0-a047-dfb56aaf7c4e',
             vim_id='6261579e-d6f3-49ad-8bc3-a9cb974778ff',
             placement_attr={'region': 'RegionOne'},
             status='ACTIVE')
@@ -152,12 +162,18 @@ class TestVNFMPlugin(db_base.SqlTestCase):
         self.assertIn('id', result)
         self.assertIn('service_types', result)
         self.assertIn('attributes', result)
+        self.assertIn('created_at', result)
+        self.assertIn('updated_at', result)
         self._device_manager.invoke.assert_called_once_with(
             mock.ANY,
             mock.ANY,
             plugin=mock.ANY,
             context=mock.ANY,
-            device_template=mock.ANY)
+            vnfd=mock.ANY)
+        self._cos_db_plugin.create_event.assert_called_once_with(
+            self.context, evt_type=constants.RES_EVT_CREATE, res_id=mock.ANY,
+            res_state=constants.RES_EVT_VNFD_NA_STATE,
+            res_type=constants.RES_TYPE_VNFD, tstamp=mock.ANY)
 
     def test_create_vnfd_no_service_types(self):
         vnfd_obj = utils.get_dummy_vnfd_obj()
@@ -183,12 +199,34 @@ class TestVNFMPlugin(db_base.SqlTestCase):
         self.assertIn('status', result)
         self.assertIn('attributes', result)
         self.assertIn('mgmt_url', result)
+        self.assertIn('created_at', result)
+        self.assertIn('updated_at', result)
         self._device_manager.invoke.assert_called_with(mock.ANY, mock.ANY,
                                                        plugin=mock.ANY,
                                                        context=mock.ANY,
-                                                       device=mock.ANY,
+                                                       vnf=mock.ANY,
                                                        auth_attr=mock.ANY)
         self._pool.spawn_n.assert_called_once_with(mock.ANY)
+        self._cos_db_plugin.create_event.assert_called_with(
+            self.context, evt_type=constants.RES_EVT_CREATE, res_id=mock.ANY,
+            res_state=mock.ANY, res_type=constants.RES_TYPE_VNF,
+            tstamp=mock.ANY, details=mock.ANY)
+
+    def test_show_vnf_details_vnf_inactive(self):
+        self._insert_dummy_device_template()
+        vnf_obj = utils.get_dummy_vnf_obj()
+        result = self.vnfm_plugin.create_vnf(self.context, vnf_obj)
+        self.assertRaises(vnfm.VNFInactive, self.vnfm_plugin.get_vnf_resources,
+                          self.context, result['id'])
+
+    def test_show_vnf_details_vnf_active(self):
+        self._insert_dummy_device_template()
+        active_vnf = self._insert_dummy_device()
+        resources = self.vnfm_plugin.get_vnf_resources(self.context,
+                                                       active_vnf['id'])[0]
+        self.assertIn('name', resources)
+        self.assertIn('type', resources)
+        self.assertIn('id', resources)
 
     def test_delete_vnf(self):
         self._insert_dummy_device_template()
@@ -198,12 +236,16 @@ class TestVNFMPlugin(db_base.SqlTestCase):
         self._device_manager.invoke.assert_called_with(mock.ANY, mock.ANY,
                                                        plugin=mock.ANY,
                                                        context=mock.ANY,
-                                                       device_id=mock.ANY,
+                                                       vnf_id=mock.ANY,
                                                        auth_attr=mock.ANY,
                                                        region_name=mock.ANY)
         self._vnf_monitor.delete_hosting_vnf.assert_called_with(mock.ANY)
         self._pool.spawn_n.assert_called_once_with(mock.ANY, mock.ANY,
                                                    mock.ANY, mock.ANY)
+        self._cos_db_plugin.create_event.assert_called_with(
+            self.context, evt_type=constants.RES_EVT_DELETE, res_id=mock.ANY,
+            res_state=mock.ANY, res_type=constants.RES_TYPE_VNF,
+            tstamp=mock.ANY, details=mock.ANY)
 
     def test_update_vnf(self):
         self._insert_dummy_device_template()
@@ -217,5 +259,10 @@ class TestVNFMPlugin(db_base.SqlTestCase):
         self.assertIn('status', result)
         self.assertIn('attributes', result)
         self.assertIn('mgmt_url', result)
+        self.assertIn('updated_at', result)
         self._pool.spawn_n.assert_called_once_with(mock.ANY, mock.ANY,
                                                    mock.ANY, mock.ANY)
+        self._cos_db_plugin.create_event.assert_called_with(
+            self.context, evt_type=constants.RES_EVT_UPDATE, res_id=mock.ANY,
+            res_state=mock.ANY, res_type=constants.RES_TYPE_VNF,
+            tstamp=mock.ANY)

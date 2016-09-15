@@ -14,7 +14,9 @@
 
 from novaclient import exceptions
 from oslo_config import cfg
+import yaml
 
+from tacker.plugins.common import constants as evt_constants
 from tacker.tests import constants
 from tacker.tests.functional import base
 from tacker.tests.utils import read_file
@@ -26,12 +28,11 @@ VNF_CIRROS_CREATE_TIMEOUT = 120
 
 class VnfTestToscaCreate(base.BaseTackerTest):
     def test_create_delete_vnf_tosca_no_monitoring(self):
-        data = dict()
-        data['tosca'] = read_file('sample-tosca-vnfd.yaml')
+        input_yaml = read_file('sample-tosca-vnfd.yaml')
         vnfd_name = 'test_tosca_vnf_with_cirros_no_monitoring'
-        toscal = data['tosca']
+        tosca_dict = yaml.safe_load(input_yaml)
         tosca_arg = {'vnfd': {'name': vnfd_name,
-                              'attributes': {'vnfd': toscal}}}
+                              'attributes': {'vnfd': tosca_dict}}}
 
         # Create vnfd with tosca template
         vnfd_instance = self.client.create_vnfd(body=tosca_arg)
@@ -46,18 +47,35 @@ class VnfTestToscaCreate(base.BaseTackerTest):
         self.validate_vnf_instance(vnfd_instance, vnf_instance)
 
         vnf_id = vnf_instance['vnf']['id']
-        vnf_current_status = self.wait_until_vnf_active(
+        self.wait_until_vnf_active(
             vnf_id,
             constants.VNF_CIRROS_CREATE_TIMEOUT,
             constants.ACTIVE_SLEEP_TIME)
-        self.assertEqual('ACTIVE', vnf_current_status)
         self.assertIsNotNone(self.client.show_vnf(vnf_id)['vnf']['mgmt_url'])
+
+        self.verify_vnf_crud_events(
+            vnf_id, evt_constants.RES_EVT_CREATE,
+            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
+
+        servers = self.novaclient().servers.list()
+        vdus = []
+        for server in servers:
+            vdus.append(server.name)
+        self.assertIn('test-vdu', vdus)
+
+        port_list = self.neutronclient().list_ports()['ports']
+        vdu_ports = []
+        for port in port_list:
+            vdu_ports.append(port['name'])
+        self.assertIn('test-cp', vdu_ports)
 
         # Delete vnf_instance with vnf_id
         try:
             self.client.delete_vnf(vnf_id)
         except Exception:
             assert False, "vnf Delete failed"
+
+        self.verify_vnf_crud_events(vnf_id, evt_constants.RES_EVT_DELETE)
 
         # Delete vnfd_instance
         self.addCleanup(self.client.delete_vnfd, vnfd_id)
@@ -67,12 +85,11 @@ class VnfTestToscaCreate(base.BaseTackerTest):
 
 class VnfTestToscaCreateFlavorCreation(base.BaseTackerTest):
     def test_create_delete_vnf_tosca_no_monitoring(self):
-        data = dict()
         vnfd_name = 'tosca_vnfd_with_auto_flavor'
-        data['tosca'] = read_file('sample-tosca-vnfd-flavor.yaml')
-        toscal = data['tosca']
+        input_yaml = read_file('sample-tosca-vnfd-flavor.yaml')
+        tosca_dict = yaml.safe_load(input_yaml)
         tosca_arg = {'vnfd': {'name': vnfd_name, 'attributes': {'vnfd':
-                                                                toscal}}}
+                                                                tosca_dict}}}
 
         # Create vnfd with tosca template
         vnfd_instance = self.client.create_vnfd(body=tosca_arg)
@@ -87,12 +104,15 @@ class VnfTestToscaCreateFlavorCreation(base.BaseTackerTest):
         self.validate_vnf_instance(vnfd_instance, vnf_instance)
 
         vnf_id = vnf_instance['vnf']['id']
-        vnf_current_status = self.wait_until_vnf_active(
+        self.wait_until_vnf_active(
             vnf_id,
             constants.VNF_CIRROS_CREATE_TIMEOUT,
             constants.ACTIVE_SLEEP_TIME)
-        self.assertEqual('ACTIVE', vnf_current_status)
         self.assertIsNotNone(self.client.show_vnf(vnf_id)['vnf']['mgmt_url'])
+
+        self.verify_vnf_crud_events(
+            vnf_id, evt_constants.RES_EVT_CREATE,
+            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
 
         servers = self.novaclient().servers.list()
         vdu_server = None
@@ -112,6 +132,8 @@ class VnfTestToscaCreateFlavorCreation(base.BaseTackerTest):
         except Exception:
             assert False, "vnf Delete failed"
 
+        self.verify_vnf_crud_events(vnf_id, evt_constants.RES_EVT_DELETE)
+
         # Delete vnfd_instance
         self.addCleanup(self.client.delete_vnfd, vnfd_id)
         self.addCleanup(self.wait_until_vnf_delete, vnf_id,
@@ -122,12 +144,11 @@ class VnfTestToscaCreateFlavorCreation(base.BaseTackerTest):
 
 class VnfTestToscaCreateImageCreation(base.BaseTackerTest):
     def test_create_delete_vnf_tosca_no_monitoring(self):
-        data = dict()
         vnfd_name = 'tosca_vnfd_with_auto_image'
-        data['tosca'] = read_file('sample-tosca-vnfd-image.yaml')
-        toscal = data['tosca']
+        input_yaml = read_file('sample-tosca-vnfd-image.yaml')
+        tosca_dict = yaml.safe_load(input_yaml)
         tosca_arg = {'vnfd': {'name': vnfd_name, 'attributes': {'vnfd':
-                                                                toscal}}}
+                                                                tosca_dict}}}
 
         # Create vnfd with tosca template
         vnfd_instance = self.client.create_vnfd(body=tosca_arg)
@@ -142,12 +163,15 @@ class VnfTestToscaCreateImageCreation(base.BaseTackerTest):
         self.validate_vnf_instance(vnfd_instance, vnf_instance)
 
         vnf_id = vnf_instance['vnf']['id']
-        vnf_current_status = self.wait_until_vnf_active(
+        self.wait_until_vnf_active(
             vnf_id,
             constants.VNF_CIRROS_CREATE_TIMEOUT,
             constants.ACTIVE_SLEEP_TIME)
-        self.assertEqual('ACTIVE', vnf_current_status)
         self.assertIsNotNone(self.client.show_vnf(vnf_id)['vnf']['mgmt_url'])
+
+        self.verify_vnf_crud_events(
+            vnf_id, evt_constants.RES_EVT_CREATE,
+            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
 
         servers = self.novaclient().servers.list()
         vdu_server = None
@@ -166,6 +190,8 @@ class VnfTestToscaCreateImageCreation(base.BaseTackerTest):
             self.client.delete_vnf(vnf_id)
         except Exception:
             assert False, "vnf Delete failed"
+
+        self.verify_vnf_crud_events(vnf_id, evt_constants.RES_EVT_DELETE)
 
         # Delete vnfd_instance
         self.addCleanup(self.client.delete_vnfd, vnfd_id)
