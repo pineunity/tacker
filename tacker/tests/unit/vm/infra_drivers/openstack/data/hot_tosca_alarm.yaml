@@ -32,10 +32,10 @@ resources:
     type: OS::Aodh::Alarm
     properties:
       description: utilization greater_than 50%
-      meter_name: cpu_utils
+      meter_name: cpu_util
       threshold: 50
       period: 60
-      statistic: avg
+      statistic: average
       evaluation_periods: 1
       comparison_operator: gt
-#      alarm_actions: ''
+

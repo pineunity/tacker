@@ -12,8 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from tempest.lib import decorators
-
+from tacker.plugins.common import constants as evt_constants
 from tacker.tests import constants
 from tacker.tests.functional import base
 from tacker.tests.utils import read_file
@@ -48,6 +47,10 @@ class VnfTestPingMonitor(base.BaseTackerTest):
             assert False, ("Failed to delete vnf %s after the monitor test" %
                            vnf_id)
 
+        # Verify VNF monitor events captured for states, ACTIVE and DEAD
+        vnf_state_list = [evt_constants.ACTIVE, evt_constants.DEAD]
+        self.verify_vnf_monitor_events(vnf_id, vnf_state_list)
+
         # Delete vnfd_instance
         self.addCleanup(self.client.delete_vnfd, vnfd_id)
         self.addCleanup(self.wait_until_vnf_delete, vnf_id,
@@ -73,9 +76,6 @@ class VnfTestPingMonitor(base.BaseTackerTest):
             'sample-vnfd-single-vdu-monitoring-new-template.yaml',
             'ping monitor vnf new template')
 
-    # TODO(sridhar_ram): Temporarily disable ping monitor test using tosca
-    #     to avoid unwanted rechecks. Reenable after this test is fixed.
-    @decorators.skip_because(bug="1617923")
     def test_create_delete_vnf_monitoring_tosca_template(self):
         self._test_vnf_with_monitoring(
             'sample-tosca-vnfd-monitor.yaml',

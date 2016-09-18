@@ -15,7 +15,7 @@
 
 import os
 
-from cryptography.fernet import Fernet
+from cryptography import fernet
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_log import versionutils
@@ -81,7 +81,8 @@ class VimClient(object):
 
         vim_auth = self._build_vim_auth(vim_info)
         vim_res = {'vim_auth': vim_auth, 'vim_id': vim_info['id'],
-                   'vim_name': vim_info.get('name', vim_info['id'])}
+                   'vim_name': vim_info.get('name', vim_info['id']),
+                   'vim_type': vim_info['type']}
         return vim_res
 
     @staticmethod
@@ -113,7 +114,7 @@ class VimClient(object):
         Decrypt VIM cred. using Fernet Key
         """
         vim_key = self._find_vim_key(vim_id)
-        f = Fernet(vim_key)
+        f = fernet.Fernet(vim_key)
         if not f:
             LOG.warning(_('Unable to decode VIM auth'))
             raise nfvo.VimNotFoundException('Unable to decode VIM auth key')

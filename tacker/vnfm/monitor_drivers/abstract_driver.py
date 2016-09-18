@@ -23,12 +23,10 @@ from tacker.api import extensions
 @six.add_metaclass(abc.ABCMeta)
 class VNFMonitorAbstractDriver(extensions.PluginInterface):
 
-    @abc.abstractmethod 
+    @abc.abstractmethod
     def get_type(self):
         """Return one of predefined type of the hosting vnf drivers."""
         pass
-
-
 
     @abc.abstractmethod
     def get_name(self):

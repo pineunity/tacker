@@ -28,7 +28,9 @@ import six
 from tacker.common import clients
 from tacker.common import driver_manager
 from tacker import context as t_context
-from tacker.vnfm.infra_drivers.heat import heat
+from tacker.db.common_services import common_services_db
+from tacker.plugins.common import constants
+from tacker.vnfm.infra_drivers.openstack import openstack
 
 
 LOG = logging.getLogger(__name__)
@@ -43,9 +45,18 @@ CONF.register_opts(OPTS, group='monitor')
 
 def config_opts():
     return [('monitor', OPTS),
-            ('tacker',
-            VNFMonitor.OPTS),
+            ('tacker', VNFMonitor.OPTS),
             ('tacker', VNFAlarmMonitor.OPTS), ]
+
+
+def _log_monitor_events(context, vnf_dict, evt_details):
+    _cos_db_plg = common_services_db.CommonServicesPluginDb()
+    _cos_db_plg.create_event(context, res_id=vnf_dict['id'],
+                             res_type=constants.RES_TYPE_VNF,
+                             res_state=vnf_dict['status'],
+                             evt_type=constants.RES_EVT_MONITOR,
+                             tstamp=timeutils.utcnow(),
+                             details=evt_details)
 
 
 class VNFMonitor(object):
@@ -89,6 +100,7 @@ class VNFMonitor(object):
             with self._lock:
                 for hosting_vnf in self._hosting_vnfs.values():
                     if hosting_vnf.get('dead', False):
+                        LOG.debug('monitor skips dead vnf %s', hosting_vnf)
                         continue
 
                     self.run_monitor(hosting_vnf)
@@ -112,6 +124,13 @@ class VNFMonitor(object):
         new_vnf['boot_at'] = timeutils.utcnow()
         with self._lock:
             self._hosting_vnfs[new_vnf['id']] = new_vnf
+
+        attrib_dict = new_vnf['vnf']['attributes']
+        mon_policy_dict = attrib_dict['monitoring_policy']
+        evt_details = (("VNF added for monitoring. "
+                        "mon_policy_dict = %s,") % (mon_policy_dict))
+        _log_monitor_events(t_context.get_admin_context(), new_vnf['vnf'],
+                            evt_details)
 
     def delete_hosting_vnf(self, vnf_id):
         LOG.debug('deleting vnf_id %(vnf_id)s', {'vnf_id': vnf_id})
@@ -183,7 +202,7 @@ class VNFAlarmMonitor(object):
     """VNF Alarm monitor"""
     OPTS = [
         cfg.ListOpt(
-            'alarm_monitor_driver', default=['ceilometer', 'monasca'],
+            'alarm_monitor_driver', default=['ceilometer'],
             help=_('Alarm monitoring driver to communicate with '
                    'Hosting VNF/logical service '
                    'instance tacker plugin will use')),
@@ -200,19 +219,49 @@ class VNFAlarmMonitor(object):
         params = dict()
         params['vnf_id'] = vnf['id']
         params['mon_policy_name'] = policy_name
+        _log_monitor_events(t_context.get_admin_context(),
+                            vnf,
+                            "update vnf with alarm")
         driver = policy_dict['triggers']['resize_compute'][
             'event_type']['implementation']
         policy_action = policy_dict['triggers']['resize_compute'].get('action')
         if not policy_action:
             return
-        alarm_action_name = policy_action.get('resize_compute')
+        alarm_action_name = policy_action['resize_compute'].get('action_name')
         if not alarm_action_name:
             return
         params['mon_policy_action'] = alarm_action_name
         alarm_url = self.call_alarm_url(driver, vnf, params)
+        _log_monitor_events(t_context.get_admin_context(),
+                            vnf,
+                            "Alarm url invoked")
         return alarm_url
         # vnf['attribute']['alarm_url'] = alarm_url ---> create
         # by plugin or vm_db
+
+    def process_alarm_for_vnf(self, policy):
+        '''call in plugin'''
+        vnf = policy['vnf']
+        params = policy['params']
+        mon_prop = policy['properties']
+        alarm_dict = dict()
+        alarm_dict['alarm_id'] = params['data'].get('alarm_id')
+        alarm_dict['status'] = params['data'].get('current')
+        driver = mon_prop['resize_compute']['event_type']['implementation']
+        return self.process_alarm(driver, vnf, alarm_dict)
+
+    def process_notification_for_vnf(self, policy):
+        '''call in action'''
+        vnf = policy['vnf']
+        mon_prop = policy['properties']
+        driver = mon_prop['resize_compute']['event_type']['implementation']
+        ntf_dict = dict()
+        rc_email_address = mon_prop['resize_compute']['action']['resize_compute'].\
+            get('constraint')
+        ntf_dict['rc_email_address'] = rc_email_address
+        content = 'VNF get overloaded'
+        ntf_dict['content'] = content
+        return self.process_notification(driver, vnf, ntf_dict)
 
     def _invoke(self, driver, **kwargs):
         method = inspect.stack()[1][3]
@@ -220,6 +269,14 @@ class VNFAlarmMonitor(object):
             driver, method, **kwargs)
 
     def call_alarm_url(self, driver, vnf_dict, kwargs):
+        return self._invoke(driver,
+                            vnf=vnf_dict, kwargs=kwargs)
+
+    def process_alarm(self, driver, vnf_dict, kwargs):
+        return self._invoke(driver,
+                            vnf=vnf_dict, kwargs=kwargs)
+
+    def process_notification(self, driver, vnf_dict, kwargs):
         return self._invoke(driver,
                             vnf=vnf_dict, kwargs=kwargs)
 
@@ -259,7 +316,7 @@ class ActionPolicy(object):
 @ActionPolicy.register('respawn')
 class ActionRespawn(ActionPolicy):
     @classmethod
-    def execute_action(cls, plugin, vnf_dict):
+    def execute_action(cls, plugin, vnf_dict, auth_attr):
         LOG.error(_('vnf %s dead'), vnf_dict['id'])
         if plugin._mark_vnf_dead(vnf_dict['id']):
             plugin._vnf_monitor.mark_dead(vnf_dict['id'])
@@ -281,8 +338,12 @@ class ActionRespawn(ActionPolicy):
             context.auth_token = token['id']
             context.tenant_id = token['tenant_id']
             context.user_id = token['user_id']
+            _log_monitor_events(context, vnf_dict,
+                                "ActionRespawnPolicy invoked")
             new_vnf_dict = plugin.create_vnf(context,
                                              {'vnf': new_vnf})
+            _log_monitor_events(context, new_vnf_dict,
+                                "ActionRespawnPolicy complete")
             LOG.info(_('respawned new vnf %s'), new_vnf_dict['id'])
 
 
@@ -291,7 +352,7 @@ class ActionRespawnHeat(ActionPolicy):
     @classmethod
     def execute_action(cls, plugin, vnf_dict, auth_attr):
         vnf_id = vnf_dict['id']
-        LOG.error(_('vnf %s dead'), vnf_id)
+        LOG.info(_('vnf %s dead and to be respawned'), vnf_id)
         if plugin._mark_vnf_dead(vnf_dict['id']):
             if vnf_dict['attributes'].get('monitoring_policy'):
                 plugin._vnf_monitor.mark_dead(vnf_dict['id'])
@@ -304,14 +365,18 @@ class ActionRespawnHeat(ActionPolicy):
                 placement_attr = vnf_dict.get('placement_attr', {})
                 region_name = placement_attr.get('region_name')
                 # kill heat stack
-                heatclient = heat.HeatClient(auth_attr=auth_attr,
-                                             region_name=region_name)
+                heatclient = openstack.HeatClient(auth_attr=auth_attr,
+                                                  region_name=region_name)
                 heatclient.delete(vnf_dict['instance_id'])
 
                 # TODO(anyone) set the current request ctxt
                 context = t_context.get_admin_context()
+                _log_monitor_events(context, vnf_dict,
+                                    "ActionRespawnHeat invoked")
+
                 update_vnf_dict = plugin.create_vnf_sync(context,
                                                          vnf_dict)
+                LOG.info(_('respawned new vnf %s'), update_vnf_dict['id'])
                 plugin.config_vnf(context, update_vnf_dict)
                 plugin.add_vnf_to_monitor(update_vnf_dict, auth_attr)
 
@@ -325,12 +390,15 @@ class ActionRespawnHeat(ActionPolicy):
                 placement_attr = vnf_dict.get('placement_attr', {})
                 region_name = placement_attr.get('region_name')
                 # kill heat stack
-                heatclient = heat.HeatClient(auth_attr=auth_attr,
-                                             region_name=region_name)
+                heatclient = openstack.HeatClient(auth_attr=auth_attr,
+                                                  region_name=region_name)
                 heatclient.delete(vnf_dict['instance_id'])
+                vnf_dict['attributes'].pop('alarm_url')
 
                 # TODO(anyone) set the current request ctxt
                 context = t_context.get_admin_context()
+                _log_monitor_events(context, vnf_dict,
+                                    "ActionRespawnHeat invoked")
                 update_vnf_dict = plugin.create_vnf_sync(context,
                                                          vnf_dict)
                 plugin.config_vnf(context, update_vnf_dict)
@@ -342,23 +410,46 @@ class ActionAutoscalingHeat(ActionPolicy):
     def execute_action(cls, plugin, vnf_dict, scale):
         vnf_id = vnf_dict['id']
         plugin.create_vnf_scale(t_context.get_admin_context(), vnf_id, scale)
+        _log_monitor_events(t_context.get_admin_context(),
+                            vnf_dict,
+                            "ActionAutoscalingHeat invoked")
 
 
 @ActionPolicy.register('log')
 class ActionLogOnly(ActionPolicy):
     @classmethod
-    def execute_action(cls, plugin, vnf_dict):
+    def execute_action(cls, plugin, vnf_dict, auth_attr):
         vnf_id = vnf_dict['id']
         LOG.error(_('vnf %s dead'), vnf_id)
+        _log_monitor_events(t_context.get_admin_context(),
+                            vnf_dict,
+                            "ActionLogOnly invoked")
 
 
 @ActionPolicy.register('log_and_kill')
 class ActionLogAndKill(ActionPolicy):
     @classmethod
-    def execute_action(cls, plugin, vnf_dict):
+    def execute_action(cls, plugin, vnf_dict, auth_attr):
+        _log_monitor_events(t_context.get_admin_context(),
+                            vnf_dict,
+                            "ActionLogAndKill invoked")
         vnf_id = vnf_dict['id']
         if plugin._mark_vnf_dead(vnf_dict['id']):
             if vnf_dict['attributes'].get('monitoring_policy'):
                 plugin._vnf_monitor.mark_dead(vnf_dict['id'])
             plugin.delete_vnf(t_context.get_admin_context(), vnf_id)
         LOG.error(_('vnf %s dead'), vnf_id)
+
+
+@ActionPolicy.register('notify')
+class ActionNotify(ActionPolicy):
+    @classmethod
+    def execute_action(cls, plugin, policy_dict, auth_attr):
+        vnf_dict = policy_dict['vnf']
+        _log_monitor_events(t_context.get_admin_context(),
+                            vnf_dict,
+                            "ActionNotify invoked")
+        if vnf_dict['attributes'].get('alarm_url'):
+            if not plugin._vnf_alarm_monitor.\
+                    process_notification_for_vnf(policy_dict):
+                LOG.debug('Receiver email address is unreachable')

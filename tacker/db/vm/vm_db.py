@@ -229,12 +229,6 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
         mgmt_driver = vnfd.get('mgmt_driver')
         service_types = vnfd.get('service_types')
 
-        if (not attributes.is_attr_set(infra_driver)):
-            LOG.debug(_('hosting vnf driver unspecified'))
-            raise vnfm.InfraDriverNotSpecified()
-        if (not attributes.is_attr_set(mgmt_driver)):
-            LOG.debug(_('mgmt driver unspecified'))
-            raise vnfm.MGMTDriverNotSpecified()
         if (not attributes.is_attr_set(service_types)):
             LOG.debug(_('service types unspecified'))
             raise vnfm.ServiceTypesNotSpecified()
@@ -399,13 +393,14 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
                         id=str(uuid.uuid4()), vnf_id=vnf_id,
                         key=key, value=value)
                     context.session.add(arg)
+        evt_details = "VNF UUID assigned."
         self._cos_db_plg.create_event(
             context, res_id=vnf_id,
             res_type=constants.RES_TYPE_VNF,
             res_state=constants.PENDING_CREATE,
             evt_type=constants.RES_EVT_CREATE,
-            tstamp=timeutils.utcnow(),
-            details="VNF UUID assigned")
+            tstamp=vnf_db[constants.RES_EVT_CREATED_FLD],
+            details=evt_details)
         return self._make_vnf_dict(vnf_db)
 
     # called internally, not by REST API
@@ -474,7 +469,14 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
                 context, policy['vnf']['id'], previous_statuses, status)
             if mgmt_url:
                 vnf_db.update({'mgmt_url': mgmt_url})
-        return self._make_vnf_dict(vnf_db)
+        updated_vnf_dict = self._make_vnf_dict(vnf_db)
+        self._cos_db_plg.create_event(
+            context, res_id=updated_vnf_dict['id'],
+            res_type=constants.RES_TYPE_VNF,
+            res_state=updated_vnf_dict['status'],
+            evt_type=constants.RES_EVT_SCALE,
+            tstamp=timeutils.utcnow())
+        return updated_vnf_dict
 
     def _update_vnf_pre(self, context, vnf_id):
         with context.session.begin(subtransactions=True):
@@ -622,6 +624,12 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
                 return False
 
             vnf_db.update({'status': new_status})
+            self._cos_db_plg.create_event(
+                context, res_id=vnf_id,
+                res_type=constants.RES_TYPE_VNF,
+                res_state=new_status,
+                evt_type=constants.RES_EVT_MONITOR,
+                tstamp=timeutils.utcnow())
         return True
 
     def _mark_vnf_error(self, vnf_id):

@@ -56,7 +56,7 @@ class VNFInUse(exceptions.InUse):
 
 
 class InvalidInfraDriver(exceptions.InvalidInput):
-    message = _('invalid name for infra driver %(infra_driver)s')
+    message = _('VIM type %(vim_name)s is not supported as a infra driver ')
 
 
 class InvalidServiceType(exceptions.InvalidInput):
@@ -68,6 +68,10 @@ class VNFCreateFailed(exceptions.TackerException):
 
 
 class VNFCreateWaitFailed(exceptions.TackerException):
+    message = _('%(reason)s')
+
+
+class VNFScaleWaitFailed(exceptions.TackerException):
     message = _('%(reason)s')
 
 
@@ -140,6 +144,15 @@ class FilePathMissing(exceptions.InvalidInput):
                 "tosca.artifacts.Deployment.Image.VM artifact type")
 
 
+class InfraDriverUnreachable(exceptions.ServiceUnavailable):
+    message = _("Could not retrieve VNF resource IDs and"
+                " types. Please check %(service)s status.")
+
+
+class VNFInactive(exceptions.InvalidInput):
+    message = _("VNF %(vnf_id)s is not in Active state %(message)s")
+
+
 def _validate_service_type_list(data, valid_values=None):
     if not isinstance(data, list):
         msg = _("invalid data format for service list: '%s'") % data
@@ -207,14 +220,14 @@ RESOURCE_ATTRIBUTE_MAP = {
             'allow_put': False,
             'validate': {'type:string': None},
             'is_visible': True,
-            'default': attr.ATTR_NOT_SPECIFIED,
+            'default': "",
         },
         'mgmt_driver': {
             'allow_post': True,
             'allow_put': False,
             'validate': {'type:string': None},
             'is_visible': True,
-            'default': attr.ATTR_NOT_SPECIFIED,
+            'default': "",
         },
         'attributes': {
             'allow_post': True,
@@ -357,6 +370,14 @@ SUB_RESOURCE_ATTRIBUTE_MAP = {
                     },
                 }
             },
+        }
+    },
+    'triggers': {
+        'parent': {
+            'collection_name': 'vnfs',
+            'member_name': 'vnf'
+        },
+        'members': {
             'trigger': {
                 'parameters': {
                     'policy_name': {
@@ -384,6 +405,33 @@ SUB_RESOURCE_ATTRIBUTE_MAP = {
                         'required_by_policy': False,
                         'is_visible': False
                     }
+                }
+            },
+        }
+    },
+    'resources': {
+        'parent': {
+            'collection_name': 'vnfs',
+            'member_name': 'vnf'
+        },
+        'members': {
+            'resource': {
+                'parameters': {
+                    'name': {
+                        'allow_post': False,
+                        'allow_put': False,
+                        'is_visible': True,
+                    },
+                    'type': {
+                        'allow_post': False,
+                        'allow_put': False,
+                        'is_visible': True,
+                    },
+                    'id': {
+                        'allow_post': False,
+                        'allow_put': False,
+                        'is_visible': True,
+                    },
                 }
             }
         }
@@ -494,6 +542,10 @@ class VNFMPluginBase(service_base.NFVPluginBase):
         pass
 
     @abc.abstractmethod
+    def get_vnf_resources(self, context, vnf_id, fields=None, filters=None):
+        pass
+
+    @abc.abstractmethod
     def create_vnf(self, context, vnf):
         pass
 
@@ -515,4 +567,3 @@ class VNFMPluginBase(service_base.NFVPluginBase):
     def create_vnf_trigger(
             self, context, vnf_id, trigger):
         pass
-

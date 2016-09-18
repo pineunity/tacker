@@ -23,6 +23,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_log import versionutils
 from oslo_utils import excutils
+from toscaparser.tosca_template import ToscaTemplate
 
 from tacker._i18n import _LE
 from tacker.api.v1 import attributes
@@ -34,6 +35,7 @@ from tacker.extensions import vnfm
 from tacker.plugins.common import constants
 from tacker.vnfm.mgmt_drivers import constants as mgmt_constants
 from tacker.vnfm import monitor
+from tacker.vnfm.tosca import utils as toscautils
 from tacker.vnfm import vim_client
 
 LOG = logging.getLogger(__name__)
@@ -112,7 +114,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
     """
     OPTS = [
         cfg.ListOpt(
-            'infra_driver', default=['nova', 'heat', 'noop'],
+            'infra_driver', default=['nova', 'heat', 'noop', 'openstack'],
             help=_('Hosting vnf drivers tacker plugin will use')),
     ]
     cfg.CONF.register_opts(OPTS, 'tacker')
@@ -150,16 +152,12 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
 
         LOG.debug(_('vnfd %s'), vnfd_data)
 
-        infra_driver = vnfd_data.get('infra_driver')
-        if not attributes.is_attr_set(infra_driver):
-            LOG.debug(_('hosting vnf driver must be specified'))
-            raise vnfm.InfraDriverNotSpecified()
-        if infra_driver not in self._vnf_manager:
-            LOG.debug(_('unknown hosting vnf driver '
-                        '%(infra_driver)s in %(drivers)s'),
-                      {'infra_driver': infra_driver,
-                       'drivers': cfg.CONF.tacker.infra_driver})
-            raise vnfm.InvalidInfraDriver(infra_driver=infra_driver)
+        if 'infra_driver' in vnfd_data or 'mgmt_driver' in vnfd_data:
+            versionutils.report_deprecated_feature(LOG, "Deriving "
+                "infra_driver and mgmt_driver from VNFD API is deprecated and"
+                " will be removed in Ocata. infra_driver will be automatically"
+                " derived from target vim type. mgmt_driver will be derived "
+                "from TOSCA template values.")
 
         service_types = vnfd_data.get('service_types')
         if not attributes.is_attr_set(service_types):
@@ -171,12 +169,67 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             # so doesn't check it here yet.
             pass
 
-        self._vnf_manager.invoke(
-            infra_driver, 'create_vnfd_pre', plugin=self,
-            context=context, vnfd=vnfd)
-
+        self._parse_template_input(vnfd)
         return super(VNFMPlugin, self).create_vnfd(
             context, vnfd)
+
+    def _parse_template_input(self, vnfd):
+        vnfd_dict = vnfd['vnfd']
+        vnfd_yaml = vnfd_dict['attributes'].get('vnfd')
+        if vnfd_yaml is None:
+            return
+
+        inner_vnfd_dict = yaml.load(vnfd_yaml)
+        LOG.debug(_('vnfd_dict: %s'), inner_vnfd_dict)
+
+        if 'tosca_definitions_version' in inner_vnfd_dict:
+            # Prepend the tacker_defs.yaml import file with the full
+            # path to the file
+            toscautils.updateimports(inner_vnfd_dict)
+
+            try:
+                tosca = ToscaTemplate(a_file=False,
+                                      yaml_dict_tpl=inner_vnfd_dict)
+            except Exception as e:
+                LOG.exception(_("tosca-parser error: %s"), str(e))
+                raise vnfm.ToscaParserFailed(error_msg_details=str(e))
+
+            if ('description' not in vnfd_dict or
+                    vnfd_dict['description'] == ''):
+                vnfd_dict['description'] = inner_vnfd_dict.get(
+                    'description', '')
+            if (('name' not in vnfd_dict or
+                    not len(vnfd_dict['name'])) and
+                    'metadata' in inner_vnfd_dict):
+                vnfd_dict['name'] = inner_vnfd_dict['metadata'].get(
+                    'template_name', '')
+
+            vnfd_dict['mgmt_driver'] = toscautils.get_mgmt_driver(
+                tosca)
+        else:
+            KEY_LIST = (('name', 'template_name'),
+                        ('description', 'description'))
+
+            vnfd_dict.update(
+                dict((key, inner_vnfd_dict[vnfd_key]) for (key, vnfd_key)
+                     in KEY_LIST
+                     if ((key not in vnfd_dict or
+                          vnfd_dict[key] == '') and
+                         vnfd_key in inner_vnfd_dict and
+                         inner_vnfd_dict[vnfd_key] != '')))
+
+            service_types = inner_vnfd_dict.get(
+                'service_properties', {}).get('type', [])
+            if service_types:
+                vnfd_dict.setdefault('service_types', []).extend(
+                    [{'service_type': service_type}
+                    for service_type in service_types])
+            # TODO(anyone)  - this code assumes one mgmt_driver per VNFD???
+            for vdu in inner_vnfd_dict.get('vdus', {}).values():
+                mgmt_driver = vdu.get('mgmt_driver')
+                if mgmt_driver:
+                    vnfd_dict['mgmt_driver'] = mgmt_driver
+        LOG.debug(_('vnfd %s'), vnfd)
 
     def add_vnf_to_monitor(self, vnf_dict, vim_auth):
         dev_attrs = vnf_dict['attributes']
@@ -221,8 +274,11 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         }
         self.update_vnf(context, vnf_id, update)
 
-    def _create_vnf_wait(self, context, vnf_dict, auth_attr):
-        driver_name = self._infra_driver_name(vnf_dict)
+    def _get_infra_driver(self, context, vnf_info):
+        vim_res = self.get_vim(context, vnf_info)
+        return vim_res['vim_type'], vim_res['vim_auth']
+
+    def _create_vnf_wait(self, context, vnf_dict, auth_attr, driver_name):
         vnf_id = vnf_dict['id']
         instance_id = self._instance_id(vnf_dict)
         create_failed = False
@@ -277,17 +333,15 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                                           region_name)
         vnf['placement_attr']['vim_name'] = vim_res['vim_name']
         vnf['vim_id'] = vim_res['vim_id']
-        return vim_res['vim_auth']
+        return vim_res
 
-    def _create_vnf(self, context, vnf, vim_auth):
+    def _create_vnf(self, context, vnf, vim_auth, driver_name):
         vnf_dict = self._create_vnf_pre(
             context, vnf) if not vnf.get('id') else vnf
         vnf_id = vnf_dict['id']
-        driver_name = self._infra_driver_name(vnf_dict)
         LOG.debug(_('vnf_dict %s'), vnf_dict)
         self.mgmt_create_pre(context, vnf_dict)
         self.add_alarm_url_to_vnf(vnf_dict)
-        LOG.debug(_("vnf_dict with alarm: %s") % vnf_dict)
         try:
             instance_id = self._vnf_manager.invoke(
                 driver_name, 'create', plugin=self,
@@ -324,12 +378,20 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                 vnf_attributes['config'] = yaml.safe_dump(config)
             else:
                 self._report_deprecated_yaml_str()
-        vim_auth = self.get_vim(context, vnf_info)
-        vnf_dict = self._create_vnf(context, vnf_info, vim_auth)
+        infra_driver, vim_auth = self._get_infra_driver(context, vnf_info)
+        if infra_driver not in self._vnf_manager:
+            LOG.debug(_('unknown vim driver '
+                        '%(infra_driver)s in %(drivers)s'),
+                      {'infra_driver': infra_driver,
+                       'drivers': cfg.CONF.tacker.infra_driver})
+            raise vnfm.InvalidInfraDriver(vim_name=infra_driver)
+
+        vnf_dict = self._create_vnf(context, vnf_info, vim_auth, infra_driver)
 
         def create_vnf_wait():
-            self._create_vnf_wait(context, vnf_dict, vim_auth)
-            self.add_vnf_to_monitor(vnf_dict, vim_auth)
+            self._create_vnf_wait(context, vnf_dict, vim_auth, infra_driver)
+            if vnf_dict['status'] is not constants.ERROR:
+                self.add_vnf_to_monitor(vnf_dict, vim_auth)
             self.config_vnf(context, vnf_dict)
         self.spawn_n(create_vnf_wait)
         return vnf_dict
@@ -337,13 +399,12 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
     # not for wsgi, but for service to create hosting vnf
     # the vnf is NOT added to monitor.
     def create_vnf_sync(self, context, vnf):
-        vim_auth = self.get_vim(context, vnf)
-        vnf_dict = self._create_vnf(context, vnf, vim_auth)
-        self._create_vnf_wait(context, vnf_dict, vim_auth)
+        infra_driver, vim_auth = self._get_infra_driver(context, vnf)
+        vnf_dict = self._create_vnf(context, vnf, vim_auth, infra_driver)
+        self._create_vnf_wait(context, vnf_dict, vim_auth, infra_driver)
         return vnf_dict
 
-    def _update_vnf_wait(self, context, vnf_dict, vim_auth):
-        driver_name = self._infra_driver_name(vnf_dict)
+    def _update_vnf_wait(self, context, vnf_dict, vim_auth, driver_name):
         instance_id = self._instance_id(vnf_dict)
         kwargs = {
             mgmt_constants.KEY_ACTION: mgmt_constants.ACTION_UPDATE_VNF,
@@ -362,6 +423,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         except exceptions.MgmtDriverException as e:
             LOG.error(_('VNF configuration failed'))
             new_status = constants.ERROR
+            self._vnf_monitor.delete_hosting_vnf(vnf_dict['id'])
             self.set_vnf_error_status_reason(context, vnf_dict['id'],
                                              six.text_type(e))
         vnf_dict['status'] = new_status
@@ -382,8 +444,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             else:
                 self._report_deprecated_yaml_str()
         vnf_dict = self._update_vnf_pre(context, vnf_id)
-        vim_auth = self.get_vim(context, vnf_dict)
-        driver_name = self._infra_driver_name(vnf_dict)
+        driver_name, vim_auth = self._get_infra_driver(context, vnf_dict)
         instance_id = self._instance_id(vnf_dict)
 
         try:
@@ -395,17 +456,18 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         except Exception as e:
             with excutils.save_and_reraise_exception():
                 vnf_dict['status'] = constants.ERROR
+                self._vnf_monitor.delete_hosting_vnf(vnf_id)
                 self.set_vnf_error_status_reason(context,
                                                  vnf_dict['id'],
                                                  six.text_type(e))
                 self.mgmt_update_post(context, vnf_dict)
                 self._update_vnf_post(context, vnf_id, constants.ERROR)
 
-        self.spawn_n(self._update_vnf_wait, context, vnf_dict, vim_auth)
+        self.spawn_n(self._update_vnf_wait, context, vnf_dict, vim_auth,
+                     driver_name)
         return vnf_dict
 
-    def _delete_vnf_wait(self, context, vnf_dict, auth_attr):
-        driver_name = self._infra_driver_name(vnf_dict)
+    def _delete_vnf_wait(self, context, vnf_dict, auth_attr, driver_name):
         instance_id = self._instance_id(vnf_dict)
         e = None
         if instance_id:
@@ -432,9 +494,8 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
 
     def delete_vnf(self, context, vnf_id):
         vnf_dict = self._delete_vnf_pre(context, vnf_id)
-        vim_auth = self.get_vim(context, vnf_dict)
+        driver_name, vim_auth = self._get_infra_driver(context, vnf_dict)
         self._vnf_monitor.delete_hosting_vnf(vnf_id)
-        driver_name = self._infra_driver_name(vnf_dict)
         instance_id = self._instance_id(vnf_dict)
         placement_attr = vnf_dict['placement_attr']
         region_name = placement_attr.get('region_name')
@@ -463,7 +524,8 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                 self.mgmt_delete_post(context, vnf_dict)
                 self._delete_vnf_post(context, vnf_id, e)
 
-        self.spawn_n(self._delete_vnf_wait, context, vnf_dict, vim_auth)
+        self.spawn_n(self._delete_vnf_wait, context, vnf_dict, vim_auth,
+                     driver_name)
 
     def _handle_vnf_scaling(self, context, policy):
         # validate
@@ -485,7 +547,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                     policy=policy['id']
                 )
 
-            LOG.debug(_("Policy %s is validated successfully") % policy)
+            LOG.debug(_("Policy %s is validated successfully"), policy['id'])
 
         def _get_status():
             if policy['action'] == constants.ACTION_SCALE_IN:
@@ -503,7 +565,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                                                      [constants.ACTIVE],
                                                      status)
             LOG.debug(_("Policy %(policy)s vnf is at %(status)s"),
-                      {'policy': policy,
+                      {'policy': policy['id'],
                        'status': status})
             return result
 
@@ -516,14 +578,14 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                                                      new_status,
                                                      mgmt_url)
             LOG.debug(_("Policy %(policy)s vnf is at %(status)s"),
-                      {'policy': policy,
+                      {'policy': policy['id'],
                        'status': new_status})
             return result
 
         # action
         def _vnf_policy_action():
             try:
-                self._vnf_manager.invoke(
+                last_event_id = self._vnf_manager.invoke(
                     infra_driver,
                     'scale',
                     plugin=self,
@@ -532,24 +594,25 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                     policy=policy,
                     region_name=region_name
                 )
-                LOG.debug(_("Policy %s action is started successfully") %
-                          policy)
+                LOG.debug(_("Policy %s action is started successfully"),
+                          policy['id'])
+                return last_event_id
             except Exception as e:
-                LOG.error(_("Policy %s action is failed to start") %
+                LOG.error(_("Policy %s action is failed to start"),
                           policy)
                 with excutils.save_and_reraise_exception():
                     vnf['status'] = constants.ERROR
                     self.set_vnf_error_status_reason(
                         context,
-                        policy['vnf_id'],
+                        policy['vnf']['id'],
                         six.text_type(e))
                     _handle_vnf_scaling_post(constants.ERROR)
 
         # wait
         def _vnf_policy_action_wait():
             try:
-                LOG.debug(_("Policy %s action is in progress") %
-                          policy)
+                LOG.debug(_("Policy %s action is in progress"),
+                          policy['id'])
                 mgmt_url = self._vnf_manager.invoke(
                     infra_driver,
                     'scale_wait',
@@ -557,19 +620,20 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                     context=context,
                     auth_attr=vim_auth,
                     policy=policy,
-                    region_name=region_name
+                    region_name=region_name,
+                    last_event_id=last_event_id
                 )
-                LOG.debug(_("Policy %s action is completed successfully") %
-                          policy)
+                LOG.debug(_("Policy %s action is completed successfully"),
+                          policy['id'])
                 _handle_vnf_scaling_post(constants.ACTIVE, mgmt_url)
                 # TODO(kanagaraj-manickam): Add support for config and mgmt
             except Exception as e:
                 LOG.error(_("Policy %s action is failed to complete") %
-                          policy)
+                          policy['id'])
                 with excutils.save_and_reraise_exception():
                     self.set_vnf_error_status_reason(
                         context,
-                        policy['vnf_id'],
+                        policy['vnf']['id'],
                         six.text_type(e))
                     _handle_vnf_scaling_post(constants.ERROR)
 
@@ -578,10 +642,9 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         vnf = _handle_vnf_scaling_pre()
         policy['instance_id'] = vnf['instance_id']
 
-        infra_driver = self._infra_driver_name(vnf)
-        vim_auth = self.get_vim(context, vnf)
+        infra_driver, vim_auth = self._get_infra_driver(context, vnf)
         region_name = vnf.get('placement_attr', {}).get('region_name', None)
-        _vnf_policy_action()
+        last_event_id = _vnf_policy_action()
         self.spawn_n(_vnf_policy_action_wait)
 
         return policy
@@ -646,7 +709,8 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
 
         return scale['scale']
 
-    def _validate_alarming_policy(self, context, vnf_id, policy):
+    def _validate_alarming_policy(self, context, policy):
+        vnf_id = policy['vnf']['id']
         # validate policy type
         type = policy['type']
         if type not in constants.POLICY_ALARMING:
@@ -655,37 +719,35 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                 valid_types=constants.POLICY_ALARMING,
                 policy=policy['id']
             )
+        # validate alarm status
+        if not self._vnf_alarm_monitor.process_alarm_for_vnf(policy):
+            raise exceptions.AlarmUrlInvalid(vnf_id=vnf_id)
+
         # validate policy action
         action = policy['action_name']
-        policies = self.get_vnf_policies(context,
-                                         vnf_id,
-                                         filters={'name': action})
-        if not policies and action not in constants.DEFAULT_ALARM_ACTIONS:
+        policy_ = self.get_vnf_policy(context, action, vnf_id)
+        if not policy_ and action not in constants.DEFAULT_ALARM_ACTIONS:
             raise exceptions.VnfPolicyNotFound(
                 vnf_id=action,
                 policy=policy['id']
             )
         LOG.debug(_("Policy %s is validated successfully") % policy)
-        return policies
+        return policy_
         # validate url
 
     def _handle_vnf_monitoring(self, context, policy):
+        vnf_dict = policy['vnf']
         if policy['action_name'] in constants.DEFAULT_ALARM_ACTIONS:
             action = policy['action_name']
-            vnf_dict = policy['vnf']
             LOG.debug(_('vnf for monitoring: %s'), vnf_dict)
-            if action == 'respawn':
-                vim_auth = self.get_vim(context, vnf_dict)
-                action_cls = monitor.ActionPolicy.get_policy(action,
-                                                             vnf_dict)
-                if action_cls:
-                    action_cls.execute_action(self, vnf_dict,
-                                              vim_auth)
-            if action in ['log', 'log_and_kill']:
-                action_cls = monitor.ActionPolicy.get_policy(action,
-                                                             vnf_dict)
-                if action_cls:
-                    action_cls.execute_action(self, vnf_dict)
+            vim_auth = self.get_vim(context, vnf_dict)
+            action_cls = monitor.ActionPolicy.get_policy(action,
+                                                         vnf_dict)
+            if action_cls:
+                if action == 'notify':
+                    action_cls.execute_action(self, policy, vim_auth)
+                else:
+                    action_cls.execute_action(self, vnf_dict, vim_auth)
 
         if policy['bckend_policy']:
             bckend_policy = policy['bckend_policy']
@@ -695,8 +757,9 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
             if bckend_policy_type == constants.POLICY_SCALING:
                 action = 'scaling'
                 scale = {}
-                scale['type'] = 'out' if cp == 'gt' else 'in'
-                scale['policy'] = bckend_policy['name']
+                scale.setdefault('scale', {})
+                scale['scale']['type'] = 'out' if cp == 'gt' else 'in'
+                scale['scale']['policy'] = bckend_policy['name']
                 action_cls = monitor.ActionPolicy.get_policy(action,
                                                              vnf_dict)
                 if action_cls:
@@ -714,8 +777,29 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                                       trigger['trigger']['policy_name'],
                                       vnf_id)
         policy_.update({'action_name': trigger['trigger']['action_name']})
-        policies = self._validate_alarming_policy(context, vnf_id, policy_)
-        policy_.update({'bckend_policy': policies})
+        policy_.update({'params': trigger['trigger']['params']})
+        bk_policy = self._validate_alarming_policy(context, policy_)
+        policy_.update({'bckend_policy': bk_policy})
         self._handle_vnf_monitoring(context, policy_)
 
         return trigger['trigger']
+
+    def get_vnf_resources(self, context, vnf_id, fields=None, filters=None):
+        vnf_info = self.get_vnf(context, vnf_id)
+        infra_driver, vim_auth = self._get_infra_driver(context, vnf_info)
+        if vnf_info['status'] == constants.ACTIVE:
+            vnf_details = self._vnf_manager.invoke(infra_driver,
+                                                   'get_resource_info',
+                                                   plugin=self,
+                                                   context=context,
+                                                   vnf_info=vnf_info,
+                                                   auth_attr=vim_auth)
+            resources = [{'name': name,
+                          'type': info.get('type'),
+                          'id': info.get('id')}
+                        for name, info in vnf_details.items()]
+            return resources
+        # Raise exception when VNF.status != ACTIVE
+        else:
+            raise vnfm.VNFInactive(vnf_id=vnf_id,
+                                   message=_(' Cannot fetch details'))

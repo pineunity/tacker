@@ -20,6 +20,7 @@ import os
 import yaml
 
 from tacker import context
+from tacker.extensions import vnfm
 from tacker.tests.unit import base
 from tacker.tests.unit.db import utils
 from tacker.vnfm.infra_drivers.heat import heat
@@ -41,16 +42,16 @@ class FakeHeatClient(mock.Mock):
 
 def _get_template(name):
     filename = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "data/", name)
+        os.path.dirname(os.path.abspath(__file__)), "../openstack/data/", name)
     f = codecs.open(filename, encoding='utf-8', errors='strict')
     return f.read()
 
 
 class TestDeviceHeat(base.TestCase):
-    hot_template = _get_template('hot_openwrt.yaml')
+    hot_template = _get_template('hot_tosca_openwrt.yaml')
     hot_param_template = _get_template('hot_openwrt_params.yaml')
     hot_ipparam_template = _get_template('hot_openwrt_ipparams.yaml')
-    vnfd_openwrt = _get_template('openwrt.yaml')
+    vnfd_openwrt = _get_template('test_tosca_openwrt.yaml')
     config_data = _get_template('config_data.yaml')
 
     def setUp(self):
@@ -65,7 +66,8 @@ class TestDeviceHeat(base.TestCase):
         fake_heat_client = mock.Mock()
         fake_heat_client.return_value = self.heat_client
         self._mock(
-            'tacker.vnfm.infra_drivers.heat.heat.HeatClient', fake_heat_client)
+            'tacker.vnfm.infra_drivers.openstack.openstack.HeatClient',
+            fake_heat_client)
 
     def _mock(self, target, new=mock.DEFAULT):
         patcher = mock.patch(target, new)
@@ -82,19 +84,20 @@ class TestDeviceHeat(base.TestCase):
 
     def _get_expected_fields(self):
         return {'stack_name':
-                'tacker.vnfm.infra_drivers.heat.heat_DeviceHeat-eb84260e'
-                '-5ff7-4332-b032-50a14d6c1123', 'template': self.hot_template}
+                'tacker.vnfm.infra_drivers.openstack.openstack_DeviceHeat'
+                '-eb84260e-5ff7-4332-b032-50a14d6c1123',
+                'template': self.hot_template}
 
     def _get_expected_fields_user_data(self):
         return {'stack_name':
-                'tacker.vnfm.infra_drivers.heat.heat_DeviceHeat-18685f68'
-                '-2b2a-4185-8566-74f54e548811',
+                'tacker.vnfm.infra_drivers.openstack.openstack_DeviceHeat'
+                '-18685f68-2b2a-4185-8566-74f54e548811',
                 'template': self.hot_param_template}
 
     def _get_expected_fields_ipaddr_data(self):
         return {'stack_name':
-                'tacker.vnfm.infra_drivers.heat.heat_DeviceHeat-d1337add'
-                '-d5a1-4fd4-9447-bb9243c8460b',
+                'tacker.vnfm.infra_drivers.openstack.openstack_DeviceHeat'
+                '-d1337add-d5a1-4fd4-9447-bb9243c8460b',
                 'template': self.hot_ipparam_template}
 
     def _get_expected_vnf_wait_obj(self, param_values=''):
@@ -110,7 +113,6 @@ class TestDeviceHeat(base.TestCase):
                     'description': u'OpenWRT with services',
                     'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
                     'mgmt_driver': u'openwrt',
-                    'infra_driver': u'heat',
                     'attributes': {u'vnfd': self.vnfd_openwrt},
                     'id': u'fb048660-dc1b-4f0f-bd89-b023666650ec',
                     'name': u'openwrt_services'},
@@ -129,7 +131,6 @@ class TestDeviceHeat(base.TestCase):
             u'4a4c2d44-8a52-4895-9a75-9d1c76c3e738'}], 'description':
             u'OpenWRT with services', 'tenant_id':
             u'ad7ebc56538745a08ef7c5e97f8bd437', 'mgmt_driver': u'openwrt',
-            'infra_driver': u'heat',
             'attributes': {u'vnfd': self.vnfd_openwrt},
             'id': u'fb048660-dc1b-4f0f-bd89-b023666650ec', 'name':
             u'openwrt_services'}, 'mgmt_url': None, 'service_context': [],
@@ -142,6 +143,28 @@ class TestDeviceHeat(base.TestCase):
                                       'option forward \'REJECT\'\\n"}\n'},
             'id': 'eb84260e-5ff7-4332-b032-50a14d6c1123', 'description':
                 u'OpenWRT with services'}
+
+    def _get_expected_active_vnf(self):
+        return {'status': 'ACTIVE',
+                'instance_id': None,
+                'name': u'test_openwrt',
+                'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
+                'vnfd_id': u'eb094833-995e-49f0-a047-dfb56aaf7c4e',
+                'vnfd': {
+                    'service_types': [{
+                        'service_type': u'vnfd',
+                        'id': u'4a4c2d44-8a52-4895-9a75-9d1c76c3e738'}],
+                    'description': u'OpenWRT with services',
+                    'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
+                    'mgmt_driver': u'openwrt',
+                    'infra_driver': u'heat',
+                    'attributes': {u'vnfd': self.vnfd_openwrt},
+                    'id': u'fb048660-dc1b-4f0f-bd89-b023666650ec',
+                    'name': u'openwrt_services'},
+                'mgmt_url': '{"vdu1": "192.168.120.31"}',
+                'service_context': [],
+                'id': 'eb84260e-5ff7-4332-b032-50a14d6c1123',
+                'description': u'OpenWRT with services'}
 
     def test_create(self):
         vnf_obj = utils.get_dummy_device_obj()
@@ -202,16 +225,10 @@ class TestDeviceHeat(base.TestCase):
                                 auth_attr=utils.get_vim_auth_obj())
         self.assertEqual(expected_vnf_update, vnf_obj)
 
-    def test_create_vnfd_pre_tosca(self):
-        tosca_tpl = _get_template('test_tosca_openwrt.yaml')
-        dtemplate = self._get_vnfd(tosca_tpl)
-        exp_tmpl = self._get_expected_vnfd(tosca_tpl)
-        self.heat_driver.create_vnfd_pre(None, None, dtemplate)
-        self.assertEqual(exp_tmpl, dtemplate)
-
     def _get_expected_fields_tosca(self, template):
         return {'stack_name':
-                'tacker.vnfm.infra_drivers.heat.heat_DeviceHeat-eb84260e'
+                'tacker.vnfm.infra_drivers.openstack.openstack_DeviceHeat'
+                '-eb84260e'
                 '-5ff7-4332-b032-50a14d6c1123',
                 'template': _get_template(template)}
 
@@ -219,7 +236,8 @@ class TestDeviceHeat(base.TestCase):
                                 tosca_tpl_name,
                                 hot_tpl_name,
                                 param_values='',
-                                is_monitor=True):
+                                is_monitor=True,
+                                is_alarm=False):
         tosca_tpl = _get_template(tosca_tpl_name)
         exp_tmpl = self._get_expected_vnfd(tosca_tpl)
         tosca_hw_dict = yaml.safe_load(_get_template(hot_tpl_name))
@@ -247,10 +265,11 @@ class TestDeviceHeat(base.TestCase):
                                       '"respawn"}, "parameters": {"count": 3, '
                                       '"interval": 10}, "monitoring_params": '
                                       '{"count": 3, "interval": 10}}}}}'})
-
+        if is_alarm:
+            dvc['attributes'].update({'alarm_url': ''})
         return dvc
 
-    def _get_dummy_tosca_vnf(self, template, input_params=''):
+    def _get_dummy_tosca_vnf(self, template, input_params='', is_alarm=False):
 
         tosca_template = _get_template(template)
         vnf = utils.get_dummy_device_obj()
@@ -261,20 +280,24 @@ class TestDeviceHeat(base.TestCase):
         vnf['vnfd'] = dtemplate['vnfd']
         vnf['attributes'] = {}
         vnf['attributes']['param_values'] = input_params
+        if is_alarm:
+            vnf['attributes']['alarm_url'] = ''
         return vnf
 
     def _test_assert_equal_for_tosca_templates(self, tosca_tpl_name,
                                                hot_tpl_name,
                                                input_params='',
                                                files=None,
-                                               is_monitor=True):
-        vnf = self._get_dummy_tosca_vnf(tosca_tpl_name, input_params)
+                                               is_monitor=True,
+                                               is_alarm=False):
+        vnf = self._get_dummy_tosca_vnf(tosca_tpl_name, input_params, is_alarm)
         expected_result = '4a4c2d44-8a52-4895-9a75-9d1c76c3e738'
         expected_fields = self._get_expected_fields_tosca(hot_tpl_name)
         expected_vnf = self._get_expected_tosca_vnf(tosca_tpl_name,
                                                     hot_tpl_name,
                                                     input_params,
-                                                    is_monitor)
+                                                    is_monitor,
+                                                    is_alarm)
         result = self.heat_driver.create(plugin=None, context=self.context,
                                          vnf=vnf,
                                          auth_attr=utils.get_vim_auth_obj())
@@ -408,9 +431,24 @@ class TestDeviceHeat(base.TestCase):
             is_monitor=False
         )
 
+    def test_get_resource_info(self):
+        vnf_obj = self._get_expected_active_vnf()
+        self.assertRaises(vnfm.InfraDriverUnreachable,
+                          self.heat_driver.get_resource_info,
+                          plugin=None, context=self.context, vnf_info=vnf_obj,
+                          auth_attr=utils.get_vim_auth_obj(),
+                          region_name=None)
+
+    def test_create_port_with_security_groups(self):
+        self._test_assert_equal_for_tosca_templates(
+            'test_tosca_security_groups.yaml',
+            'hot_tosca_security_groups.yaml'
+        )
+
     def test_create_tosca_with_alarm_monitoring(self):
         self._test_assert_equal_for_tosca_templates(
-            'tosca_alarm_monitoring.yaml',
-            'hot_alarm_monitoring.yaml',
-            is_monitor=False
+            'tosca_alarm.yaml',
+            'hot_tosca_alarm.yaml',
+            is_monitor=False,
+            is_alarm=True
         )

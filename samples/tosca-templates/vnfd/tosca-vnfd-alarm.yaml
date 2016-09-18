@@ -33,10 +33,20 @@ topology_template:
     VL1:
       type: tosca.nodes.nfv.VL
       properties:
-        network_name: private
+        network_name: net_mgmt
         vendor: Tacker
 
   policies:
+    - SP1:
+        type: tosca.policy.tacker.Scaling
+        properties:
+          increment: 1
+          cooldown: 120
+          min_instances: 1
+          max_instances: 3
+          default_instances: 2
+          targets: [VDU1]
+
     - vdu1_cpu_usage_monitoring_policy:
         type: tosca.policies.tacker.Alarming
         triggers:
@@ -47,11 +57,12 @@ topology_template:
                     targets: [VDU1]
                 metrics: cpu_util
                 condition:
-                    threshold: 5
+                    threshold: 50
                     constraint: utilization greater_than 50%
-                    period: 65
+                    period: 600
                     evaluations: 1
                     method: avg
                     comparison_operator: gt
                 action:
-                  resize_compute: respawn
+                  resize_compute:
+                    action_name: SP1

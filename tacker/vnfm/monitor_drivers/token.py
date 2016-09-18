@@ -12,21 +12,21 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import keystoneclient.v2_0.client as ksclient
+import keystoneclient.v3.client as ks_client
 
 
 class Token(object):
-    def __init__(self, username, password, auth_url, tenant_name):
+    def __init__(self, username, password, project_name, auth_url):
         self.username = username
         self.password = password
         self.auth_url = auth_url
-        self.tenant_name = tenant_name
+        self.project_name = project_name
 
     def create_token(self):
-        keystone = ksclient.Client(username=self.username,
-                                   password=self.password,
-                                   auth_url=self.auth_url,
-                                   tenant_name=self.tenant_name)
+        keystone = ks_client.Client(username=self.username,
+                                    password=self.password,
+                                    auth_url=self.auth_url,
+                                    project_name=self.project_name)
 
-        token = keystone.auth_ref['token']['id']
-        return token
+        kstoken = keystone.service_catalog.get_token()
+        return kstoken['id']

@@ -40,7 +40,7 @@ core_opts = [
                help=_("The API paste config file to use")),
     cfg.StrOpt('api_extensions_path', default="",
                help=_("The path for API extensions")),
-    cfg.ListOpt('service_plugins', default=['nfvo', 'vnfm', 'commonservices'],
+    cfg.ListOpt('service_plugins', default=['nfvo', 'vnfm'],
                 help=_("The service plugins Tacker will use")),
     cfg.StrOpt('policy_file', default="policy.json",
                help=_("The policy file to use")),
@@ -107,7 +107,7 @@ def set_db_defaults():
     db_options.set_defaults(
         cfg.CONF,
         connection='sqlite://',
-        sqlite_db='', max_pool_size=10,
+        max_pool_size=10,
         max_overflow=20, pool_timeout=10)
 
 set_db_defaults()
