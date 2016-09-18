@@ -323,7 +323,10 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                 # scale_resource_type is custome type mapped the HOT template
                 # generated for all VDUs in the tosca template
                 properties['resource']['type'] = scale_resource_type
-
+                # support monitoring
+                metadata_dict = dict()
+                metadata_dict['metering.stack'] = vnf['id']
+                properties['resource']['metadata'] = metadata_dict
                 # TODO(kanagraj-manickam) add custom type params here, to
                 # support parameterized template
                 group_hot['properties'] = properties
@@ -419,11 +422,26 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                     properties['alarm_actions'] = [alarm_url]
                 return properties
 
-            def _convert_to_heat_monitoring_resource(mon_policy):
+            def _convert_to_heat_monitoring_resource(mon_policy,
+                                                     is_enabled_scaling):
                 mon_policy_hot = {'type': 'OS::Aodh::Alarm'}
                 mon_policy_hot['properties'] = \
                     _convert_to_heat_monitoring_prop(mon_policy)
+                if is_enabled_scaling:
+                    metadata_dict = dict()
+                    metadata_dict['metadata.user_metadata.stack'] = vnf['id']
+                    mon_policy_hot['properties']['matching_metadata'] =\
+                        metadata_dict
                 return mon_policy_hot
+
+            is_scaling_needed = False
+            if 'policies' in topology_tpl_dict:
+                for policy_dict in topology_tpl_dict['policies']:
+                    name, policy_tpl_dict = list(policy_dict.items())[0]
+                    if policy_tpl_dict['type'] == \
+                            'tosca.policy.tacker.Scaling':
+                        is_scaling_needed = True
+                        break
 
             if 'policies' in topology_tpl_dict:
                 for policy_dict in topology_tpl_dict['policies']:
@@ -432,7 +450,8 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                             'tosca.policies.tacker.Alarming':
                         is_enabled_alarm = True
                         heat_dict['resources'][name] = \
-                            _convert_to_heat_monitoring_resource(policy_dict)
+                            _convert_to_heat_monitoring_resource(
+                                policy_dict, is_scaling_needed)
                         break
 
             heat_tpl_yaml = yaml.dump(heat_dict)
