@@ -398,6 +398,7 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                     template_dict)
 
         def generate_hot_alarm_resource(topology_tpl_dict, heat_tpl):
+            alarm_resource = dict()
             heat_dict = yamlparser.simple_ordered_parse(heat_tpl)
             is_enabled_alarm = False
 
@@ -449,13 +450,14 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                     if policy_tpl_dict['type'] == \
                             'tosca.policies.tacker.Alarming':
                         is_enabled_alarm = True
-                        heat_dict['resources'][name] = \
-                            _convert_to_heat_monitoring_resource(
+                        alarm_resource[name] = _convert_to_heat_monitoring_resource(
                                 policy_dict, is_scaling_needed)
+                        heat_dict['resources'][name] = alarm_resource
                         break
 
             heat_tpl_yaml = yaml.dump(heat_dict)
             return (is_enabled_alarm,
+                    alarm_resource,
                     heat_tpl_yaml)
 
         def generate_hot_from_legacy(vnfd_dict):
@@ -559,26 +561,26 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                  main_dict) = generate_hot_scaling(
                     vnfd_dict['topology_template'],
                     'scaling.yaml')
-                (is_enabled_alarm, heat_tpl_yaml) = \
-                    generate_hot_alarm_resource(vnfd_dict['topology_template'],
-                                                heat_template_yaml)
+                (is_enabled_alarm, alarm_resource,
+                 heat_tpl_yaml) = generate_hot_alarm_resource(
+                    vnfd_dict['topology_template'],
+                    heat_template_yaml)
                 if is_enabled_alarm and not is_scaling_needed:
                     heat_template_yaml = heat_tpl_yaml
                     fields['template'] = heat_template_yaml
 
                 if is_scaling_needed:
+                    if is_enabled_alarm:
+                        main_dict['resources'].update(alarm_resource)
                     main_yaml = yaml.dump(main_dict)
                     fields['template'] = main_yaml
-                    fields['files'] = {'scaling.yaml': heat_tpl_yaml}\
-                        if is_enabled_alarm else {
-                        'scaling.yaml': heat_template_yaml}
+                    fields['files'] = {'scaling.yaml': heat_template_yaml}
                     vnf['attributes']['heat_template'] = main_yaml
                     # TODO(kanagaraj-manickam) when multiple groups are
                     # supported, make this scaling atribute as
                     # scaling name vs scaling template map and remove
                     # scaling_group_names
-                    vnf['attributes']['scaling.yaml'] = heat_tpl_yaml \
-                        if is_enabled_alarm else heat_template_yaml
+                    vnf['attributes']['scaling.yaml'] = heat_template_yaml
                     vnf['attributes'][
                         'scaling_group_names'] = jsonutils.dumps(
                         scaling_group_names
