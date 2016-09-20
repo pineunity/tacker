@@ -44,8 +44,6 @@ ALARM_INFO = (
      'severity',
      )
 
-TACKER_EMAIL = {'email': 'message.tacker@gmail.com', 'password': 'tacker123'}
-
 
 class VNFMonitorCeilometer(
         abstract_driver.VNFMonitorAbstractDriver):
@@ -87,20 +85,6 @@ class VNFMonitorCeilometer(
     def process_alarm(self, vnf, kwargs):
         '''Check alarm state. if available, will be processed'''
         return self._process_alarm(**kwargs)
-
-    def _process_notification(self, rc_email_address, content):
-        mail = smtplib.SMTP('smtp.gmail.com', 587)
-        mail.ehlo()
-        mail.starttls()
-        mail.login(TACKER_EMAIL['email'], TACKER_EMAIL['password'])
-        # Send message
-        try:
-            mail.sendmail(TACKER_EMAIL['email'], rc_email_address, content)
-            return True
-        except Exception:
-            return False
-        finally:
-            mail.close()
 
     def process_notification(self, vnf, kwargs):
         return self._process_notification(**kwargs)
