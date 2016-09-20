@@ -11,8 +11,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
-import keystoneclient.v3.client as ks_client
+from keystoneauth1.identity import v3
+from keystoneauth1 import session
+from keystoneclient.v3 import client
 
 
 class Token(object):
@@ -23,10 +24,11 @@ class Token(object):
         self.project_name = project_name
 
     def create_token(self):
-        keystone = ks_client.Client(username=self.username,
-                                    password=self.password,
-                                    auth_url=self.auth_url,
-                                    project_name=self.project_name)
-
+        auth = v3.Password(auth_url=self.auth_url,
+                           username=self.username,
+                           password=self.password,
+                           project_name=self.project_name)
+        sess = session.Session(auth=auth)
+        keystone = client.Client(session=sess)
         kstoken = keystone.service_catalog.get_token()
         return kstoken['id']
