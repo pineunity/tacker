@@ -57,7 +57,7 @@ topology_template:
                     targets: [VDU1]
                 metrics: cpu_util
                 condition:
-                    threshold: 50
+                    threshold: 15
                     constraint: utilization greater_than 50%
                     period: 600
                     evaluations: 1
