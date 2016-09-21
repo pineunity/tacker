@@ -325,7 +325,7 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                 properties['resource']['type'] = scale_resource_type
                 # support monitoring
                 metadata_dict = dict()
-                metadata_dict['metering.stack'] = vnf['id']
+                metadata_dict['metering.vnf_id'] = vnf['id']
                 properties['resource']['metadata'] = metadata_dict
                 # TODO(kanagraj-manickam) add custom type params here, to
                 # support parameterized template
@@ -430,7 +430,7 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                     _convert_to_heat_monitoring_prop(mon_policy)
                 if is_enabled_scaling:
                     metadata_dict = dict()
-                    metadata_dict['metadata.user_metadata.stack'] = vnf['id']
+                    metadata_dict['metadata.user_metadata.vnf_id'] = vnf['id']
                     mon_policy_hot['properties']['matching_metadata'] =\
                         metadata_dict
                 return mon_policy_hot
