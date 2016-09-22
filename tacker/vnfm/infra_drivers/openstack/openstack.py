@@ -324,9 +324,15 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                 # generated for all VDUs in the tosca template
                 properties['resource']['type'] = scale_resource_type
                 # support monitoring
-                metadata_dict = dict()
-                metadata_dict['metering.vnf_id'] = vnf['id']
-                properties['resource']['metadata'] = metadata_dict
+                if 'policies' in vnfd_dict:
+                    for policies in vnfd_dict['policies']:
+                        policy_name, policy_dt = list(policies.items())[0]
+                        if policy_dt['type'] ==\
+                                'tosca.polices.tacker.Alarming':
+                            metadata_dict = dict()
+                            metadata_dict['metering.vnf_id'] = vnf['id']
+                            properties['resource']['metadata'] = metadata_dict
+                            break
                 # TODO(kanagraj-manickam) add custom type params here, to
                 # support parameterized template
                 group_hot['properties'] = properties
@@ -423,26 +429,23 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                     properties['alarm_actions'] = [alarm_url]
                 return properties
 
-            def _convert_to_heat_monitoring_resource(mon_policy,
-                                                     is_enabled_scaling):
+            def _convert_to_heat_monitoring_resource(mon_policy):
                 mon_policy_hot = {'type': 'OS::Aodh::Alarm'}
                 mon_policy_hot['properties'] = \
                     _convert_to_heat_monitoring_prop(mon_policy)
-                if is_enabled_scaling:
-                    metadata_dict = dict()
-                    metadata_dict['metadata.user_metadata.vnf_id'] = vnf['id']
-                    mon_policy_hot['properties']['matching_metadata'] =\
-                        metadata_dict
-                return mon_policy_hot
 
-            is_scaling_needed = False
-            if 'policies' in topology_tpl_dict:
-                for policy_dict in topology_tpl_dict['policies']:
-                    name, policy_tpl_dict = list(policy_dict.items())[0]
-                    if policy_tpl_dict['type'] == \
-                            'tosca.policy.tacker.Scaling':
-                        is_scaling_needed = True
-                        break
+                if 'policies' in topology_tpl_dict:
+                    for policies in topology_tpl_dict['policies']:
+                        policy_name, policy_dt = list(policies.items())[0]
+                        if policy_dt['type'] == \
+                                'tosca.policy.tacker.Scaling':
+                            metadata_dict = dict()
+                            metadata_dict['metadata.user_metadata.vnf_id'] =\
+                                vnf['id']
+                            mon_policy_hot['properties']['matching_metadata'] =\
+                                metadata_dict
+                            break
+                return mon_policy_hot
 
             if 'policies' in topology_tpl_dict:
                 for policy_dict in topology_tpl_dict['policies']:
@@ -450,9 +453,9 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                     if policy_tpl_dict['type'] == \
                             'tosca.policies.tacker.Alarming':
                         is_enabled_alarm = True
-                        alarm_resource[name] = _convert_to_heat_monitoring_resource(
-                                policy_dict, is_scaling_needed)
-                        heat_dict['resources'][name] = alarm_resource
+                        alarm_resource[name] =\
+                            _convert_to_heat_monitoring_resource(policy_dict)
+                        heat_dict['resources'].update(alarm_resource)
                         break
 
             heat_tpl_yaml = yaml.dump(heat_dict)
