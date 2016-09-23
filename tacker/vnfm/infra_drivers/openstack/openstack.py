@@ -328,7 +328,7 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                     for policies in vnfd_dict['policies']:
                         policy_name, policy_dt = list(policies.items())[0]
                         if policy_dt['type'] ==\
-                                'tosca.polices.tacker.Alarming':
+                                'tosca.policies.tacker.Alarming':
                             metadata_dict = dict()
                             metadata_dict['metering.vnf_id'] = vnf['id']
                             properties['resource']['metadata'] = metadata_dict
