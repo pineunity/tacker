@@ -725,12 +725,14 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
 
         # validate policy action
         action = policy['action_name']
-        policy_ = self.get_vnf_policy(context, action, vnf_id)
-        if not policy_ and action not in constants.DEFAULT_ALARM_ACTIONS:
-            raise exceptions.VnfPolicyNotFound(
-                vnf_id=action,
-                policy=policy['id']
-            )
+        policy_ = None
+        if action not in constants.DEFAULT_ALARM_ACTIONS:
+            policy_ = self.get_vnf_policy(context, action, vnf_id)
+            if not policy_:
+                raise exceptions.VnfPolicyNotFound(
+                    vnf_id=action,
+                    policy=policy['id']
+                )
         LOG.debug(_("Policy %s is validated successfully") % policy)
         return policy_
         # validate url
@@ -740,7 +742,8 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         if policy['action_name'] in constants.DEFAULT_ALARM_ACTIONS:
             action = policy['action_name']
             LOG.debug(_('vnf for monitoring: %s'), vnf_dict)
-            vim_auth = self.get_vim(context, vnf_dict)
+            vim_res = self.get_vim(context, vnf_dict)
+            vim_auth = vim_res['vim_auth']
             action_cls = monitor.ActionPolicy.get_policy(action,
                                                          vnf_dict)
             if action_cls:
@@ -749,7 +752,7 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
                 else:
                     action_cls.execute_action(self, vnf_dict, vim_auth)
 
-        if policy['bckend_policy']:
+        if policy.get('bckend_policy'):
             bckend_policy = policy['bckend_policy']
             bckend_policy_type = bckend_policy['type']
             cp = policy['properties']['resize_compute']['condition'].\
@@ -779,7 +782,8 @@ class VNFMPlugin(vm_db.VNFMPluginDb, VNFMMgmtMixin):
         policy_.update({'action_name': trigger['trigger']['action_name']})
         policy_.update({'params': trigger['trigger']['params']})
         bk_policy = self._validate_alarming_policy(context, policy_)
-        policy_.update({'bckend_policy': bk_policy})
+        if bk_policy:
+            policy_.update({'bckend_policy': bk_policy})
         self._handle_vnf_monitoring(context, policy_)
 
         return trigger['trigger']
