@@ -57,14 +57,17 @@ class TestOpenstack_Driver(base.TestCase):
         fake_keystone = mock.Mock()
         fake_keystone.return_value = self.keystone
         self._mock(
-            'tacker.vm.keystone.Keystone', fake_keystone)
+            'tacker.vnfm.keystone.Keystone', fake_keystone)
 
     def get_vim_obj(self):
         return {'id': '6261579e-d6f3-49ad-8bc3-a9cb974778ff', 'type':
                 'openstack', 'auth_url': 'http://localhost:5000',
-                'auth_cred': {'username': 'test_user', 'password':
-                    'test_password'}, 'name': 'VIM0',
-                'vim_project': {'name': 'test_project'}}
+                'auth_cred': {'username': 'test_user',
+                              'password': 'test_password',
+                              'user_domain_name': 'default'},
+                'name': 'VIM0',
+                'vim_project': {'name': 'test_project',
+                                'project_domain_name': 'default'}}
 
     def test_register_keystone_v3(self):
         regions = [mock_dict({'id': 'RegionOne'})]
@@ -118,8 +121,15 @@ class TestOpenstack_Driver(base.TestCase):
         self.openstack_driver.deregister_vim(vim_id)
         mock_os_remove.assert_called_once_with(file_path)
 
-    def test_register_vim_invalid_credentials(self):
+    def test_register_vim_invalid_auth(self):
         attrs = {'regions.list.side_effect': exceptions.Unauthorized}
+        self._test_register_vim_auth(attrs)
+
+    def test_register_vim_missing_auth(self):
+        attrs = {'regions.list.side_effect': exceptions.BadRequest}
+        self._test_register_vim_auth(attrs)
+
+    def _test_register_vim_auth(self, attrs):
         keystone_version = 'v3'
         mock_ks_client = mock.Mock(version=keystone_version, **attrs)
         self.keystone.get_version.return_value = keystone_version

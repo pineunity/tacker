@@ -15,6 +15,7 @@
 
 import yaml
 
+from tacker.plugins.common import constants as evt_constants
 from tacker.tests.functional import base
 from tacker.tests.utils import read_file
 
@@ -30,19 +31,25 @@ class VimTestCreate(base.BaseTackerTest):
         username = data['username']
         project_name = data['project_name']
         auth_url = data['auth_url']
-
+        domain_name = data.get('domain_name', None)
         vim_arg = {'vim': {'name': name, 'description': description,
                            'type': vim_type,
                            'auth_url': auth_url,
                            'auth_cred': {'username': username,
-                                         'password': password},
-                           'vim_project': {'name': project_name}}}
+                                         'password': password,
+                                         'user_domain_name': domain_name},
+                           'vim_project': {'name': project_name,
+                                           'project_domain_name':
+                                               domain_name},
+                           'is_default': False}}
 
         # Register vim
         vim_res = self.client.create_vim(vim_arg)
         vim_obj = vim_res['vim']
         vim_id = vim_obj['id']
         self.verify_vim(vim_obj, data, name, description, version)
+        self.verify_vim_events(vim_id, evt_constants.RES_EVT_CREATE,
+                               vim_obj[evt_constants.RES_EVT_CREATED_FLD])
 
         # Read vim
         vim_show_res = self.client.show_vim(vim_id)
@@ -53,6 +60,7 @@ class VimTestCreate(base.BaseTackerTest):
             self.client.delete_vim(vim_id)
         except Exception:
             self.assertFalse(True, "Failed to delete vim %s" % vim_id)
+        self.verify_vim_events(vim_id, evt_constants.RES_EVT_DELETE)
 
     def verify_vim(self, vim_instance, config_data, name, description,
                    version):
@@ -71,6 +79,19 @@ class VimTestCreate(base.BaseTackerTest):
         if version:
             method_name = 'verify_vim_' + version
             getattr(self, method_name)(vim_instance, config_data)
+
+    def verify_vim_events(self, vim_id, evt_type, tstamp=None, cnt=1):
+        params = {'resource_id': vim_id,
+                  'resource_type': evt_constants.RES_TYPE_VIM,
+                  'event_type': evt_type}
+        if tstamp:
+            params['timestamp'] = tstamp
+
+        vim_evt_list = self.client.list_vim_events(**params)
+
+        self.assertIsNotNone(vim_evt_list['vim_events'],
+                             "List of VIM events are Empty")
+        self.assertEqual(cnt, len(vim_evt_list['vim_events']))
 
     def verify_vim_v2(self, vim_instance, config_data):
         self.assertEqual(config_data['project_name'],

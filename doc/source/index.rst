@@ -53,6 +53,12 @@ Feature Documentation
    devref/vnfd_template_parameterization.rst
    devref/enhanced_placement_awareness_usage_guide.rst
    devref/multisite_vim_usage_guide.rst
+   devref/mistral_workflows_usage_guide.rst
+   devref/scale_usage_guide.rst
+   devref/alarm_monitoring_usage_guide.rst
+   devref/event_logging.rst
+   devref/vnffgd_template_description.rst
+   devref/vnffg_usage_guide.rst
 
 API Documentation
 =================
@@ -80,6 +86,7 @@ Developer Info
    devref/api_layer.rst
    devref/api_extensions.rst
    devref/tacker_functional_test.rst
+   devref/dashboards.rst
 
 Project Info
 ============

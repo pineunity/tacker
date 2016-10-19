@@ -20,7 +20,7 @@ Manual Installation
 ===================
 
 This document describes how to install and run Tacker manually on the
-controller node
+controller node.
 
 Pre-requisites
 ==============
@@ -76,7 +76,7 @@ Installing Tacker server
     exit;
 ..
 
-2). Create users, roles and endpoints
+2). Create users, roles and endpoints.
 
 a). Source the admin credentials to gain access to admin-only CLI commands:
 
@@ -103,8 +103,8 @@ c). Create tacker service.
 
 .. code-block:: console
 
-    openstack service create --name tacker --description "Tacker Project" nfv
-    -orchestration
+    openstack service create --name tacker \
+        --description "Tacker Project" nfv-orchestration
 ..
 
 d). Provide an endpoint to tacker service.
@@ -156,7 +156,7 @@ d). Provide an endpoint to tacker service.
 
 ..
 
-6). Create 'tacker' directory in '/var/log'
+6). Create 'tacker' directory in '/var/log'.
 
 .. note::
 
@@ -201,12 +201,10 @@ d). Provide an endpoint to tacker service.
     auth_uri = http://<KEYSTONE_IP>:5000
     ...
     [agent]
-    root_helper = sudo /usr/local/bin/tacker-rootwrap /usr/local/etc/tacker/r
-    ootwrap.conf
+    root_helper = sudo /usr/local/bin/tacker-rootwrap /usr/local/etc/tacker/rootwrap.conf
     ...
     [DATABASE]
-    connection = mysql://tacker:<TACKERDB_PASSWORD>@<MYSQL_IP>:3306/tacker?ch
-    arset=utf8
+    connection = mysql://tacker:<TACKERDB_PASSWORD>@<MYSQL_IP>:3306/tacker?charset=utf8
     ...
     [tacker_nova]
     password = <NOVA_SERVICE_USER_PASSWORD>
@@ -220,7 +218,7 @@ d). Provide an endpoint to tacker service.
 
 .. note::
 
-       The below command is for Ubuntu Operating System
+       The below command is for Ubuntu Operating System.
 
 .. code-block:: console
 
@@ -277,11 +275,11 @@ Install Tacker horizon
 
 .. code-block:: console
 
-    sudo cp openstack_dashboard_extensions/* /usr/share/openstack-dashboard/o
-    penstack_dashboard/enabled/
+    sudo cp openstack_dashboard_extensions/* \
+        /usr/share/openstack-dashboard/openstack_dashboard/enabled/
 ..
 
-4). Restart Apache server
+4). Restart Apache server.
 
 .. code-block:: console
 
@@ -300,40 +298,39 @@ required because the console will be locked by a running process.
 
 .. code-block:: console
 
-    sudo python /usr/local/bin/tacker-server --config-file /usr/local/etc/tac
-    cker/tacker.conf --log-file /var/log/tacker/tacker.log
+    sudo python /usr/local/bin/tacker-server \
+        --config-file /usr/local/etc/tacker/tacker.conf \
+        --log-file /var/log/tacker/tacker.log
 ..
 
 Registering default VIM
 =======================
-1). Register the VIM that will be used as a default VIM for VNF deployments.
+Register the VIM that will be used as a default VIM for VNF deployments.
 This will be required when the optional argument --vim-id is not provided by
 the user during vnf-create.
 
 .. code-block:: console
 
-    tacker vim-register --config-file config.yaml --name <Default VIM name>
-    --description <Default VIM description>
-..
+    tacker vim-register --is-default --config-file config.yaml \
+    --description <Default VIM description> <Default VIM Name>
 
 config.yaml will contain VIM specific parameters as below:
 
 .. code-block:: ini
 
-    auth_url: http://<keystone ip>:5000
+    auth_url: http://<keystone_public_endpoint_url>:5000
     username: <username>
     password: <password>
     project_name: <project_name>
 
-.. note::
-   Here username must point to the user having 'admin' and 'advsvc' role on the
-   project that will be used for deploying VNFs.
-
-2). Add the VIM name registered in step 1 in /etc/tacker/tacker.conf under
-[nfvo_vim] section:
+Add following parameters to config.yaml if VIM is using keystone v3:
 
 .. code-block:: ini
 
-   default_vim = <Default VIM Name>
+    project_domain_name: <domain>
+    user_domain_name: <domain>
 
-3). Restart tacker server
+.. note::
+   Here username must point to the user having 'admin' and 'advsvc' role on the
+   project that will be used for deploying VNFs.
+3). Restart tacker server.

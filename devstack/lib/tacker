@@ -40,7 +40,7 @@ fi
 
 # Set up default directories
 GITREPO["tacker-horizon"]=${TACKERHORIZON_REPO:-${GIT_BASE}/openstack/tacker-horizon.git}
-GITBRANCH["tacker-horizon"]=${TACKERHORZION_BRANCH:-master}
+GITBRANCH["tacker-horizon"]=${TACKERHORIZON_BRANCH:-master}
 GITDIR["tacker-horizon"]=$DEST/tacker-horizon
 
 TACKER_DIR=$DEST/tacker
@@ -244,9 +244,16 @@ function configure_tacker {
     iniset $TACKER_CONF DEFAULT auth_strategy $TACKER_AUTH_STRATEGY
     _tacker_setup_keystone $TACKER_CONF keystone_authtoken
 
+    # Experimental settings for monitor alarm auth settings,
+    # Will be changed according to new implementation.
+    iniset $TACKER_CONF alarm_auth uername tacker
+    iniset $TACKER_CONF alarm_auth password "$SERVICE_PASSWORD"
+    iniset $TACKER_CONF alarm_auth project_name "$SERVICE_PROJECT_NAME"
+    iniset $TACKER_CONF alarm_auth url http://$SERVICE_HOST:35357/v3
+
     # Configuration for tacker requests to nova.
-        iniset $TACKER_CONF DEFAULT nova_url $TACKER_NOVA_URL
-    iniset $TACKER_CONF DEFAULT nova_amin_user_name nova
+    iniset $TACKER_CONF DEFAULT nova_url $TACKER_NOVA_URL
+    iniset $TACKER_CONF DEFAULT nova_admin_user_name nova
     iniset $TACKER_CONF DEFAULT nova_admin_password $SERVICE_PASSWORD
     iniset $TACKER_CONF DEFAULT nova_admin_tenant_id $SERVICE_TENANT_NAME
     iniset $TACKER_CONF DEFAULT nova_admin_auth_url $KEYSTONE_AUTH_URI
@@ -266,10 +273,6 @@ function configure_tacker {
     iniset $TACKER_CONF tacker_heat heat_uri http://$SERVICE_HOST:8004/v1
     iniset $TACKER_CONF tacker_heat stack_retries 60
     iniset $TACKER_CONF tacker_heat stack_retry_wait 5
-    iniset $TACKER_CONF keystone_authtoken identity_uri http://127.0.0.1:5000
-    iniset $TACKER_CONF keystone_authtoken project_domain_id default
-    iniset $TACKER_CONF keystone_authtoken user_domain_id default
-    iniset $TACKER_CONF keystone_authtoken auth_plugin password
 
     iniset $TACKER_CONF nfvo_vim default_vim VIM0
 
@@ -403,9 +406,8 @@ function tacker_register_default_vim {
     get_or_add_user_project_role "admin" $DEFAULT_VIM_USER $DEFAULT_VIM_PROJECT_NAME
     get_or_add_user_project_role "advsvc" $DEFAULT_VIM_USER $DEFAULT_VIM_PROJECT_NAME
     VIM_CONFIG_FILE="$TACKER_DIR/devstack/vim_config.yaml"
-    default_vim_id=$(tacker vim-register --name $DEFAULT_VIM_NAME --config-file $VIM_CONFIG_FILE -f value -c id)
+    default_vim_id=$(tacker vim-register --is-default --config-file $VIM_CONFIG_FILE $DEFAULT_VIM_NAME -f value -c id)
     echo $default_vim_id
-    iniset $TACKER_CONF nfvo_vim default_vim $DEFAULT_VIM_NAME
 }
 
 function modify_heat_flavor_policy_rule {
