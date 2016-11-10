@@ -75,7 +75,7 @@ topology_template:
     - vdu_high_cpu_usage_monitoring_policy:
         type: tosca.policies.tacker.Alarming
         triggers:
-            resize_compute:
+            vdu_hcpu_usage_scaling_out:
                 event_type:
                     type: tosca.events.resource.utilization
                     implementation: ceilometer
@@ -87,14 +87,12 @@ topology_template:
                     evaluations: 1
                     method: avg
                     comparison_operator: gt
-                action:
-                  resize_compute:
-                    action_name: SP1
+                action: SP1
 
     - vdu_low_cpu_usage_monitoring_policy:
         type: tosca.policies.tacker.Alarming
         triggers:
-            resize_compute:
+            vdu_lcpu_scaling_in:
                 event_type:
                     type: tosca.events.resource.utilization
                     implementation: ceilometer
@@ -106,6 +104,4 @@ topology_template:
                     evaluations: 1
                     method: avg
                     comparison_operator: lt
-                action:
-                  resize_compute:
-                    action_name: SP1
+                action: SP1

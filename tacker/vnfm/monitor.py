@@ -222,33 +222,29 @@ class VNFAlarmMonitor(object):
         _log_monitor_events(t_context.get_admin_context(),
                             vnf,
                             "update vnf with alarm")
-        driver = policy_dict['triggers']['resize_compute'][
-            'event_type']['implementation']
-        policy_action = policy_dict['triggers']['resize_compute'].get('action')
+        trigger_name, trigger_dict = list(policy_dict['triggers'].items())[0]
+        driver = trigger_dict['event_type']['implementation']
+        policy_action = trigger_dict.get('action')
         if not policy_action:
-            return
-        alarm_action_name = policy_action['resize_compute'].get('action_name')
-        if not alarm_action_name:
             return
         # This method will be further supported for other backend policies with the construct (policy, action)
         # ex: (SP1, in), (SP1, out)
 
         def _refactor_backend_policy(bk_policy_name, bk_action_name):
-            bkend_policy = '%(policy_name)s-%(action_name)s' % {'policy_name': bk_policy_name,
+            policy = '%(policy_name)s-%(action_name)s' % {'policy_name': bk_policy_name,
                                                                 'action_name': bk_action_name}
-            return bkend_policy
+            return policy
 
-        filters = {'name': alarm_action_name}
+        filters = {'name': policy_action}
         bkend_policies = plugin.get_vnf_policies(context, vnf['id'], filters)
         if bkend_policies:
             bkend_policy = bkend_policies[0]
             if bkend_policy['type'] == constants.POLICY_SCALING:
-                cp = policy_dict['triggers']['resize_compute']['condition']. \
-                    get('comparison_operator')
+                cp = trigger_dict['condition'].get('comparison_operator')
                 scaling_type = 'out' if cp == 'gt' else 'in'
-                alarm_action_name = _refactor_backend_policy(alarm_action_name, scaling_type)
+                policy_action = _refactor_backend_policy(policy_action, scaling_type)
 
-        params['mon_policy_action'] = alarm_action_name
+        params['mon_policy_action'] = policy_action
         alarm_url = self.call_alarm_url(driver, vnf, params)
         _log_monitor_events(t_context.get_admin_context(),
                             vnf,
@@ -265,7 +261,8 @@ class VNFAlarmMonitor(object):
         alarm_dict = dict()
         alarm_dict['alarm_id'] = params['data'].get('alarm_id')
         alarm_dict['status'] = params['data'].get('current')
-        driver = mon_prop['resize_compute']['event_type']['implementation']
+        trigger_name, trigger_dict = list(mon_prop)[0]
+        driver = trigger_dict['event_type']['implementation']
         return self.process_alarm(driver, vnf, alarm_dict)
 
     def _invoke(self, driver, **kwargs):

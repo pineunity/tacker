@@ -40,7 +40,7 @@ topology_template:
     - vdu1_cpu_usage_monitoring_policy:
         type: tosca.policies.tacker.Alarming
         triggers:
-            resize_compute:
+            vdu_hcpu_usage_respawning:
                 event_type:
                     type: tosca.events.resource.utilization
                     implementation: ceilometer
@@ -52,6 +52,4 @@ topology_template:
                     evaluations: 1
                     method: avg
                     comparison_operator: gt
-                action:
-                  resize_compute:
-                    action_name: respawn
+                action: respawn

@@ -401,11 +401,10 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
 
             def _convert_to_heat_monitoring_prop(mon_policy):
                 name, mon_policy_dict = list(mon_policy.items())[0]
-                tpl_trigger_name = \
-                    mon_policy_dict['triggers']['resize_compute']
-                tpl_condition = tpl_trigger_name['condition']
+                tpl_trigger_name, tbl_trigger_dict = list(mon_policy_dict['triggers'].items())[0]
+                tpl_condition = tbl_trigger_dict['condition']
                 properties = {}
-                properties['meter_name'] = tpl_trigger_name['metrics']
+                properties['meter_name'] = tbl_trigger_dict['metrics']
                 properties['comparison_operator'] = \
                     tpl_condition['comparison_operator']
                 properties['period'] = tpl_condition['period']
@@ -441,6 +440,7 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
             if 'policies' in topology_tpl_dict:
                 for policy_dict in topology_tpl_dict['policies']:
                     name, policy_tpl_dict = list(policy_dict.items())[0]
+                    # need to parse triggers here: scaling in/out, respawn,...
                     if policy_tpl_dict['type'] == \
                             'tosca.policies.tacker.Alarming':
                         is_enabled_alarm = True
