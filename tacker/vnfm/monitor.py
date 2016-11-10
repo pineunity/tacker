@@ -261,7 +261,7 @@ class VNFAlarmMonitor(object):
         alarm_dict = dict()
         alarm_dict['alarm_id'] = params['data'].get('alarm_id')
         alarm_dict['status'] = params['data'].get('current')
-        trigger_name, trigger_dict = list(mon_prop)[0]
+        trigger_name, trigger_dict = list(mon_prop.items())[0]
         driver = trigger_dict['event_type']['implementation']
         return self.process_alarm(driver, vnf, alarm_dict)
 
