@@ -215,49 +215,49 @@ class VNFAlarmMonitor(object):
             'tacker.tacker.alarm_monitor.drivers',
             cfg.CONF.tacker.alarm_monitor_driver)
 
-    def update_vnf_with_alarm(self, plugin, context, vnf, policy_name, policy_dict):
-        params = dict()
-        params['vnf_id'] = vnf['id']
-        params['mon_policy_name'] = policy_name
+    def update_vnf_with_alarm(self, plugin, context, vnf, policy_dict):
         _log_monitor_events(t_context.get_admin_context(),
                             vnf,
                             "update vnf with alarm")
-        trigger_name, trigger_dict = list(policy_dict['triggers'].items())[0]
-        driver = trigger_dict['event_type']['implementation']
-        policy_action = trigger_dict.get('action')
-        if not policy_action:
-            return
-        # This method will be further supported for other backend policies with the construct (policy, action)
-        # ex: (SP1, in), (SP1, out)
+        triggers = policy_dict['triggers']
+        alarm_url = dict()
+        for trigger in triggers:
+            trigger_name, trigger_dict = list(trigger.items())[0]
+            params = dict()
+            params['vnf_id'] = vnf['id']
+            params['mon_policy_name'] = trigger_name
+            driver = trigger_dict['event_type']['implementation']
+            policy_action = trigger_dict.get('action')
+            if not policy_action:
+                return
+            # This method will be further supported for other backend policies with the construct (policy, action)
+            # ex: (SP1, in), (SP1, out)
 
-        def _refactor_backend_policy(bk_policy_name, bk_action_name):
-            policy = '%(policy_name)s-%(action_name)s' % {'policy_name': bk_policy_name,
-                                                                'action_name': bk_action_name}
-            return policy
+            def _refactor_backend_policy(bk_policy_name, bk_action_name):
+                policy = '%(policy_name)s-%(action_name)s' % {'policy_name': bk_policy_name,
+                                                                    'action_name': bk_action_name}
+                return policy
 
-        filters = {'name': policy_action}
-        bkend_policies = plugin.get_vnf_policies(context, vnf['id'], filters)
-        if bkend_policies:
-            bkend_policy = bkend_policies[0]
-            if bkend_policy['type'] == constants.POLICY_SCALING:
-                cp = trigger_dict['condition'].get('comparison_operator')
-                scaling_type = 'out' if cp == 'gt' else 'in'
-                policy_action = _refactor_backend_policy(policy_action, scaling_type)
+            filters = {'name': policy_action}
+            bkend_policies = plugin.get_vnf_policies(context, vnf['id'], filters)
+            if bkend_policies:
+                bkend_policy = bkend_policies[0]
+                if bkend_policy['type'] == constants.POLICY_SCALING:
+                    cp = trigger_dict['condition'].get('comparison_operator')
+                    scaling_type = 'out' if cp == 'gt' else 'in'
+                    policy_action = _refactor_backend_policy(policy_action, scaling_type)
 
-        params['mon_policy_action'] = policy_action
-        alarm_url = self.call_alarm_url(driver, vnf, params)
-        _log_monitor_events(t_context.get_admin_context(),
-                            vnf,
-                            "Alarm url invoked")
+            params['mon_policy_action'] = policy_action
+            alarm_url[trigger_name] = self.call_alarm_url(driver, vnf, params)
+            _log_monitor_events(t_context.get_admin_context(),
+                                vnf,
+                                "Alarm url invoked")
         return alarm_url
-        # vnf['attribute']['alarm_url'] = alarm_url ---> create
-        # by plugin or vm_db
 
-    def process_alarm_for_vnf(self, policy):
+    def process_alarm_for_vnf(self, vnf, trigger):
         '''call in plugin'''
-        vnf = policy['vnf']
-        params = policy['params']
-        mon_prop = policy['properties']
+        params = trigger['params']
+        mon_prop = trigger['trigger']
         alarm_dict = dict()
         alarm_dict['alarm_id'] = params['data'].get('alarm_id')
         alarm_dict['status'] = params['data'].get('current')

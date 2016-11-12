@@ -72,7 +72,7 @@ topology_template:
           default_instances: 2
           targets: [VDU1,VDU2]
 
-    - vdu_high_cpu_usage_monitoring_policy:
+    - vdu_cpu_usage_monitoring_policy:
         type: tosca.policies.tacker.Alarming
         triggers:
             vdu_hcpu_usage_scaling_out:
@@ -89,9 +89,6 @@ topology_template:
                     comparison_operator: gt
                 action: SP1
 
-    - vdu_low_cpu_usage_monitoring_policy:
-        type: tosca.policies.tacker.Alarming
-        triggers:
             vdu_lcpu_scaling_in:
                 event_type:
                     type: tosca.events.resource.utilization
