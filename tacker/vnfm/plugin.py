@@ -643,7 +643,11 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
                     _handle_vnf_scaling_post(constants.ERROR)
 
         _validate_scaling_policy()
-
+        # stop immediately when instances reach to limited value
+        if policy['action'] == constants.ACTION_SCALE_IN:
+            pre_vnf = policy['vnf']
+            if len(pre_vnf['mgmt_url']) == 1:
+                return
         vnf = _handle_vnf_scaling_pre()
         policy['instance_id'] = vnf['instance_id']
 
