@@ -715,10 +715,10 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
 
         return scale['scale']
 
-    def get_vnf_mon_policy(self, context, vnf_id, fields = None):
+    def get_vnf_policy_by_type(self, context, vnf_id, policy_type = None, fields = None):
         policies = self.get_vnf_policies(context,
                                          vnf_id,
-                                         filters={'type': constants.POLICY_ALARMING})
+                                         filters={'type': policy_type})
         if policies:
             return policies[0]
 
@@ -752,13 +752,15 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
         # validate url
 
     def _get_vnf_triggers(self, context, vnf_id, filters=None, fields=None):
-        policy = self.get_vnf_mon_policy(context, vnf_id)
+        policy = self.get_vnf_policy_by_type(context, vnf_id, policy_type=constants.POLICY_ALARMING)
         triggers = policy['properties']
         vnf_trigger = dict()
         for trigger in triggers:
             trigger_name, trigger_dict = list(trigger.items())[0]
             if trigger_name == filters.get('name'):
-                vnf_trigger = trigger
+                vnf_trigger['trigger'] = trigger
+                vnf_trigger['vnf'] = policy['vnf']
+                break
 
         return vnf_trigger
 
@@ -769,12 +771,12 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
                 trigger_name=trigger_name,
                 vnf_id=vnf_id
             )
-        return {'trigger': trigger}
+        return trigger
 
-    def _handle_vnf_monitoring(self, context, policy):
-        vnf_dict = policy['vnf']
-        if policy['action_name'] in constants.DEFAULT_ALARM_ACTIONS:
-            action = policy['action_name']
+    def _handle_vnf_monitoring(self, context, trigger):
+        vnf_dict = trigger['vnf']
+        if trigger['action_name'] in constants.DEFAULT_ALARM_ACTIONS:
+            action = trigger['action_name']
             LOG.debug(_('vnf for monitoring: %s'), vnf_dict)
             infra_driver, vim_auth = self._get_infra_driver(context, vnf_dict)
             action_cls = monitor.ActionPolicy.get_policy(action,
@@ -782,14 +784,14 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
             if action_cls:
                 action_cls.execute_action(self, vnf_dict)
 
-        if policy.get('bckend_policy'):
-            bckend_policy = policy['bckend_policy']
+        if trigger.get('bckend_policy'):
+            bckend_policy = trigger['bckend_policy']
             bckend_policy_type = bckend_policy['type']
             if bckend_policy_type == constants.POLICY_SCALING:
                 action = 'scaling'
                 scale = {}
                 scale.setdefault('scale', {})
-                scale['scale']['type'] = policy['bckend_action']
+                scale['scale']['type'] = trigger['bckend_action']
                 scale['scale']['policy'] = bckend_policy['name']
                 infra_driver, vim_auth = self._get_infra_driver(context,
                                                                 vnf_dict)
@@ -805,10 +807,8 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
         trigger_.update({'params': trigger['trigger']['params']})
         bk_policy, bk_action = self._validate_alarming_policy(context, vnf_id, trigger_)
         if bk_policy:
-            policy_.update({'bckend_policy': bk_policy, 'bckend_action': bk_action})
-        self._handle_vnf_monitoring(context, policy_)
-
-
+            trigger_.update({'bckend_policy': bk_policy, 'bckend_action': bk_action})
+        self._handle_vnf_monitoring(context, trigger_)
         return trigger['trigger']
 
     def get_vnf_resources(self, context, vnf_id, fields=None, filters=None):

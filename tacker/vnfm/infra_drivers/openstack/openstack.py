@@ -400,11 +400,10 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
             is_enabled_alarm = False
 
             def _convert_to_heat_monitoring_prop(mon_policy):
-                name, mon_policy_dict = list(mon_policy.items())[0]
-                tpl_trigger_name, tbl_trigger_dict = list(mon_policy_dict['triggers'].items())[0]
-                tpl_condition = tbl_trigger_dict['condition']
+                trigger_name, trigger_dict = list(mon_policy.items())[0]
+                tpl_condition = trigger_dict['condition']
                 properties = {}
-                properties['meter_name'] = tbl_trigger_dict['metrics']
+                properties['meter_name'] = trigger_dict['metrics']
                 properties['comparison_operator'] = \
                     tpl_condition['comparison_operator']
                 properties['period'] = tpl_condition['period']
@@ -413,10 +412,13 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                 properties['description'] = tpl_condition['constraint']
                 properties['threshold'] = tpl_condition['threshold']
                 # alarm url process here
-                alarm_url = str(vnf['attributes'].get(name))
-                if alarm_url:
-                    LOG.debug('Alarm url in heat %s', alarm_url)
-                    properties['alarm_actions'] = [alarm_url]
+                alarm_urls = vnf['attributes'].get('alarm_url')
+                if alarm_urls:
+                    alarm_url = alarm_urls.get(trigger_name)
+                    if alarm_url:
+                        alarm_url = str(alarm_url)
+                        LOG.debug('Alarm url in heat %s', alarm_url)
+                        properties['alarm_actions'] = [alarm_url]
                 return properties
 
             def _convert_to_heat_monitoring_resource(mon_policy):
@@ -444,8 +446,11 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                     if policy_tpl_dict['type'] == \
                             'tosca.policies.tacker.Alarming':
                         is_enabled_alarm = True
-                        alarm_resource[name] =\
-                            _convert_to_heat_monitoring_resource(policy_dict)
+                        triggers = policy_dict['triggers']
+                        for trigger in triggers:
+                            policy_name, policy_dict = list(trigger.items())[0]
+                            alarm_resource[policy_name] =\
+                                _convert_to_heat_monitoring_resource(trigger)
                 heat_dict['resources'].update(alarm_resource)
 
             heat_tpl_yaml = yaml.dump(heat_dict)
