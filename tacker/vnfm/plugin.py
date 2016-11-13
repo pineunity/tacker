@@ -258,7 +258,8 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
                 name, policy = list(policy_dict.items())[0]
                 if policy['type'] in constants.POLICY_ALARMING:
                     alarm_url = self._vnf_alarm_monitor.update_vnf_with_alarm(self, context, vnf_dict, policy)
-                    vnf_dict['attributes']['alarm_url'] = alarm_url
+                    vnf_dict['attributes']['alarming_policy'] = vnf_dict['id']
+                    vnf_dict['attributes'].update(alarm_url)
                     break
 
     def config_vnf(self, context, vnf_dict):
@@ -755,10 +756,9 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
         policy = self.get_vnf_policy_by_type(context, vnf_id, policy_type=constants.POLICY_ALARMING)
         triggers = policy['properties']
         vnf_trigger = dict()
-        for trigger in triggers:
-            trigger_name, trigger_dict = list(trigger.items())[0]
+        for trigger_name, trigger_dict in triggers.items():
             if trigger_name == filters.get('name'):
-                vnf_trigger['trigger'] = trigger
+                vnf_trigger['trigger'] = {trigger_name: trigger_dict}
                 vnf_trigger['vnf'] = policy['vnf']
                 break
 

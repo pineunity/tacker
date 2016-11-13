@@ -412,13 +412,11 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                 properties['description'] = tpl_condition['constraint']
                 properties['threshold'] = tpl_condition['threshold']
                 # alarm url process here
-                alarm_urls = vnf['attributes'].get('alarm_url')
-                if alarm_urls:
-                    alarm_url = alarm_urls.get(trigger_name)
-                    if alarm_url:
-                        alarm_url = str(alarm_url)
-                        LOG.debug('Alarm url in heat %s', alarm_url)
-                        properties['alarm_actions'] = [alarm_url]
+                alarm_url = vnf['attributes'].get(trigger_name)
+                if alarm_url:
+                    alarm_url = str(alarm_url)
+                    LOG.debug('Alarm url in heat %s', alarm_url)
+                    properties['alarm_actions'] = [alarm_url]
                 return properties
 
             def _convert_to_heat_monitoring_resource(mon_policy):
@@ -446,11 +444,10 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
                     if policy_tpl_dict['type'] == \
                             'tosca.policies.tacker.Alarming':
                         is_enabled_alarm = True
-                        triggers = policy_dict['triggers']
-                        for trigger in triggers:
-                            policy_name, policy_dict = list(trigger.items())[0]
-                            alarm_resource[policy_name] =\
-                                _convert_to_heat_monitoring_resource(trigger)
+                        triggers = policy_tpl_dict['triggers']
+                        for trigger_name, trigger_dict in triggers.items():
+                            alarm_resource[trigger_name] =\
+                                _convert_to_heat_monitoring_resource({trigger_name: trigger_dict})
                 heat_dict['resources'].update(alarm_resource)
 
             heat_tpl_yaml = yaml.dump(heat_dict)

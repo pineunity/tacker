@@ -221,8 +221,7 @@ class VNFAlarmMonitor(object):
                             "update vnf with alarm")
         triggers = policy_dict['triggers']
         alarm_url = dict()
-        for trigger in triggers:
-            trigger_name, trigger_dict = list(trigger.items())[0]
+        for trigger_name, trigger_dict in triggers.items():
             params = dict()
             params['vnf_id'] = vnf['id']
             params['mon_policy_name'] = trigger_name
@@ -393,9 +392,9 @@ class ActionRespawnHeat(ActionPolicy):
                 plugin.add_vnf_to_monitor(updated_vnf, vim_res['vim_type'])
                 LOG.debug(_("VNF %s added to monitor thread"), updated_vnf[
                     'id'])
-            if vnf_dict['attributes'].get('alarm_url'):
+            if vnf_dict['attributes'].get('alarming_policy'):
                 _delete_heat_stack(vim_res['vim_auth'])
-                vnf_dict['attributes'].pop('alarm_url')
+                vnf_dict['attributes'].pop('alarming_policy')
                 _respin_vnf()
 
 
