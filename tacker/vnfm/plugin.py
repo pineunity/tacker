@@ -747,7 +747,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
         if not policy_:
             if action not in constants.DEFAULT_ALARM_ACTIONS:
                 policy_ = self.get_vnf_policy(context, action, vnf_id)
-        LOG.debug(_("Policy %s is validated successfully") % policy)
+        LOG.debug(_("Trigger %s is validated successfully") % trigger)
         return policy_, action_
         # validate url
 
@@ -807,6 +807,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
         if bk_policy:
             policy_.update({'bckend_policy': bk_policy, 'bckend_action': bk_action})
         self._handle_vnf_monitoring(context, policy_)
+
 
         return trigger['trigger']
 
