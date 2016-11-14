@@ -15,6 +15,7 @@
 #    under the License.
 
 import inspect
+import json
 import six
 import yaml
 
@@ -646,7 +647,10 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
         # stop immediately when instances reach to limited value
         if policy['action'] == constants.ACTION_SCALE_IN:
             pre_vnf = policy['vnf']
-            if len(pre_vnf['mgmt_url']) == 1:
+            LOG.debug(_("mgmt %s ") % pre_vnf['mgmt_url'])
+            num_instances = json.loads(pre_vnf['mgmt_url']).values()[0]
+            LOG.debug(_("num_instances %s ") % num_instances)
+            if len(num_instances) == 1:
                 return
         vnf = _handle_vnf_scaling_pre()
         policy['instance_id'] = vnf['instance_id']
