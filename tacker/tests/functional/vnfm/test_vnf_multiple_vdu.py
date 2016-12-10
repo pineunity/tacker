@@ -52,7 +52,7 @@ class VnfTestMultipleVDU(base.BaseTackerTest):
         self.validate_vnf_instance(vnfd_instance, vnf_instance)
 
         self.verify_vnf_crud_events(
-            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.PENDING_CREATE)
+            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.PENDING_CREATE, cnt=2)
         self.verify_vnf_crud_events(
             vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.ACTIVE)
 

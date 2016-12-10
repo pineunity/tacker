@@ -74,8 +74,7 @@ class VnfmTestParam(base.BaseTackerTest):
         vnf_instance = self.client.show_vnf(vnf_id)
 
         self.verify_vnf_crud_events(
-            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.PENDING_CREATE,
-            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
+            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.PENDING_CREATE, cnt=2)
         self.verify_vnf_crud_events(
             vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.ACTIVE)
 
@@ -117,8 +116,7 @@ class VnfmTestParam(base.BaseTackerTest):
         self._test_vnf_delete(vnf_instance)
         vnf_id = vnf_instance['vnf']['id']
         self.verify_vnf_crud_events(
-            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.PENDING_CREATE,
-            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
+            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.PENDING_CREATE, cnt=2)
         self.verify_vnf_crud_events(
             vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.ACTIVE)
         self.wait_until_vnf_delete(vnf_id,
@@ -146,8 +144,7 @@ class VnfmTestParam(base.BaseTackerTest):
         self._test_vnf_delete(vnf_instance)
         vnf_id = vnf_instance['vnf']['id']
         self.verify_vnf_crud_events(
-            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.PENDING_CREATE,
-            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
+            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.PENDING_CREATE, cnt=2)
         self.verify_vnf_crud_events(
             vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.ACTIVE)
         self.wait_until_vnf_delete(vnf_id,

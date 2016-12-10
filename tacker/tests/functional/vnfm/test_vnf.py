@@ -59,7 +59,7 @@ class VnfTestCreate(base.BaseTackerTest):
         self.assertIn('type', vnf_details)
 
         self.verify_vnf_crud_events(
-            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.PENDING_CREATE)
+            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.PENDING_CREATE, cnt=2)
         self.verify_vnf_crud_events(
             vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.ACTIVE)
 
