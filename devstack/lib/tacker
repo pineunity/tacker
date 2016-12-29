@@ -118,15 +118,13 @@ function create_tacker_accounts {
         get_or_create_role "advsvc"
         create_service_user "tacker" "advsvc"
 
-        if [[ "$KEYSTONE_CATALOG_BACKEND" = 'sql' ]]; then
-            local tacker_service=$(get_or_create_service "tacker" \
-                "nfv-orchestration" "Tacker NFV Orchestration Service")
-            get_or_create_endpoint $tacker_service \
-                "$REGION_NAME" \
-                "$TACKER_PROTOCOL://$SERVICE_HOST:$TACKER_PORT/" \
-                "$TACKER_PROTOCOL://$SERVICE_HOST:$TACKER_PORT/" \
-                "$TACKER_PROTOCOL://$SERVICE_HOST:$TACKER_PORT/"
-        fi
+        local tacker_service=$(get_or_create_service "tacker" \
+            "nfv-orchestration" "Tacker NFV Orchestration Service")
+        get_or_create_endpoint $tacker_service \
+            "$REGION_NAME" \
+            "$TACKER_PROTOCOL://$SERVICE_HOST:$TACKER_PORT/" \
+            "$TACKER_PROTOCOL://$SERVICE_HOST:$TACKER_PORT/" \
+            "$TACKER_PROTOCOL://$SERVICE_HOST:$TACKER_PORT/"
     fi
 }
 
@@ -189,10 +187,6 @@ function _create_tacker_conf_dir {
 # configure_tacker()
 # Set common config for all tacker server and agents.
 function configure_tacker {
-    iniset "/$Q_PLUGIN_CONF_FILE" ml2 extension_drivers port_security
-    iniset "/$Q_PLUGIN_CONF_FILE" ml2_type_flat flat_networks $PUBLIC_PHYSICAL_NETWORK,$MGMT_PHYS_NET
-    iniset "/$Q_PLUGIN_CONF_FILE" ovs bridge_mappings $PUBLIC_PHYSICAL_NETWORK:$PUBLIC_BRIDGE,$MGMT_PHYS_NET:$BR_MGMT
-
     _create_tacker_conf_dir
 
     cd $TACKER_DIR
@@ -244,34 +238,26 @@ function configure_tacker {
     iniset $TACKER_CONF DEFAULT auth_strategy $TACKER_AUTH_STRATEGY
     _tacker_setup_keystone $TACKER_CONF keystone_authtoken
 
-    # Configuration for tacker requests to nova.
-    iniset $TACKER_CONF DEFAULT nova_url $TACKER_NOVA_URL
-    iniset $TACKER_CONF DEFAULT nova_admin_user_name nova
-    iniset $TACKER_CONF DEFAULT nova_admin_password $SERVICE_PASSWORD
-    iniset $TACKER_CONF DEFAULT nova_admin_tenant_id $SERVICE_TENANT_NAME
-    iniset $TACKER_CONF DEFAULT nova_admin_auth_url $KEYSTONE_AUTH_URI
-    iniset $TACKER_CONF DEFAULT nova_ca_certificates_file $TACKER_NOVA_CA_CERTIFICATES_FILE
-    iniset $TACKER_CONF DEFAULT nova_api_insecure $TACKER_NOVA_API_INSECURE
-    iniset $TACKER_CONF DEFAULT nova_region_name $REGION_NAME
+    if [[ "${TACKER_MODE}" == "all" ]]; then
+        iniset "/$Q_PLUGIN_CONF_FILE" ml2 extension_drivers port_security
+        iniset "/$Q_PLUGIN_CONF_FILE" ml2_type_flat flat_networks $PUBLIC_PHYSICAL_NETWORK,$MGMT_PHYS_NET
+        iniset "/$Q_PLUGIN_CONF_FILE" ovs bridge_mappings $PUBLIC_PHYSICAL_NETWORK:$PUBLIC_BRIDGE,$MGMT_PHYS_NET:$BR_MGMT
 
-    iniset $TACKER_CONF tacker_nova auth_plugin password
-    iniset $TACKER_CONF tacker_nova auth_url $KEYSTONE_AUTH_URI
-    iniset $TACKER_CONF tacker_nova username nova
-    iniset $TACKER_CONF tacker_nova password $SERVICE_PASSWORD
-    iniset $TACKER_CONF tacker_nova user_domain_id default
-    iniset $TACKER_CONF tacker_nova project_name $SERVICE_TENANT_NAME
-    iniset $TACKER_CONF tacker_nova project_domain_id default
-    iniset $TACKER_CONF tacker_nova region_name $REGION_NAME
+        # Experimental settings for monitor alarm auth settings,
+        # Will be changed according to new implementation.
+        iniset $TACKER_CONF alarm_auth username tacker
+        iniset $TACKER_CONF alarm_auth password "$SERVICE_PASSWORD"
+        iniset $TACKER_CONF alarm_auth project_name "$SERVICE_PROJECT_NAME"
+        iniset $TACKER_CONF alarm_auth url http://$SERVICE_HOST:35357/v3
 
-    iniset $TACKER_CONF tacker_heat heat_uri http://$SERVICE_HOST:8004/v1
-    iniset $TACKER_CONF tacker_heat stack_retries 60
-    iniset $TACKER_CONF tacker_heat stack_retry_wait 5
+        iniset $TACKER_CONF tacker_heat heat_uri http://$SERVICE_HOST:8004/v1
+        iniset $TACKER_CONF tacker_heat stack_retries 60
+        iniset $TACKER_CONF tacker_heat stack_retry_wait 5
 
-    iniset $TACKER_CONF nfvo_vim default_vim VIM0
-
+        echo "Creating bridge"
+        sudo ovs-vsctl --may-exist add-br ${BR_MGMT}
+    fi
     _tacker_setup_rootwrap
-    echo "Creating bridge"
-    sudo ovs-vsctl --may-exist add-br ${BR_MGMT}
 }
 
 # Utility Functions

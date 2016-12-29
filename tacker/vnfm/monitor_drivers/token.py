@@ -11,22 +11,27 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
-import keystoneclient.v3.client as ks_client
+from keystoneauth1.identity import v3
+from keystoneauth1 import session
 
 
 class Token(object):
-    def __init__(self, username, password, project_name, auth_url):
+    def __init__(self, username, password, project_name,
+                 auth_url, user_domain_name, project_domain_name):
         self.username = username
         self.password = password
         self.auth_url = auth_url
         self.project_name = project_name
+        self.user_domain_name = user_domain_name
+        self.project_domain_name = project_domain_name
 
     def create_token(self):
-        keystone = ks_client.Client(username=self.username,
-                                    password=self.password,
-                                    auth_url=self.auth_url,
-                                    project_name=self.project_name)
-
-        kstoken = keystone.service_catalog.get_token()
-        return kstoken['id']
+        auth = v3.Password(auth_url=self.auth_url,
+                           username=self.username,
+                           password=self.password,
+                           project_name=self.project_name,
+                           user_domain_name=self.user_domain_name,
+                           project_domain_name=self.project_domain_name)
+        sess = session.Session(auth=auth)
+        token_id = sess.auth.get_token(sess)
+        return token_id

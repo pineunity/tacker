@@ -41,6 +41,7 @@ Getting Started
    :maxdepth: 1
 
    install/getting_started.rst
+   install/deploy_openwrt.rst
 
 Feature Documentation
 =====================
@@ -56,6 +57,9 @@ Feature Documentation
    devref/mistral_workflows_usage_guide.rst
    devref/scale_usage_guide.rst
    devref/alarm_monitoring_usage_guide.rst
+   devref/event_logging.rst
+   devref/vnffgd_template_description.rst
+   devref/vnffg_usage_guide.rst
 
 API Documentation
 =================
@@ -83,6 +87,7 @@ Developer Info
    devref/api_layer.rst
    devref/api_extensions.rst
    devref/tacker_functional_test.rst
+   devref/dashboards.rst
 
 Project Info
 ============

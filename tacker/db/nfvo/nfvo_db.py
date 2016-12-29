@@ -28,7 +28,7 @@ from tacker.db import db_base
 from tacker.db import model_base
 from tacker.db import models_v1
 from tacker.db import types
-from tacker.db.vm import vm_db
+from tacker.db.vnfm import vnfm_db
 from tacker.extensions import nfvo
 from tacker import manager
 from tacker.plugins.common import constants
@@ -167,7 +167,7 @@ class NfvoPluginDb(nfvo.NFVOPluginBase, db_base.CommonDbMixin):
 
     def is_vim_still_in_use(self, context, vim_id):
         with context.session.begin(subtransactions=True):
-            vnfs_db = self._model_query(context, vm_db.VNF).filter_by(
+            vnfs_db = self._model_query(context, vnfm_db.VNF).filter_by(
                 vim_id=vim_id).first()
             if vnfs_db is not None:
                 raise nfvo.VimInUseException(vim_id=vim_id)
@@ -215,29 +215,9 @@ class NfvoPluginDb(nfvo.NFVOPluginBase, db_base.CommonDbMixin):
                     Vim.id == vim_id).with_lockmode('update').one())
             except orm_exc.NoResultFound:
                     raise nfvo.VimNotFoundException(vim_id=vim_id)
-            vim_db.update({'status': status})
-            self._cos_db_plg.create_event(
-                context, res_id=vim_db['id'],
-                res_type=constants.RES_TYPE_VIM,
-                res_state=vim_db['status'],
-                evt_type=constants.RES_EVT_UPDATE,
-                tstamp=timeutils.utcnow())
+            vim_db.update({'status': status,
+                           'updated_at': timeutils.utcnow()})
         return self._make_vim_dict(vim_db)
-
-    # Deprecated. Will be removed in Ocata release
-    def get_vim_by_name(self, context, vim_name, fields=None,
-                        mask_password=True):
-        vim_db = self._get_by_name(context, Vim, vim_name)
-        return self._make_vim_dict(vim_db, mask_password=mask_password)
-
-    # Deprecated. Will be removed in Ocata release
-    def _get_by_name(self, context, model, name):
-        try:
-            query = self._model_query(context, model)
-            return query.filter(model.name == name).one()
-        except orm_exc.NoResultFound:
-            if issubclass(model, Vim):
-                raise
 
     def _validate_default_vim(self, context, vim, vim_id=None):
         if not vim.get('is_default'):

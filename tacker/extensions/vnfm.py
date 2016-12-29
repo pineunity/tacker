@@ -56,7 +56,7 @@ class VNFInUse(exceptions.InUse):
 
 
 class InvalidInfraDriver(exceptions.InvalidInput):
-    message = _('invalid name for infra driver %(infra_driver)s')
+    message = _('VIM type %(vim_name)s is not supported as a infra driver ')
 
 
 class InvalidServiceType(exceptions.InvalidInput):
@@ -153,6 +153,10 @@ class VNFInactive(exceptions.InvalidInput):
     message = _("VNF %(vnf_id)s is not in Active state %(message)s")
 
 
+class MetadataNotMatched(exceptions.InvalidInput):
+    message = _("Metadata for alarm policy is not matched")
+
+
 def _validate_service_type_list(data, valid_values=None):
     if not isinstance(data, list):
         msg = _("invalid data format for service list: '%s'") % data
@@ -220,14 +224,14 @@ RESOURCE_ATTRIBUTE_MAP = {
             'allow_put': False,
             'validate': {'type:string': None},
             'is_visible': True,
-            'default': attr.ATTR_NOT_SPECIFIED,
+            'default': "",
         },
         'mgmt_driver': {
             'allow_post': True,
             'allow_put': False,
             'validate': {'type:string': None},
             'is_visible': True,
-            'default': attr.ATTR_NOT_SPECIFIED,
+            'default': "",
         },
         'attributes': {
             'allow_post': True,
@@ -370,6 +374,14 @@ SUB_RESOURCE_ATTRIBUTE_MAP = {
                     },
                 }
             },
+        }
+    },
+    'triggers': {
+        'parent': {
+            'collection_name': 'vnfs',
+            'member_name': 'vnf'
+        },
+        'members': {
             'trigger': {
                 'parameters': {
                     'policy_name': {
@@ -398,7 +410,7 @@ SUB_RESOURCE_ATTRIBUTE_MAP = {
                         'is_visible': False
                     }
                 }
-            }
+            },
         }
     },
     'resources': {

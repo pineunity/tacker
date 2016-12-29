@@ -654,7 +654,7 @@ class Debug(Middleware):
         resp = req.get_response(self.application)
 
         print(("*" * 40) + " RESPONSE HEADERS")
-        for (key, value) in six.iteritems(resp.headers):
+        for (key, value) in (resp.headers).items():
             print(key, "=", value)
         print()
 
@@ -788,7 +788,7 @@ class Resource(Application):
         try:
             action_result = self.dispatch(request, action, args)
         except webob.exc.HTTPException as ex:
-            LOG.info(_("HTTP exception thrown: %s"), six.text_type(ex))
+            LOG.info(_("HTTP exception thrown: %s"), ex)
             action_result = Fault(ex,
                                   self._fault_body_function)
         except Exception:

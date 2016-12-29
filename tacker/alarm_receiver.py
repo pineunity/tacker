@@ -22,10 +22,21 @@ from tacker import wsgi
 LOG = logging.getLogger(__name__)
 
 OPTS = [
+    cfg.StrOpt('username', default='tacker',
+        help=_('User name for alarm monitoring')),
+    cfg.StrOpt('password', default='nomoresecret',
+        help=_('password for alarm monitoring')),
+    cfg.StrOpt('project_name', default='service',
+        help=_('project name for alarm monitoring')),
     cfg.StrOpt('url', default='http://localhost:35357/v3',
-        help=_('url for keystone')),
+        help=_('url for alarm monitoring')),
 ]
-cfg.CONF.register_opts(OPTS, 'keystone_authtoken')
+
+cfg.CONF.register_opts(OPTS, 'alarm_auth')
+
+
+def config_opts():
+    return [('alarm_auth', OPTS)]
 
 
 class AlarmReceiver(wsgi.Middleware):
@@ -37,10 +48,13 @@ class AlarmReceiver(wsgi.Middleware):
         if not self.handle_url(url):
             return
         prefix, info, params = self.handle_url(req.url)
-        token = Token(cfg.CONF.keystone_authtoken.username,
-                      cfg.CONF.keystone_authtoken.password,
-                      cfg.CONF.keystone_authtoken.project_name,
-                      auth_url=cfg.CONF.keystone_authtoken.url)
+        token = Token(username=cfg.CONF.alarm_auth.username,
+                      password=cfg.CONF.alarm_auth.password,
+                      project_name=cfg.CONF.alarm_auth.project_name,
+                      auth_url=cfg.CONF.alarm_auth.url,
+                      user_domain_name='default',
+                      project_domain_name='default')
+
         token_identity = token.create_token()
         req.headers['X_AUTH_TOKEN'] = token_identity
         # Change the body request
@@ -58,7 +72,7 @@ class AlarmReceiver(wsgi.Middleware):
             req.body = jsonutils.dumps(body_dict)
             LOG.debug('Body alarm: %s', req.body)
         # Need to change url because of mandatory
-        req.environ['PATH_INFO'] = prefix + 'actions'
+        req.environ['PATH_INFO'] = prefix + 'triggers'
         req.environ['QUERY_STRING'] = ''
         LOG.debug('alarm url in receiver: %s', req.url)
 

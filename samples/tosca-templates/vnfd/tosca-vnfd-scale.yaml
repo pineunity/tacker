@@ -50,12 +50,12 @@ topology_template:
     VL1:
       type: tosca.nodes.nfv.VL
       properties:
-        network_name: private
+        network_name: net_mgmt
         vendor: Tacker
 
   policies:
     - SP1:
-        type: tosca.policy.tacker.Scaling
+        type: tosca.policies.tacker.Scaling
         properties:
           increment: 1
           cooldown: 120

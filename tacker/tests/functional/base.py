@@ -13,19 +13,21 @@
 #    under the License.
 
 import time
+import yaml
 
 from neutronclient.v2_0 import client as neutron_client
 from novaclient import client as nova_client
 from oslo_config import cfg
 from tempest.lib import base
-import yaml
 
 from tacker.plugins.common import constants as evt_constants
 from tacker.tests import constants
+from tacker.tests.functional import clients
 from tacker.tests.utils import read_file
 from tacker import version
 
 from tackerclient.v1_0 import client as tacker_client
+
 
 CONF = cfg.CONF
 
@@ -44,6 +46,7 @@ class BaseTackerTest(base.BaseTestCase):
                  **kwargs)
 
         cls.client = cls.tackerclient()
+        cls.h_client = cls.heatclient()
 
     @classmethod
     def get_credentials(cls):
@@ -71,6 +74,15 @@ class BaseTackerTest(base.BaseTestCase):
     def neutronclient(cls):
         vim_params = cls.get_credentials()
         return neutron_client.Client(**vim_params)
+
+    @classmethod
+    def heatclient(cls):
+        data = yaml.load(read_file('local-vim.yaml'))
+        data['auth_url'] = data['auth_url'] + '/v3'
+        domain_name = data.pop('domain_name')
+        data['user_domain_name'] = domain_name
+        data['project_domain_name'] = domain_name
+        return clients.OpenstackClients(auth_attr=data).heat
 
     def wait_until_vnf_status(self, vnf_id, target_status, timeout,
                               sleep_interval):
@@ -140,35 +152,39 @@ class BaseTackerTest(base.BaseTestCase):
         for state in vnf_state_list:
             params = {'resource_id': vnf_id, 'resource_state': state,
                       'event_type': evt_constants.RES_EVT_MONITOR}
-            vnf_evt_list = self.client.list_vnf_events(params)
+            vnf_evt_list = self.client.list_vnf_events(**params)
             mesg = ("%s - state transition expected." % state)
-            self.assertIsNotNone(vnf_evt_list, mesg)
+            self.assertIsNotNone(vnf_evt_list['vnf_events'], mesg)
 
-    def verify_vnf_crud_events(self, vnf_id, evt_type, tstamp=None, cnt=1):
+    def verify_vnf_crud_events(self, vnf_id, evt_type, res_state,
+                               tstamp=None, cnt=1):
         params = {'resource_id': vnf_id,
+                  'resource_state': res_state,
                   'resource_type': evt_constants.RES_TYPE_VNF,
                   'event_type': evt_type}
         if tstamp:
             params['timestamp'] = tstamp
 
-        vnf_evt_list = self.client.list_vnf_events(params)
+        vnf_evt_list = self.client.list_vnf_events(**params)
 
-        self.assertIsNotNone(vnf_evt_list,
+        self.assertIsNotNone(vnf_evt_list['vnf_events'],
                              "List of VNF events are Empty")
-        self.assertEqual(cnt, len(vnf_evt_list))
+        self.assertEqual(cnt, len(vnf_evt_list['vnf_events']))
 
-    def verify_vnfd_events(self, vnfd_id, evt_type, tstamp=None, cnt=1):
+    def verify_vnfd_events(self, vnfd_id, evt_type, res_state,
+                           tstamp=None, cnt=1):
         params = {'resource_id': vnfd_id,
+                  'resource_state': res_state,
                   'resource_type': evt_constants.RES_TYPE_VNFD,
                   'event_type': evt_type}
         if tstamp:
             params['timestamp'] = tstamp
 
-        vnfd_evt_list = self.client.list_vnfd_events(params)
+        vnfd_evt_list = self.client.list_vnfd_events(**params)
 
-        self.assertIsNotNone(vnfd_evt_list,
+        self.assertIsNotNone(vnfd_evt_list['vnfd_events'],
                              "List of VNFD events are Empty")
-        self.assertEqual(cnt, len(vnfd_evt_list))
+        self.assertEqual(cnt, len(vnfd_evt_list['vnfd_events']))
 
     def get_vim(self, vim_list, vim_name):
         if len(vim_list.values()) == 0:
@@ -179,3 +195,10 @@ class BaseTackerTest(base.BaseTestCase):
                 if vim['name'] == vim_name:
                     return vim
         return None
+
+    def verify_antispoofing_in_stack(self, stack_id, resource_name):
+        resource_types = self.h_client.resources
+        resource_details = resource_types.get(stack_id=stack_id,
+                                              resource_name=resource_name)
+        resource_dict = resource_details.to_dict()
+        self.assertTrue(resource_dict['attributes']['port_security_enabled'])
