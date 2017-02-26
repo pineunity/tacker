@@ -17,7 +17,7 @@ resources:
       config_drive: false
       flavor: m1.tiny
       image: cirros-0.3.4-x86_64-uec
-      metadata: {metering.vnf: SG1}
+      metadata: {scale_group: SG1}
       networks:
       - port: {get_resource: CP1}
       user_data_format: SOFTWARE_CONFIG

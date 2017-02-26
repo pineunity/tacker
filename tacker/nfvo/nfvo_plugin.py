@@ -229,6 +229,13 @@ class NfvoPlugin(nfvo_db.NfvoPluginDb, vnffg_db.VnffgPluginDbMixin,
 
     @log.log
     def create_vnffg(self, context, vnffg):
+        vnffg_attributes = vnffg['vnffg']['attributes']
+        if vnffg_attributes.get('param_values'):
+            param = vnffg_attributes['param_values']
+            if isinstance(param, dict):
+                vnffg_attributes['param_values'] = yaml.safe_dump(param)
+            else:
+                raise exceptions.InvalidParam()
         vnffg_dict = super(NfvoPlugin, self)._create_vnffg_pre(context, vnffg)
         nfp = super(NfvoPlugin, self).get_nfp(context,
                                               vnffg_dict['forwarding_paths'])
@@ -374,13 +381,13 @@ class NfvoPlugin(nfvo_db.NfvoPluginDb, vnffg_db.VnffgPluginDbMixin,
         vnfm_plugin = manager.TackerManager.get_service_plugins()['VNFM']
         vim_id = vnfm_plugin.get_vnf(context, vnf_id, fields=['vim_id'])
         vim_obj = self.get_vim(context, vim_id['vim_id'], mask_password=False)
+        if vim_obj is None:
+            raise nfvo.VimFromVnfNotFoundException(vnf_id=vnf_id)
         vim_auth = vim_obj['auth_cred']
         vim_auth['password'] = self._decode_vim_auth(vim_obj['id'],
                                                      vim_auth['password'].
                                                      encode('utf-8'))
         vim_auth['auth_url'] = vim_obj['auth_url']
-        if vim_obj is None:
-            raise nfvo.VimFromVnfNotFoundException(vnf_id=vnf_id)
 
         return vim_obj
 
@@ -581,6 +588,12 @@ class NfvoPlugin(nfvo_db.NfvoPluginDb, vnffg_db.VnffgPluginDbMixin,
                 vim_auth=vim_res['vim_auth'],
                 auth_token=context.auth_token)
         except Exception as ex:
+            LOG.error(_('Error while executing workflow: %s'), ex)
+            self._vim_drivers.invoke(driver_type,
+                                     'delete_workflow',
+                                     workflow_id=workflow['id'],
+                                     vim_auth=vim_res['vim_auth'],
+                                     auth_token=context.auth_token)
             raise ex
         ns_dict = super(NfvoPlugin, self).create_ns(context, ns)
 
@@ -674,6 +687,13 @@ class NfvoPlugin(nfvo_db.NfvoPluginDb, vnffg_db.VnffgPluginDbMixin,
                 vim_auth=vim_res['vim_auth'],
                 auth_token=context.auth_token)
         except Exception as ex:
+            LOG.error(_('Error while executing workflow: %s'), ex)
+            self._vim_drivers.invoke(driver_type,
+                                     'delete_workflow',
+                                     workflow_id=workflow['id'],
+                                     vim_auth=vim_res['vim_auth'],
+                                     auth_token=context.auth_token)
+
             raise ex
         super(NfvoPlugin, self).delete_ns(context, ns_id)
 

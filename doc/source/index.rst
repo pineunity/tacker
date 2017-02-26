@@ -49,6 +49,7 @@ Feature Documentation
 .. toctree::
    :maxdepth: 1
 
+   devref/vnfm_usage_guide.rst
    devref/vnfd_template_description.rst
    devref/monitor-api.rst
    devref/vnfd_template_parameterization.rst
@@ -61,6 +62,7 @@ Feature Documentation
    devref/vnffgd_template_description.rst
    devref/vnffg_usage_guide.rst
    devref/nsd_usage_guide.rst
+   devref/vnf_component_usage_guide.rst
 
 API Documentation
 =================
@@ -104,3 +106,4 @@ Indices and tables
 ------------------
 
 * :ref:`search`
+* :ref:`modindex`

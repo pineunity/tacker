@@ -15,11 +15,10 @@ topology_template:
             mem_size: 512 MB
             num_cpus: 2
       properties:
-        image: cirros-0.3.4-x86_64-uec
+        image: cirros-0.3.5-x86_64-disk
         mgmt_driver: noop
         availability_zone: nova
         metadata: {metering.vnf: VDU1}
-
 
     CP1:
       type: tosca.nodes.nfv.CP.Tacker
@@ -42,17 +41,17 @@ topology_template:
     - vdu1_cpu_usage_monitoring_policy:
         type: tosca.policies.tacker.Alarming
         triggers:
-           vdu_hcpu_usage_respawning:
+            vdu_hcpu_usage_respawning:
                 event_type:
                     type: tosca.events.resource.utilization
-                    implementation: Ceilometer
+                    implementation: ceilometer
                 metrics: cpu_util
                 condition:
                     threshold: 50
                     constraint: utilization greater_than 50%
-                    period: 60
+                    period: 600
                     evaluations: 1
-                    method: average
+                    method: avg
                     comparison_operator: gt
                 metadata: VDU1
-                actions: ''
+                actions: [respawn]

@@ -28,15 +28,18 @@ def _get_template(name):
 tosca_vnfd_openwrt = _get_template('test_tosca_openwrt.yaml')
 config_data = _get_template('config_data.yaml')
 update_config_data = _get_template('update_config_data.yaml')
+vnffg_params = _get_template('vnffg_params.yaml')
 vnffgd_template = yaml.load(_get_template('vnffgd_template.yaml'))
 vnffgd_tosca_template = yaml.load(_get_template('tosca_vnffgd_template.yaml'))
+vnffgd_tosca_param_template = yaml.load(_get_template(
+    'tosca_vnffgd_param_template.yaml'))
 vnffgd_invalid_tosca_template = yaml.load(_get_template(
     'tosca_invalid_vnffgd_template.yaml'))
 vnfd_scale_tosca_template = _get_template('tosca_scale.yaml')
 vnfd_alarm_respawn_tosca_template = _get_template(
-    'test_tosca_vnfd_alarm_respawn.yaml')
+    'test_tosca_vnfd_ceilometer_alarm_respawn.yaml')
 vnfd_alarm_scale_tosca_template = _get_template(
-    'test_tosca_vnfd_alarm_scale.yaml')
+    'test_tosca_vnfd_ceilometer_alarm_scale.yaml')
 nsd_tosca_template = yaml.load(_get_template('tosca_nsd_template.yaml'))
 
 
@@ -46,9 +49,31 @@ def get_dummy_vnfd_obj():
                       'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
                       u'attributes': {u'vnfd': yaml.safe_load(
                           tosca_vnfd_openwrt)},
-                      'description': 'dummy_vnfd_description'},
+                      'description': 'dummy_vnfd_description',
+                      'template_source': 'onboarded',
             u'auth': {u'tenantName': u'admin', u'passwordCredentials': {
-                u'username': u'admin', u'password': u'devstack'}}}
+                u'username': u'admin', u'password': u'devstack'}}}}
+
+
+def get_dummy_vnfd_obj_inline():
+    return {u'vnfd': {u'service_types': [{u'service_type': u'vnfd'}],
+                      'name': 'tmpl-koeak4tqgoqo8cr4-dummy_inline_vnf',
+                      'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
+                      u'attributes': {u'vnfd': yaml.safe_load(
+                          tosca_vnfd_openwrt)},
+                      'template_source': 'inline',
+            u'auth': {u'tenantName': u'admin', u'passwordCredentials': {
+                u'username': u'admin', u'password': u'devstack'}}}}
+
+
+def get_dummy_inline_vnf_obj():
+    return {'vnf': {'description': 'dummy_inline_vnf_description',
+                    'vnfd_template': yaml.safe_load(tosca_vnfd_openwrt),
+                    'vim_id': u'6261579e-d6f3-49ad-8bc3-a9cb974778ff',
+                    'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
+                    'name': 'dummy_inline_vnf',
+                    'attributes': {},
+                    'vnfd_id': None}}
 
 
 def get_dummy_vnf_obj():
@@ -57,7 +82,8 @@ def get_dummy_vnf_obj():
                     'vim_id': u'6261579e-d6f3-49ad-8bc3-a9cb974778ff',
                     'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
                     'name': 'dummy_vnf',
-                    'attributes': {}}}
+                    'attributes': {},
+                    'vnfd_template': None}}
 
 
 def get_dummy_vnf_config_obj():
@@ -137,7 +163,21 @@ def get_dummy_vnffg_obj():
                       'vnffgd_id': u'eb094833-995e-49f0-a047-dfb56aaf7c4e',
                       'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
                       'name': 'dummy_vnffg',
+                      u'attributes': {u'template': vnffgd_tosca_template},
                       'vnf_mapping': {},
+                      'symmetrical': False}}
+
+
+def get_dummy_vnffg_param_obj():
+    return {'vnffg': {'description': 'dummy_vnf_description',
+                      'vnffgd_id': u'eb094833-995e-49f0-a047-dfb56aaf7c4e',
+                      'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
+                      'name': 'dummy_vnffg',
+                      u'attributes': {
+                          u'template': vnffgd_tosca_param_template},
+                      'vnf_mapping': {},
+                      u'attributes': {u'param_values':
+                          yaml.safe_load(vnffg_params)},
                       'symmetrical': False}}
 
 
@@ -146,6 +186,7 @@ def get_dummy_vnffg_obj_vnf_mapping():
                       'vnffgd_id': u'eb094833-995e-49f0-a047-dfb56aaf7c4e',
                       'tenant_id': u'ad7ebc56538745a08ef7c5e97f8bd437',
                       'name': 'dummy_vnffg',
+                      u'attributes': {u'template': vnffgd_tosca_template},
                       'vnf_mapping': {
                           'VNF1': '91e32c20-6d1f-47a4-9ba7-08f5e5effe07',
                           'VNF3': '7168062e-9fa1-4203-8cb7-f5c99ff3ee1b'

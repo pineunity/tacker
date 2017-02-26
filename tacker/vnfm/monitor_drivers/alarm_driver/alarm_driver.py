@@ -28,11 +28,11 @@ OPTS = [
     cfg.PortOpt('port', default=9890,
                help=_('port number which drivers use to trigger'))
 ]
-cfg.CONF.register_opts(OPTS, group='ceilometer')
+cfg.CONF.register_opts(OPTS, group='alarm_driver')
 
 
 def config_opts():
-    return [('ceilometer', OPTS)]
+    return [('alarm_driver', OPTS)]
 
 ALARM_INFO = (
     ALARM_ACTIONS, OK_ACTIONS, REPEAT_ACTIONS, ALARM,
@@ -44,22 +44,22 @@ ALARM_INFO = (
      )
 
 
-class VNFMonitorCeilometer(
+class VNFMonitorAlarm(
         abstract_driver.VNFMonitorAbstractDriver):
     def get_type(self):
-        return 'ceilometer'
+        return 'alarm_driver'
 
     def get_name(self):
-        return 'ceilometer'
+        return 'alarm_driver'
 
     def get_description(self):
-        return 'Tacker VNFMonitor Ceilometer Driver'
+        return 'Tacker VNFMonitor Alarm Driver'
 
     def _create_alarm_url(self, vnf_id, mon_policy_name, mon_policy_action):
         # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/monitoring-policy
         # -name/action-name?key=8785'
-        host = cfg.CONF.ceilometer.host
-        port = cfg.CONF.ceilometer.port
+        host = cfg.CONF.alarm_driver.host
+        port = cfg.CONF.alarm_driver.port
         LOG.info(_("Tacker in heat listening on %(host)s:%(port)s"),
                  {'host': host,
                   'port': port})
@@ -77,9 +77,8 @@ class VNFMonitorCeilometer(
         '''must be used after call heat-create in plugin'''
         return self._create_alarm_url(**kwargs)
 
-    def _process_alarm(self, alarm_id, status):
-        if alarm_id and status == ALARM:
-            return True
+    def _process_alarm(self, alarm_id):
+        return alarm_id
 
     def process_alarm(self, vnf, kwargs):
         '''Check alarm state. if available, will be processed'''
