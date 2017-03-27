@@ -41,10 +41,18 @@ class TackerException(Exception):
                     # at least get the core message out if something happened
                     super(TackerException, self).__init__(self.message)
 
-    def __unicode__(self):
-        return six.text_type(self.msg)
+    if six.PY2:
+        def __unicode__(self):
+            return unicode(self.msg)
+
+    def __str__(self):
+        return self.msg
 
     def use_fatal_exceptions(self):
+        """Is the instance using fatal exceptions.
+
+        :returns: Always returns False.
+        """
         return False
 
 
@@ -243,3 +251,33 @@ class InvalidCIDR(BadRequest):
 
 class MgmtDriverException(TackerException):
     message = _("VNF configuration failed")
+
+
+class AlarmUrlInvalid(BadRequest):
+    message = _("Invalid alarm url for VNF %(vnf_id)s")
+
+
+class TriggerNotFound(NotFound):
+    message = _("Trigger %(trigger_name)s does not exist for VNF %(vnf_id)s")
+
+
+class VnfPolicyNotFound(NotFound):
+    message = _("Policy %(policy)s does not exist for VNF %(vnf_id)s")
+
+
+class VnfPolicyActionInvalid(BadRequest):
+    message = _("Invalid action %(action)s for policy %(policy)s, "
+                "should be one of %(valid_acions)s")
+
+
+class VnfPolicyTypeInvalid(BadRequest):
+    message = _("Invalid type %(type)s for policy %(policy)s, "
+                "should be one of %(valid_types)s")
+
+
+class DuplicateResourceName(TackerException):
+    message = _("%(resource)s with name %(name)s already exists")
+
+
+class InvalidParam(TackerException):
+    message = _("Param values must be a dict type")

@@ -14,7 +14,7 @@ Introduction
 -------------
 
 Tacker monitoring framework provides the NFV operators and VNF vendors to
-write a pluggable driver that monitors the various status coditions of the
+write a pluggable driver that monitors the various status conditions of the
 VNF entities it deploys and manages.
 
 How to write a new monitor driver
@@ -22,16 +22,16 @@ How to write a new monitor driver
 
 A monitor driver for tacker is a python module which contains a class that
 inherits from
-"tacker.vm.monitor_drivers.abstract_driver.VNFMonitorAbstractDriver". If the
+"tacker.vnfm.monitor_drivers.abstract_driver.VNFMonitorAbstractDriver". If the
 driver depends/imports more than one module, then create a new python package
-under tacker/vm/monitor_drivers folder. After this we have to mention our
+under tacker/vnfm/monitor_drivers folder. After this we have to mention our
 driver path in setup.cfg file in root directory.
 
 For example:
 ::
 
   tacker.tacker.monitor_drivers =
-      ping = tacker.vm.monitor_drivers.ping.ping:VNFMonitorPing
+      ping = tacker.vnfm.monitor_drivers.ping.ping:VNFMonitorPing
 
 Following methods need to be overridden in the new driver:
 
@@ -39,19 +39,19 @@ Following methods need to be overridden in the new driver:
     This method must return the type of driver. ex: ping
 
 ``def get_name(self)``
-    This method must return the symbolic name of the device monitor plugin.
+    This method must return the symbolic name of the vnf monitor plugin.
 
 ``def get_description(self)``
     This method must return the description for the monitor driver.
 
-``def monitor_get_config(self, plugin, context, device)``
+``def monitor_get_config(self, plugin, context, vnf)``
     This method must return dictionary of configuration data for the monitor
     driver.
 
-``def monitor_url(self, plugin, context, device)``
-    This method must return the url of device to monitor.
+``def monitor_url(self, plugin, context, vnf)``
+    This method must return the url of vnf to monitor.
 
-``def monitor_call(self, device, kwargs)``
+``def monitor_call(self, vnf, kwargs)``
     This method must either return boolean value 'True', if VNF is healthy.
     Otherwise it should return an event string like 'failure' or
     'calls-capacity-reached' based on specific VNF health condition. More
@@ -80,7 +80,7 @@ returns 'failure' tacker will respawn the VNF.
 Actions
 --------
 The available actions that a monitor driver can call when a particular event
-occurs
+occurs.
 
 #. respawn
 #. log

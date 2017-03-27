@@ -40,7 +40,7 @@ fi
 
 # Set up default directories
 GITREPO["tacker-horizon"]=${TACKERHORIZON_REPO:-${GIT_BASE}/openstack/tacker-horizon.git}
-GITBRANCH["tacker-horizon"]=${TACKERHORZION_BRANCH:-master}
+GITBRANCH["tacker-horizon"]=${TACKERHORIZON_BRANCH:-master}
 GITDIR["tacker-horizon"]=$DEST/tacker-horizon
 
 TACKER_DIR=$DEST/tacker
@@ -118,15 +118,13 @@ function create_tacker_accounts {
         get_or_create_role "advsvc"
         create_service_user "tacker" "advsvc"
 
-        if [[ "$KEYSTONE_CATALOG_BACKEND" = 'sql' ]]; then
-            local tacker_service=$(get_or_create_service "tacker" \
-                "nfv-orchestration" "Tacker NFV Orchestration Service")
-            get_or_create_endpoint $tacker_service \
-                "$REGION_NAME" \
-                "$TACKER_PROTOCOL://$SERVICE_HOST:$TACKER_PORT/" \
-                "$TACKER_PROTOCOL://$SERVICE_HOST:$TACKER_PORT/" \
-                "$TACKER_PROTOCOL://$SERVICE_HOST:$TACKER_PORT/"
-        fi
+        local tacker_service=$(get_or_create_service "tacker" \
+            "nfv-orchestration" "Tacker NFV Orchestration Service")
+        get_or_create_endpoint $tacker_service \
+            "$REGION_NAME" \
+            "$TACKER_PROTOCOL://$SERVICE_HOST:$TACKER_PORT/" \
+            "$TACKER_PROTOCOL://$SERVICE_HOST:$TACKER_PORT/" \
+            "$TACKER_PROTOCOL://$SERVICE_HOST:$TACKER_PORT/"
     fi
 }
 
@@ -189,10 +187,6 @@ function _create_tacker_conf_dir {
 # configure_tacker()
 # Set common config for all tacker server and agents.
 function configure_tacker {
-    iniset "/$Q_PLUGIN_CONF_FILE" ml2 extension_drivers port_security
-    iniset "/$Q_PLUGIN_CONF_FILE" ml2_type_flat flat_networks $PUBLIC_PHYSICAL_NETWORK,$MGMT_PHYS_NET
-    iniset "/$Q_PLUGIN_CONF_FILE" ovs bridge_mappings $PUBLIC_PHYSICAL_NETWORK:$PUBLIC_BRIDGE,$MGMT_PHYS_NET:$BR_MGMT
-
     _create_tacker_conf_dir
 
     cd $TACKER_DIR
@@ -244,38 +238,22 @@ function configure_tacker {
     iniset $TACKER_CONF DEFAULT auth_strategy $TACKER_AUTH_STRATEGY
     _tacker_setup_keystone $TACKER_CONF keystone_authtoken
 
-    # Configuration for tacker requests to nova.
-        iniset $TACKER_CONF DEFAULT nova_url $TACKER_NOVA_URL
-    iniset $TACKER_CONF DEFAULT nova_amin_user_name nova
-    iniset $TACKER_CONF DEFAULT nova_admin_password $SERVICE_PASSWORD
-    iniset $TACKER_CONF DEFAULT nova_admin_tenant_id $SERVICE_TENANT_NAME
-    iniset $TACKER_CONF DEFAULT nova_admin_auth_url $KEYSTONE_AUTH_URI
-    iniset $TACKER_CONF DEFAULT nova_ca_certificates_file $TACKER_NOVA_CA_CERTIFICATES_FILE
-    iniset $TACKER_CONF DEFAULT nova_api_insecure $TACKER_NOVA_API_INSECURE
-    iniset $TACKER_CONF DEFAULT nova_region_name $REGION_NAME
+    if [[ "${TACKER_MODE}" == "all" ]]; then
+        iniset "/$Q_PLUGIN_CONF_FILE" ml2 extension_drivers port_security
+        iniset "/$Q_PLUGIN_CONF_FILE" ml2_type_flat flat_networks $PUBLIC_PHYSICAL_NETWORK,$MGMT_PHYS_NET
+        iniset "/$Q_PLUGIN_CONF_FILE" ovs bridge_mappings $PUBLIC_PHYSICAL_NETWORK:$PUBLIC_BRIDGE,$MGMT_PHYS_NET:$BR_MGMT
 
-    iniset $TACKER_CONF tacker_nova auth_plugin password
-    iniset $TACKER_CONF tacker_nova auth_url $KEYSTONE_AUTH_URI
-    iniset $TACKER_CONF tacker_nova username nova
-    iniset $TACKER_CONF tacker_nova password $SERVICE_PASSWORD
-    iniset $TACKER_CONF tacker_nova user_domain_id default
-    iniset $TACKER_CONF tacker_nova project_name $SERVICE_TENANT_NAME
-    iniset $TACKER_CONF tacker_nova project_domain_id default
-    iniset $TACKER_CONF tacker_nova region_name $REGION_NAME
+        # Experimental settings for monitor alarm auth settings,
+        # Will be changed according to new implementation.
+        iniset $TACKER_CONF alarm_auth username tacker
+        iniset $TACKER_CONF alarm_auth password "$SERVICE_PASSWORD"
+        iniset $TACKER_CONF alarm_auth project_name "$SERVICE_PROJECT_NAME"
+        iniset $TACKER_CONF alarm_auth url http://$SERVICE_HOST:35357/v3
 
-    iniset $TACKER_CONF tacker_heat heat_uri http://$SERVICE_HOST:8004/v1
-    iniset $TACKER_CONF tacker_heat stack_retries 60
-    iniset $TACKER_CONF tacker_heat stack_retry_wait 5
-    iniset $TACKER_CONF keystone_authtoken identity_uri http://127.0.0.1:5000
-    iniset $TACKER_CONF keystone_authtoken project_domain_id default
-    iniset $TACKER_CONF keystone_authtoken user_domain_id default
-    iniset $TACKER_CONF keystone_authtoken auth_plugin password
-
-    iniset $TACKER_CONF nfvo_vim default_vim VIM0
-
+        echo "Creating bridge"
+        sudo ovs-vsctl --may-exist add-br ${BR_MGMT}
+    fi
     _tacker_setup_rootwrap
-    echo "Creating bridge"
-    sudo ovs-vsctl --may-exist add-br ${BR_MGMT}
 }
 
 # Utility Functions
@@ -336,35 +314,56 @@ function _tacker_setup_keystone {
 function tacker_horizon_install {
     git_clone_by_name "tacker-horizon"
     setup_dev_lib "tacker-horizon"
-    sudo cp $DEST/tacker-horizon/openstack_dashboard_extensions/* $DEST/horizon/openstack_dashboard/enabled/
+    sudo cp $DEST/tacker-horizon/tacker_horizon/enabled/* $DEST/horizon/openstack_dashboard/enabled/
     restart_apache_server
 }
 
-function openstack_image_create_openwrt {
+function openstack_image_create {
     image=$1
     disk_format=raw
     container_format=bare
-    image_name="OpenWRT"
-    openstack --os-cloud=devstack-admin image create $image_name --public --container-format=$container_format --disk-format $disk_format < <(zcat --force "${image}")
-    glance image-list | grep OpenWRT | awk {print$2}
+    image_name=$2
+    openstack --os-cloud=devstack-admin image create $image_name --public --container-format=$container_format --disk-format $disk_format --file ${image}
+    openstack image show $image_name -f value -c id
 }
 
-function tacker_create_openwrt_image {
-    local image_url=https://downloads.openwrt.org/chaos_calmer/15.05/x86/kvm_guest/openwrt-15.05-x86-kvm_guest-combined-ext4.img.gz
-    local image image_fname image_name
-    image_fname=`basename "$image_url"`
+function tacker_check_and_download_images {
+    local image_url
+    image_url[0]='http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-disk.img'
+    image_url[1]='https://downloads.openwrt.org/chaos_calmer/15.05/x86/kvm_guest/openwrt-15.05-x86-kvm_guest-combined-ext4.img.gz'
 
-    if [[ $image_url != file* ]]; then
-        if [[ ! -f $FILES/$image_fname || "$(stat -c "%s" $FILES/$image_fname)" = "0" ]]; then
-            {
-               wget --progress=dot:giga -c $image_url -O $FILES/$image_fname \
-                   && openstack_image_create_openwrt $FILES/$image_fname
-            }||{
-                rm -rf $FILES/$image_fname
-                echo "WARNING: openwrt image create for $image_fname failed"
-            }
+    local image_fname image_name glance_name gz_pattern
+    local length=${#image_url[@]}
+    local index=0
+    while [ $index -lt $length ]
+    do
+        image_fname=`basename "${image_url[$index]}"`
+        glance_name=${image_fname%.*}
+        if [[ $glance_name =~ 'openwrt' ]]; then
+            glance_name='OpenWRT'
         fi
-    fi
+        image_name=`openstack image list | grep "$glance_name" | awk '{print $4}'`
+        if [[ $image_name == "" ]]; then
+            if [[ ! -f $FILES/$image_fname || "$(stat -c "%s" $FILES/$image_fname)" = "0" ]]; then
+                {
+                    wget --progress=dot:giga -c ${image_url[$index]} -O $FILES/$image_fname
+                    gz_pattern="\.gz$"
+                    if [[ $image_fname =~ $gz_pattern ]]; then
+                        new_image_fname=${image_fname%.*}
+                        gunzip -c $FILES/$image_fname > $FILES/$new_image_fname
+                        image_fname=$new_image_fname
+                    fi
+                    openstack_image_create $FILES/$image_fname $glance_name
+                }||{
+                    echo "ERROR: tacker image create for $image_fname failed"
+                    image_fname=$image_fname"*"
+                    sudo rm -rf $FILES/$image_fname
+                    exit 1
+                }
+            fi
+        fi
+        index=$(($index+1))
+    done
 }
 
 function tacker_create_initial_network {
@@ -373,39 +372,51 @@ function tacker_create_initial_network {
     echo "Deleting networks"
     for net in ${NET_MGMT} ${NET0} ${NET1}
     do
-        for i in $(neutron net-list | awk "/${net}/{print \$2}")
+        for i in $(openstack network list | awk "/${net}/{print \$2}")
         do
-            neutron net-delete $i
+            openstack network delete $i
         done
     done
 
     echo "Creating networks"
-    NET_MGMT_ID=$(neutron net-create --provider:network_type flat --provider:physical_network ${MGMT_PHYS_NET} --shared ${NET_MGMT} | awk '/ id /{print $4}')
-    SUBNET_MGMT_ID=$(neutron subnet-create --name ${SUBNET_MGMT} --ip-version 4 --gateway ${NETWORK_GATEWAY_MGMT} ${NET_MGMT_ID} ${FIXED_RANGE_MGMT} | awk '/ id /{print $4}')
-    NET0_ID=$(neutron net-create --shared ${NET0} | awk '/ id /{print $4}')
-    SUBNET0_ID=$(neutron subnet-create --name ${SUBNET0} --ip-version 4 --gateway ${NETWORK_GATEWAY0} ${NET0_ID} ${FIXED_RANGE0} | awk '/ id /{print $4}')
-    NET1_ID=$(neutron net-create --shared ${NET1} | awk '/ id /{print $4}')
-    SUBNET1_ID=$(neutron subnet-create --name ${SUBNET1} --ip-version 4 --gateway ${NETWORK_GATEWAY1} ${NET1_ID} ${FIXED_RANGE1} | awk '/ id /{print $4}')
+    NET_MGMT_ID=$(openstack network create --provider-network-type flat --provider-physical-network ${MGMT_PHYS_NET} --share ${NET_MGMT} | awk '/ id /{print $4}')
+    SUBNET_MGMT_ID=$(openstack subnet create ${SUBNET_MGMT} --ip-version 4 --gateway ${NETWORK_GATEWAY_MGMT} --network ${NET_MGMT_ID} --subnet-range ${FIXED_RANGE_MGMT} | awk '/ id /{print $4}')
+    NET0_ID=$(openstack network create --share ${NET0} | awk '/ id /{print $4}')
+    SUBNET0_ID=$(openstack subnet create ${SUBNET0} --ip-version 4 --gateway ${NETWORK_GATEWAY0} --network ${NET0_ID} --subnet-range ${FIXED_RANGE0} | awk '/ id /{print $4}')
+    NET1_ID=$(openstack network create --share ${NET1} | awk '/ id /{print $4}')
+    SUBNET1_ID=$(openstack subnet create ${SUBNET1} --ip-version 4 --gateway ${NETWORK_GATEWAY1} --network ${NET1_ID} --subnet-range ${FIXED_RANGE1} | awk '/ id /{print $4}')
 
     echo "Assign ip address to BR_MGMT"
-    sudo ifconfig ${BR_MGMT} inet 0.0.0.0
-    sudo ifconfig ${BR_MGMT} inet ${NETWORK_GATEWAY_MGMT_IP}
+    sudo ip link set ${BR_MGMT} up
+    sudo ip -4 address flush dev ${BR_MGMT}
+    sudo ip address add ${NETWORK_GATEWAY_MGMT_IP} dev ${BR_MGMT}
 }
 
 function tacker_register_default_vim {
-    local default_vim_id
+    # Note: These must be the same as in tacker/tests/etc/samples/local-vim.yaml
+    # and devstack/lib/tacker/vim_config.yaml
     DEFAULT_VIM_PROJECT_NAME="nfv"
     DEFAULT_VIM_USER="nfv_user"
     DEFAULT_VIM_PASSWORD="devstack"
-    DEFAULT_VIM_NAME="VIM0"
+
+    echo "Create NFV VIM project $DEFAULT_VIM_PROJECT_NAME ..."
     get_or_create_project $DEFAULT_VIM_PROJECT_NAME
+    echo "Create NFV VIM user $DEFAULT_VIM_USER ..."
     get_or_create_user $DEFAULT_VIM_USER $DEFAULT_VIM_PASSWORD
     get_or_add_user_project_role "admin" $DEFAULT_VIM_USER $DEFAULT_VIM_PROJECT_NAME
     get_or_add_user_project_role "advsvc" $DEFAULT_VIM_USER $DEFAULT_VIM_PROJECT_NAME
-    VIM_CONFIG_FILE="$TACKER_DIR/devstack/vim_config.yaml"
-    default_vim_id=$(tacker vim-register --name $DEFAULT_VIM_NAME --config-file $VIM_CONFIG_FILE -f value -c id)
-    echo $default_vim_id
-    iniset $TACKER_CONF nfvo_vim default_vim $DEFAULT_VIM_NAME
+
+    echo "Register default VIM ..."
+    mkdir -p $DATA_DIR/tacker
+    cp $TACKER_DIR/devstack/vim_config.yaml $DATA_DIR/tacker
+    VIM_CONFIG_FILE="$DATA_DIR/tacker/vim_config.yaml"
+    sed -e "s|^auth_url:.*$|auth_url: \'${KEYSTONE_SERVICE_URI}\'|" -i $VIM_CONFIG_FILE
+    echo "The content of VIM config file $VIM_CONFIG_FILE :"
+    cat $VIM_CONFIG_FILE
+    local default_vim_id
+    DEFAULT_VIM_NAME="VIM0"
+    default_vim_id=$(tacker vim-register --is-default --description "Default VIM" --config-file $VIM_CONFIG_FILE $DEFAULT_VIM_NAME -c id | grep id | awk '{print $4}')
+    echo "Default VIM registration done as $default_vim_id at $KEYSTONE_SERVICE_URI."
 }
 
 function modify_heat_flavor_policy_rule {

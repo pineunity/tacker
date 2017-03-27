@@ -53,28 +53,17 @@ function generate_testr_results {
     fi
 }
 
-function fixup_nova_quota {
-    echo "Disable nova compute instance & core quota"
-    source $DEVSTACK_DIR/openrc admin admin
-    nova quota-class-update --instances -1 --cores -1 default
-}
-
-# Adding nova keypair to support key_name (#1578785).
-function add_key {
-    echo "Adding nova key"
-    source $DEVSTACK_DIR/openrc admin admin
-    userId=$(openstack user list | awk '/\ nfv_user\ / {print $2}')
-    nova keypair-add userKey --user $userId > keypair.priv
-}
+source ${TACKER_DIR}/tacker/tests/contrib/post_test_hook_lib.sh
 
 if [[ "$venv" == dsvm-functional* ]]
 then
     owner=stack
     sudo_env=
     log_dir="/tmp/${venv}-logs"
-
-    fixup_nova_quota
+    source $DEVSTACK_DIR/openrc admin admin
+    fixup_quota
     add_key
+    add_secgrp
 fi
 
 # Set owner permissions according to job's requirements.

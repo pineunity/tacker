@@ -18,6 +18,7 @@ from six import iteritems
 import webob.exc
 
 from oslo_log import log as logging
+from oslo_utils import strutils
 
 from tacker.api import api_common
 from tacker.api.v1 import attributes
@@ -505,7 +506,8 @@ class Controller(object):
         if not body:
             raise webob.exc.HTTPBadRequest(_("Resource body required"))
 
-        LOG.debug(_("Request body: %(body)s"), {'body': body})
+        LOG.debug(_("Request body: %(body)s"), {'body':
+                                               strutils.mask_password(body)})
         prep_req_body = lambda x: Controller.prepare_request_body(
             context,
             x if resource in x else {resource: x},
@@ -561,6 +563,11 @@ class Controller(object):
             if 'validate' not in attr_vals:
                 continue
             for rule in attr_vals['validate']:
+                # skip validating vnfd_id when vnfd_template is specified to
+                # create vnf
+                if resource == 'vnf' and 'vnfd_template' in body['vnf'] and \
+                   attr == "vnfd_id" and is_create:
+                    continue
                 res = attributes.validators[rule](res_dict[attr],
                                                   attr_vals['validate'][rule])
                 if res:

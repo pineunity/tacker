@@ -30,14 +30,15 @@ Install from master
     $ git clone https://git.openstack.org/openstack-dev/devstack
     $ cd devstack
 
-2. Add this repo as an external repository into your ``local.conf`` file::
+2. Enable both heat and tacker devstack plugins in ``local.conf`` file::
 
     [[local|localrc]]
+    enable_plugin heat https://git.openstack.org/openstack/heat
     enable_plugin tacker https://git.openstack.org/openstack/tacker
 
 3. Run ``stack.sh``::
 
-    $ stack.sh
+    $ ./stack.sh
 
 Install from stable branch
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -58,16 +59,13 @@ place of branch-name as given below:
 
 3. Run ``stack.sh``::
 
-    $ stack.sh
+    $ ./stack.sh
 
-Multi Node Environment
-~~~~~~~~~~~~~~~~~~~~~~
+Standalone mode installation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In a multi-node devstack environment where controller, network and compute
-nodes are separate, some neutron agents should not be installed in the
-controller node. In such cases, use the following local.conf setting to disable
-neutron agents in the controller node::
-
-    [[local|localrc]]
-    TACKER_NEUTRON_AGENTS=''
-
+By default, the tacker devstack plugin will install the tacker and
+other OpenStack services together. By setting TACKER_MODE=standalone
+in local.conf, we will install a standalone tacker environment with
+some mandatory OpenStack services, such as KeyStone.
+After this installation, a default VIM must be registered manually.

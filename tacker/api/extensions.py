@@ -25,7 +25,6 @@ import six
 import webob.dec
 import webob.exc
 
-from tacker.api.v1 import attributes
 from tacker.common import exceptions
 import tacker.extensions
 from tacker import policy
@@ -167,7 +166,7 @@ class ExtensionDescriptor(object):
         if not extension_attrs_map:
             return
 
-        for resource, attrs in six.iteritems(extension_attrs_map):
+        for resource, attrs in extension_attrs_map.items():
             extended_attrs = extended_attributes.get(resource)
             if extended_attrs:
                 attrs.update(extended_attrs)
@@ -197,7 +196,7 @@ class ActionExtensionController(wsgi.Controller):
     def action(self, request, id):
         input_dict = self._deserialize(request.body,
                                        request.get_content_type())
-        for action_name, handler in six.iteritems(self.action_handlers):
+        for action_name, handler in (self.action_handlers).items():
             if action_name in input_dict:
                 return handler(input_dict, request, id)
         # no action handler found (bump to downstream application)
@@ -239,7 +238,7 @@ class ExtensionController(wsgi.Controller):
 
     def index(self, request):
         extensions = []
-        for _alias, ext in six.iteritems(self.extension_manager.extensions):
+        for _alias, ext in (self.extension_manager.extensions).items():
             extensions.append(self._translate(ext))
         return dict(extensions=extensions)
 
@@ -280,7 +279,7 @@ class ExtensionMiddleware(wsgi.Middleware):
 
             LOG.debug(_('Extended resource: %s'),
                       resource.collection)
-            for action, method in six.iteritems(resource.collection_actions):
+            for action, method in (resource.collection_actions).items():
                 conditions = dict(method=[method])
                 path = "/%s/%s" % (resource.collection, action)
                 with mapper.submapper(controller=resource.controller,
@@ -417,7 +416,7 @@ class ExtensionManager(object):
         resources = []
         resources.append(ResourceExtension('extensions',
                                            ExtensionController(self)))
-        for ext in self.extensions.itervalues():
+        for ext in self.extensions.values():
             try:
                 resources.extend(ext.get_resources())
             except AttributeError:
@@ -429,7 +428,7 @@ class ExtensionManager(object):
     def get_actions(self):
         """Returns a list of ActionExtension objects."""
         actions = []
-        for ext in self.extensions.itervalues():
+        for ext in self.extensions.values():
             try:
                 actions.extend(ext.get_actions())
             except AttributeError:
@@ -441,7 +440,7 @@ class ExtensionManager(object):
     def get_request_extensions(self):
         """Returns a list of RequestExtension objects."""
         request_exts = []
-        for ext in self.extensions.itervalues():
+        for ext in self.extensions.values():
             try:
                 request_exts.extend(ext.get_request_extensions())
             except AttributeError:
@@ -480,25 +479,14 @@ class ExtensionManager(object):
                         continue
                 try:
                     extended_attrs = ext.get_extended_resources(version)
-                    for resource, resource_attrs in six.iteritems(
-                            extended_attrs):
+                    for resource, resource_attrs in extended_attrs.items():
                         if attr_map.get(resource):
                             attr_map[resource].update(resource_attrs)
                         else:
                             attr_map[resource] = resource_attrs
-                    if extended_attrs:
-                        attributes.EXT_NSES[ext.get_alias()] = (
-                            ext.get_namespace())
                 except AttributeError:
                     LOG.exception(_("Error fetching extended attributes for "
                                     "extension '%s'"), ext.get_name())
-                try:
-                    comp_map = ext.get_alias_namespace_compatibility_map()
-                    attributes.EXT_NSES_BC.update(comp_map)
-                except AttributeError:
-                    LOG.info(_("Extension '%s' provides no backward "
-                               "compatibility map for extended attributes"),
-                             ext.get_name())
                 processed_exts.add(ext_name)
                 del exts_to_process[ext_name]
             if len(processed_exts) == processed_ext_count:
@@ -523,8 +511,7 @@ class ExtensionManager(object):
             LOG.debug(_('Ext namespace: %s'), extension.get_namespace())
             LOG.debug(_('Ext updated: %s'), extension.get_updated())
         except AttributeError as ex:
-            LOG.exception(_("Exception loading extension: %s"),
-                six.text_type(ex))
+            LOG.exception(_("Exception loading extension: %s"), ex)
             return False
         return True
 
