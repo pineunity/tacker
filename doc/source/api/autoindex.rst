@@ -62,6 +62,7 @@
    tacker.policy.rst
    tacker.service.rst
    tacker.services.service_base.rst
+   tacker.tosca.utils.rst
    tacker.version.rst
    tacker.vnfm.constants.rst
    tacker.vnfm.infra_drivers.abstract_driver.rst
@@ -82,10 +83,9 @@
    tacker.vnfm.monitor_drivers.ping.ping.rst
    tacker.vnfm.monitor_drivers.token.rst
    tacker.vnfm.plugin.rst
-   tacker.vnfm.policy_driver.abstract_driver.rst
-   tacker.vnfm.policy_driver.autoscaling_policy.autoscaling.rst
-   tacker.vnfm.policy_driver.logging_policy.logging.rst
-   tacker.vnfm.policy_driver.respawning_policy.respawning.rst
-   tacker.vnfm.tosca.utils.rst
+   tacker.vnfm.policy_drivers.abstract_driver.rst
+   tacker.vnfm.policy_drivers.autoscaling.autoscaling.rst
+   tacker.vnfm.policy_drivers.logging.log.rst
+   tacker.vnfm.policy_drivers.respawn.respawn.rst
    tacker.vnfm.vim_client.rst
    tacker.wsgi.rst

@@ -15,11 +15,10 @@
 from oslo_log import log as logging
 from oslo_utils import timeutils
 
-from tacker import context as t_context
 from tacker.db.common_services import common_services_db
 from tacker.plugins.common import constants
 from tacker.vnfm.infra_drivers.openstack import heat_client as hc
-from tacker.vnfm.policy_driver import abstract_driver
+from tacker.vnfm.policy_drivers import abstract_driver
 from tacker.vnfm import vim_client
 
 LOG = logging.getLogger(__name__)
@@ -35,16 +34,21 @@ def _log_monitor_events(context, vnf_dict, evt_details):
                              details=evt_details)
 
 
-@abstract_driver.ActionPolicyAbstractDriver.register('respawn', 'openstack')
-class VNFPolicyLogging(abstract_driver.ActionPolicyAbstractDriver):
-    @classmethod
-    def execute_action(cls, plugin, vnf_dict):
+class VNFPolicyRespawn(abstract_driver.ActionPolicyAbstractDriver):
+    def get_type(self):
+        return 'respawn'
+
+    def get_name(self):
+        return 'respawn'
+
+    def get_description(self):
+        return 'Tacker VNF respawning policy'
+
+    def execute_policy(self, plugin, context, vnf_dict, custom_driver):
         vnf_id = vnf_dict['id']
         LOG.info(_('vnf %s is dead and needs to be respawned'), vnf_id)
         attributes = vnf_dict['attributes']
         vim_id = vnf_dict['vim_id']
-        # TODO(anyone) set the current request ctxt
-        context = t_context.get_admin_context()
 
         def _update_failure_count():
             failure_count = int(attributes.get('failure_count', '0')) + 1

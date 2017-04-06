@@ -15,10 +15,9 @@
 from oslo_log import log as logging
 from oslo_utils import timeutils
 
-from tacker import context as t_context
 from tacker.db.common_services import common_services_db
 from tacker.plugins.common import constants
-from tacker.vnfm.policy_driver import abstract_driver
+from tacker.vnfm.policy_drivers import abstract_driver
 
 LOG = logging.getLogger(__name__)
 
@@ -33,12 +32,19 @@ def _log_monitor_events(context, vnf_dict, evt_details):
                              details=evt_details)
 
 
-@abstract_driver.ActionPolicyAbstractDriver.register('scaling', 'openstack')
-class VNFPolicyLogging(abstract_driver.ActionPolicyAbstractDriver):
-    @classmethod
-    def execute_action(cls, plugin, vnf_dict, scale):
+class VNFPolicyAutoscaling(abstract_driver.ActionPolicyAbstractDriver):
+    def get_type(self):
+        return 'autoscaling'
+
+    def get_name(self):
+        return 'autoscaling'
+
+    def get_description(self):
+        return 'Tacker VNF auto-scaling policy'
+
+    def execute_policy(self, plugin, context, vnf_dict, custom_driver):
         vnf_id = vnf_dict['id']
-        _log_monitor_events(t_context.get_admin_context(),
+        _log_monitor_events(context,
                             vnf_dict,
                             "ActionAutoscalingHeat invoked")
-        plugin.create_vnf_scale(t_context.get_admin_context(), vnf_id, scale)
+        plugin.create_vnf_scale(context, vnf_id, custom_driver)

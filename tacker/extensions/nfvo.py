@@ -59,11 +59,6 @@ class VimKeyNotFoundException(exceptions.TackerException):
     message = _("Unable to find key file for VIM %(vim_id)s")
 
 
-class VimDuplicateUrlException(exceptions.TackerException):
-    message = _("VIM with specified auth URL already exists. Cannot register "
-                "duplicate VIM")
-
-
 class VimUnsupportedResourceTypeException(exceptions.TackerException):
     message = _("Resource type %(type) is unsupported by VIM")
 
@@ -225,6 +220,11 @@ class NSDInUse(exceptions.InUse):
 
 class NSInUse(exceptions.InUse):
     message = _('NS %(ns_id)s is still in use')
+
+
+class NoTasksException(exceptions.TackerException):
+    message = _('No tasks to run for %(action)s on %(resource)s')
+
 
 RESOURCE_ATTRIBUTE_MAP = {
 

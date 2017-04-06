@@ -20,30 +20,21 @@ from tacker.api import extensions
 
 @six.add_metaclass(abc.ABCMeta)
 class ActionPolicyAbstractDriver(extensions.PluginInterface):
-    @classmethod
     @abc.abstractmethod
-    def execute_action(cls, plugin, vnf_dict):
+    def get_type(self):
+        """Return one of predefined type of the hosting vnf drivers."""
         pass
 
-    _POLICIES = {}
+    @abc.abstractmethod
+    def get_name(self):
+        """Return a symbolic name for the service VM plugin."""
+        pass
 
-    @staticmethod
-    def register(policy, infra_driver=None):
-        def _register(cls):
-            cls._POLICIES.setdefault(policy, {})[infra_driver] = cls
-            return cls
-        return _register
+    @abc.abstractmethod
+    def get_description(self):
+        pass
 
-    @classmethod
-    def get_policy(cls, policy, infra_driver=None):
-        action_clses = cls._POLICIES.get(policy)
-        if not action_clses:
-            return None
-        cls = action_clses.get(infra_driver)
-        if cls:
-            return cls
-        return action_clses.get(None)
-
-    @classmethod
-    def get_supported_actions(cls):
-        return cls._POLICIES.keys()
+    @abc.abstractmethod
+    def execute_policy(self, plugin, context, vnf_dict, custom_driver):
+        """custom_driver: policy is enabled to execute with custom driver."""
+        pass

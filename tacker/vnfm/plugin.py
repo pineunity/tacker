@@ -34,9 +34,9 @@ from tacker.extensions import vnfm
 from tacker.plugins.common import constants
 from tacker.vnfm.mgmt_drivers import constants as mgmt_constants
 from tacker.vnfm import monitor
-from tacker.vnfm.policy_driver import abstract_driver as policy_driver
-from tacker.vnfm.tosca import utils as toscautils
 from tacker.vnfm import vim_client
+
+from tacker.tosca import utils as toscautils
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -112,12 +112,21 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
 
     Plugin which supports Tacker framework
     """
-    OPTS = [
+    OPTS_INFRA_DRIVER = [
         cfg.ListOpt(
             'infra_driver', default=['noop', 'openstack'],
             help=_('Hosting vnf drivers tacker plugin will use')),
     ]
-    cfg.CONF.register_opts(OPTS, 'tacker')
+    cfg.CONF.register_opts(OPTS_INFRA_DRIVER, 'tacker')
+
+    OPTS_POLICY_DRIVER = [
+        cfg.ListOpt(
+            'policy_driver', default=['autoscaling', 'respawn',
+                                      'logging_only', 'logging_and_killing'],
+            help=_('Hosting vnf drivers tacker plugin will use')),
+    ]
+    cfg.CONF.register_opts(OPTS_POLICY_DRIVER, 'tacker')
+
     supported_extension_aliases = ['vnfm']
 
     def __init__(self):
@@ -127,6 +136,9 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
         self.vim_client = vim_client.VimClient()
         self._vnf_manager = driver_manager.DriverManager(
             'tacker.tacker.vnfm.drivers',
+            cfg.CONF.tacker.infra_driver)
+        self._vnf_policy = driver_manager.DriverManager(
+            'tacker.tacker.vnfm.policy',
             cfg.CONF.tacker.infra_driver)
         self._vnf_monitor = monitor.VNFMonitor(self.boot_wait)
         self._vnf_alarm_monitor = monitor.VNFAlarmMonitor()
@@ -150,10 +162,6 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
                                      'tosca_definitions_version is missing.')
 
         LOG.debug(_('vnfd %s'), vnfd_data)
-
-        name = vnfd_data['name']
-        if self._get_by_name(context, vnfm_db.VNFD, name):
-            raise exceptions.DuplicateResourceName(resource='VNFD', name=name)
 
         service_types = vnfd_data.get('service_types')
         if not attributes.is_attr_set(service_types):
@@ -208,16 +216,14 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
             tosca)
         LOG.debug(_('vnfd %s'), vnfd)
 
-    def add_vnf_to_monitor(self, vnf_dict, infra_driver):
+    def add_vnf_to_monitor(self, context, vnf_dict):
         dev_attrs = vnf_dict['attributes']
         mgmt_url = vnf_dict['mgmt_url']
         if 'monitoring_policy' in dev_attrs and mgmt_url:
             def action_cb(action):
-                action_cls =\
-                    policy_driver.ActionPolicyAbstractDriver.get_policy(
-                        action, infra_driver)
-                if action_cls:
-                    action_cls.execute_action(self, hosting_vnf['vnf'])
+                self._vnf_policy.invoke(
+                    action, 'execute_policy', plugin=self, context=context,
+                    vnf_dict=hosting_vnf['vnf'], custom_driver={})
 
             hosting_vnf = self._vnf_monitor.to_hosting_vnf(
                 vnf_dict, action_cb)
@@ -339,8 +345,6 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
     def create_vnf(self, context, vnf):
         vnf_info = vnf['vnf']
         name = vnf_info['name']
-        if self._get_by_name(context, vnfm_db.VNF, name):
-            raise exceptions.DuplicateResourceName(resource='VNF', name=name)
 
         # if vnfd_template specified, create vnfd from template
         # create template dictionary structure same as needed in create_vnfd()
@@ -384,7 +388,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
         def create_vnf_wait():
             self._create_vnf_wait(context, vnf_dict, vim_auth, infra_driver)
             if vnf_dict['status'] is not constants.ERROR:
-                self.add_vnf_to_monitor(vnf_dict, infra_driver)
+                self.add_vnf_to_monitor(context, vnf_dict)
             self.config_vnf(context, vnf_dict)
         self.spawn_n(create_vnf_wait)
         return vnf_dict
@@ -768,11 +772,9 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
         if trigger['action_name'] in constants.DEFAULT_ALARM_ACTIONS:
             action = trigger['action_name']
             LOG.debug(_('vnf for monitoring: %s'), vnf_dict)
-            infra_driver, vim_auth = self._get_infra_driver(context, vnf_dict)
-            action_cls = policy_driver.ActionPolicyAbstractDriver.get_policy(
-                action, infra_driver)
-            if action_cls:
-                action_cls.execute_action(self, vnf_dict)
+            self._vnf_policy.invoke(
+                action, 'execute_policy', plugin=self, context=context,
+                vnf_dict=vnf_dict, custom_driver={})
 
         if trigger.get('bckend_policy'):
             bckend_policy = trigger['bckend_policy']
@@ -784,18 +786,14 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
                              {"status": vnf_dict['status'],
                               "vnfid": vnf_dict['id']})
                     return
-                action = 'scaling'
+                action = 'autoscaling'
                 scale = {}
                 scale.setdefault('scale', {})
                 scale['scale']['type'] = trigger['bckend_action']
                 scale['scale']['policy'] = bckend_policy['name']
-                infra_driver, vim_auth = self._get_infra_driver(context,
-                                                                vnf_dict)
-                action_cls =\
-                    policy_driver.ActionPolicyAbstractDriver.get_policy(
-                        action, infra_driver)
-                if action_cls:
-                    action_cls.execute_action(self, vnf_dict, scale)
+                self._vnf_policy.invoke(
+                    action, 'execute_policy', plugin=self, context=context,
+                    vnf_dict=vnf_dict, custom_driver=scale)
 
     def create_vnf_trigger(
             self, context, vnf_id, trigger):

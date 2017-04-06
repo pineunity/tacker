@@ -19,7 +19,6 @@ import mock
 from mock import patch
 import yaml
 
-from tacker.common import exceptions
 from tacker import context
 from tacker.db.common_services import common_services_db
 from tacker.db.nfvo import nfvo_db
@@ -250,14 +249,6 @@ class TestVNFMPlugin(db_base.SqlTestCase):
                           self.vnfm_plugin.create_vnfd,
                           self.context, vnfd_obj)
 
-    def test_create_vnfd_duplicate_name(self):
-        self._insert_dummy_device_template()
-        vnfd_obj = utils.get_dummy_vnfd_obj()
-        vnfd_obj['vnfd']['name'] = 'fake_template'
-        self.assertRaises(exceptions.DuplicateResourceName,
-                          self.vnfm_plugin.create_vnfd,
-                          self.context, vnfd_obj)
-
     def test_create_vnf_with_vnfd(self):
         self._insert_dummy_device_template()
         vnf_obj = utils.get_dummy_vnf_obj()
@@ -326,15 +317,6 @@ class TestVNFMPlugin(db_base.SqlTestCase):
         self.assertIn('name', resources)
         self.assertIn('type', resources)
         self.assertIn('id', resources)
-
-    def test_create_vnf_duplicate_name(self):
-        self._insert_dummy_device_template()
-        self._insert_dummy_device()
-        vnf_obj = utils.get_dummy_vnf_obj()
-        vnf_obj['vnf']['name'] = 'fake_device'
-        self.assertRaises(exceptions.DuplicateResourceName,
-                          self.vnfm_plugin.create_vnf,
-                          self.context, vnf_obj)
 
     def test_delete_vnf(self):
         self._insert_dummy_device_template()
@@ -452,33 +434,20 @@ class TestVNFMPlugin(db_base.SqlTestCase):
         self.assertEqual(expected_result, trigger_result)
 
     @patch('tacker.db.vnfm.vnfm_db.VNFMPluginDb.get_vnf')
-    @patch('tacker.vnfm.policy_driver.abstract_driver.ActionPolicyAbstractDriver.get_policy')
-    def test_create_vnf_trigger_respawn(self, mock_get_policy, mock_get_vnf):
+    def test_create_vnf_trigger_respawn(self, mock_get_vnf):
         dummy_vnf = self._get_dummy_active_vnf(
             utils.vnfd_alarm_respawn_tosca_template)
         mock_get_vnf.return_value = dummy_vnf
-        mock_action_class = mock.Mock()
-        mock_get_policy.return_value = mock_action_class
         self._test_create_vnf_trigger(policy_name="vdu_hcpu_usage_respawning",
                                       action_value="respawn")
-        mock_get_policy.assert_called_once_with('respawn', 'test_vim')
-        mock_action_class.execute_action.assert_called_once_with(
-            self.vnfm_plugin, dummy_vnf)
 
     @patch('tacker.db.vnfm.vnfm_db.VNFMPluginDb.get_vnf')
-    @patch('tacker.vnfm.policy_driver.abstract_driver.ActionPolicyAbstractDriver.get_policy')
-    def test_create_vnf_trigger_scale(self, mock_get_policy, mock_get_vnf):
+    def test_create_vnf_trigger_scale(self, mock_get_vnf):
         dummy_vnf = self._get_dummy_active_vnf(
             utils.vnfd_alarm_scale_tosca_template)
         mock_get_vnf.return_value = dummy_vnf
-        mock_action_class = mock.Mock()
-        mock_get_policy.return_value = mock_action_class
-        scale_body = {'scale': {'policy': 'SP1', 'type': 'out'}}
         self._test_create_vnf_trigger(policy_name="vdu_hcpu_usage_scaling_out",
                                       action_value="SP1-out")
-        mock_get_policy.assert_called_once_with('scaling', 'test_vim')
-        mock_action_class.execute_action.assert_called_once_with(
-            self.vnfm_plugin, dummy_vnf, scale_body)
 
     @patch('tacker.db.vnfm.vnfm_db.VNFMPluginDb.get_vnf')
     def test_get_vnf_policies(self, mock_get_vnf):
