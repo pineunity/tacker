@@ -17,6 +17,7 @@ import abc
 
 import six
 
+from tacker._i18n import _
 from tacker.api import extensions
 from tacker.api.v1 import attributes as attr
 from tacker.api.v1 import resource_helper
@@ -37,18 +38,8 @@ class VimInUseException(exceptions.TackerException):
     message = _("VIM %(vim_id)s is still in use by VNF")
 
 
-# Deprecated. Will be removed in Ocata release
-class VimDefaultNameNotDefined(exceptions.TackerException):
-    message = _("Default VIM is not set. Either specify a"
-                " valid VIM during the VNF creation or set default VIM"
-                " in tacker.conf")
-
-
-# Deprecated. Will be removed in Ocata release
-class VimDefaultIdException(exceptions.TackerException):
-    message = _("Default VIM name %(vim_name)s is invalid or there are "
-                "multiple VIM matches found. Please specify a valid default "
-                "VIM in tacker.conf")
+class VimDefaultNotDefined(exceptions.TackerException):
+    message = _("Default VIM is not defined.")
 
 
 class VimDefaultDuplicateException(exceptions.TackerException):
@@ -68,9 +59,171 @@ class VimKeyNotFoundException(exceptions.TackerException):
     message = _("Unable to find key file for VIM %(vim_id)s")
 
 
-class VimDuplicateUrlException(exceptions.TackerException):
-    message = _("VIM with specified auth URL already exists. Cannot register "
-                "duplicate VIM")
+class VimUnsupportedResourceTypeException(exceptions.TackerException):
+    message = _("Resource type %(type) is unsupported by VIM")
+
+
+class VimGetResourceException(exceptions.TackerException):
+    message = _("Error while trying to issue %(cmd)s to find resource type "
+                "%(type)s by resource name %(name)s")
+
+
+class VimGetResourceNameNotUnique(exceptions.TackerException):
+    message = _("Getting resource id from VIM with resource name %(name)s "
+                "by %(cmd)s returns more than one")
+
+
+class VimGetResourceNotFoundException(exceptions.TackerException):
+    message = _("Getting resource id from VIM with resource name %(name)s "
+                "by %(cmd)s returns nothing")
+
+
+class VimFromVnfNotFoundException(exceptions.NotFound):
+    message = _('VIM from VNF %(vnf_id)s could not be found')
+
+
+class ToscaParserFailed(exceptions.InvalidInput):
+    message = _("tosca-parser failed: - %(error_msg_details)s")
+
+
+class VnffgdInvalidTemplate(exceptions.InvalidInput):
+    message = _("Invalid VNFFG template input: %(template)s")
+
+
+class VnffgdDuplicateForwarderException(exceptions.InvalidInput):
+    message = _("Invalid Forwarding Path contains duplicate forwarder not in "
+                "order: %(forwarder)s")
+
+
+class VnffgdDuplicateCPException(exceptions.InvalidInput):
+    message = _("Invalid Forwarding Path contains duplicate connection point "
+                ": %(cp)s")
+
+
+class VnffgdVnfdNotFoundException(exceptions.NotFound):
+    message = _("Specified VNFD %(vnfd_name)s in VNFFGD does not exist. "
+                "Please create VNFDs before creating VNFFG")
+
+
+class VnffgdCpNotFoundException(exceptions.NotFound):
+    message = _("Specified CP %(cp_id)s could not be found in VNFD "
+                "%(vnfd_name)s. Please check VNFD for correct Connection "
+                "Point.")
+
+
+class VnffgdCpNoForwardingException(exceptions.TackerException):
+    message = _("Specified CP %(cp_id)s in VNFD %(vnfd_name)s "
+                "does not have forwarding capability, which is required to be "
+                "included in forwarding path")
+
+
+class VnffgdInUse(exceptions.InUse):
+    message = _('VNFFGD %(vnffgd_id)s is still in use')
+
+
+class VnffgdNotFoundException(exceptions.NotFound):
+    message = _('VNFFG Template %(vnffgd_id)s could not be found')
+
+
+class VnffgCreateFailed(exceptions.TackerException):
+    message = _('Creating VNFFG based on %(vnffgd_id)s failed')
+
+
+class VnffgInvalidMappingException(exceptions.TackerException):
+    message = _("Matching VNF Instance for VNFD %(vnfd_name)s could not be "
+                "found. Please create an instance of this VNFD before "
+                "creating/updating VNFFG.")
+
+
+class VnffgVimMappingException(exceptions.TackerException):
+    message = _("VNF Instance VNF %(vnf_id)s does not match VIM ID %(vim_id).")
+
+
+class VnffgPropertyNotFoundException(exceptions.NotFound):
+    message = _('VNFFG Property %(vnffg_property)s could not be found')
+
+
+class VnffgCpNotFoundException(exceptions.NotFound):
+    message = _("Specified CP %(cp_id)s could not be found in VNF "
+                "%(vnf_id)s.")
+
+
+class VnffgNotFoundException(exceptions.NotFound):
+    message = _('VNFFG %(vnffg_id)s could not be found')
+
+
+class VnffgInUse(exceptions.InUse):
+    message = _('VNFFG %(vnffg_id)s is still in use')
+
+
+class VnffgVnfNotFoundException(exceptions.NotFound):
+    message = _("Specified VNF instance %(vnf_name)s in VNF Mapping could not "
+                "be found")
+
+
+class VnffgDeleteFailed(exceptions.TackerException):
+    message = _('Deleting VNFFG %(vnffg_id)s failed')
+
+
+class NfpAttributeNotFoundException(exceptions.NotFound):
+    message = _('NFP attribute %(attribute)s could not be found')
+
+
+class NfpNotFoundException(exceptions.NotFound):
+    message = _('NFP %(nfp_id)s could not be found')
+
+
+class NfpInUse(exceptions.InUse):
+    message = _('NFP %(nfp_id)s is still in use')
+
+
+class NfpPolicyCriteriaError(exceptions.PolicyCheckError):
+    message = _('%(error)s in policy')
+
+
+class NfpPolicyNotFoundException(exceptions.NotFound):
+    message = _('Policy not found in NFP %(nfp)s')
+
+
+class NfpPolicyTypeError(exceptions.PolicyCheckError):
+    message = _('Unsupported Policy Type: %(type)s')
+
+
+class NfpForwarderNotFoundException(exceptions.NotFound):
+    message = _('VNFD Forwarder %(vnfd)s not found in VNF Mapping %(mapping)s')
+
+
+class NfpRequirementsException(exceptions.TackerException):
+    message = _('VNFD Forwarder %(vnfd) specified more than twice in '
+                'requirements path')
+
+
+class SfcInUse(exceptions.InUse):
+    message = _('SFC %(sfc_id)s is still in use')
+
+
+class SfcNotFoundException(exceptions.NotFound):
+    message = _('Service Function Chain %(sfc_id)s could not be found')
+
+
+class ClassifierInUse(exceptions.InUse):
+    message = _('Classifier %(classifier_id)s is still in use')
+
+
+class ClassifierNotFoundException(exceptions.NotFound):
+    message = _('Classifier %(classifier_id)s could not be found')
+
+
+class NSDInUse(exceptions.InUse):
+    message = _('NSD %(nsd_id)s is still in use')
+
+
+class NSInUse(exceptions.InUse):
+    message = _('NS %(ns_id)s is still in use')
+
+
+class NoTasksException(exceptions.TackerException):
+    message = _('No tasks to run for %(action)s on %(resource)s')
 
 
 RESOURCE_ATTRIBUTE_MAP = {
@@ -162,7 +315,401 @@ RESOURCE_ATTRIBUTE_MAP = {
             'allow_put': False,
             'is_visible': True,
         },
-    }
+    },
+
+    'vnffgds': {
+        'id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+            'primary_key': True,
+        },
+        'tenant_id': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'required_by_policy': True,
+            'is_visible': True,
+        },
+        'name': {
+            'allow_post': True,
+            'allow_put': True,
+            'validate': {'type:string': None},
+            'is_visible': True,
+        },
+        'description': {
+            'allow_post': True,
+            'allow_put': True,
+            'validate': {'type:string': None},
+            'is_visible': True,
+            'default': '',
+        },
+        'template': {
+            'allow_post': True,
+            'allow_put': False,
+            'convert_to': attr.convert_none_to_empty_dict,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+            'default': None,
+        },
+    },
+
+    'vnffgs': {
+        'id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+            'primary_key': True
+        },
+        'tenant_id': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'required_by_policy': True,
+            'is_visible': True
+        },
+        'vnffgd_id': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+        },
+        'name': {
+            'allow_post': True,
+            'allow_put': True,
+            'validate': {'type:string': None},
+            'is_visible': True,
+        },
+        'description': {
+            'allow_post': True,
+            'allow_put': True,
+            'validate': {'type:string': None},
+            'is_visible': True,
+            'default': '',
+        },
+        'vnf_mapping': {
+            'allow_post': True,
+            'allow_put': True,
+            'convert_to': attr.convert_none_to_empty_dict,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+            'default': None,
+        },
+        'attributes': {
+            'allow_post': True,
+            'allow_put': True,
+            'convert_to': attr.convert_none_to_empty_dict,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+            'default': None,
+        },
+        'symmetrical': {
+            'allow_post': True,
+            'allow_put': True,
+            'is_visible': True,
+            'validate': {'type:boolean': None},
+            'default': False,
+        },
+        'forwarding_paths': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'status': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+    },
+
+    'nfps': {
+        'id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+            'primary_key': True
+        },
+        'tenant_id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'required_by_policy': True,
+            'is_visible': True
+        },
+        'vnffg_id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+        },
+        'name': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'is_visible': True,
+        },
+        'classifier_id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+        },
+        'chain_id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+        },
+        'path_id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'is_visible': True,
+        },
+        'symmetrical': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+            'validate': {'type:boolean': None},
+            'default': False,
+        },
+        'status': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+    },
+    'sfcs': {
+        'id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+            'primary_key': True
+        },
+        'tenant_id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'required_by_policy': True,
+            'is_visible': True
+        },
+        'nfp_id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+        },
+        'instance_id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+        },
+        'chain': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'path_id': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'symmetrical': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+            'validate': {'type:boolean': None},
+            'default': False,
+        },
+        'status': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+    },
+    'classifiers': {
+        'id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+            'primary_key': True
+        },
+        'tenant_id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'required_by_policy': True,
+            'is_visible': True
+        },
+        'nfp_id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+        },
+        'instance_id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+        },
+        'match': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'chain_id': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'status': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+    },
+
+    'nsds': {
+        'id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+            'primary_key': True,
+        },
+        'tenant_id': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'required_by_policy': True,
+            'is_visible': True,
+        },
+        'name': {
+            'allow_post': True,
+            'allow_put': True,
+            'validate': {'type:string': None},
+            'is_visible': True,
+        },
+        'description': {
+            'allow_post': True,
+            'allow_put': True,
+            'validate': {'type:string': None},
+            'is_visible': True,
+            'default': '',
+        },
+        'created_at': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'updated_at': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'attributes': {
+            'allow_post': True,
+            'allow_put': False,
+            'convert_to': attr.convert_none_to_empty_dict,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+            'default': None,
+        },
+
+    },
+
+    'nss': {
+        'id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+            'primary_key': True,
+        },
+        'tenant_id': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'required_by_policy': True,
+            'is_visible': True,
+        },
+        'name': {
+            'allow_post': True,
+            'allow_put': True,
+            'validate': {'type:string': None},
+            'is_visible': True,
+        },
+        'description': {
+            'allow_post': True,
+            'allow_put': True,
+            'validate': {'type:string': None},
+            'is_visible': True,
+            'default': '',
+        },
+        'created_at': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'updated_at': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'vnf_ids': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'is_visible': True,
+            'default': '',
+        },
+        'nsd_id': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+        },
+        'vim_id': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'is_visible': True,
+            'default': '',
+        },
+        'status': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'error_reason': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'attributes': {
+            'allow_post': True,
+            'allow_put': False,
+            'convert_to': attr.convert_none_to_empty_dict,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+            'default': None,
+        },
+        'mgmt_urls': {
+            'allow_post': False,
+            'allow_put': False,
+            'convert_to': attr.convert_none_to_empty_dict,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+        },
+    },
+
 }
 
 

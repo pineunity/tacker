@@ -23,8 +23,8 @@ from tacker.vnfm.monitor_drivers import abstract_driver
 LOG = logging.getLogger(__name__)
 
 OPTS = [
-    cfg.StrOpt('host', default=utils.get_hostname(),
-               help=_('Address which drivers use to trigger')),
+    cfg.HostAddressOpt('host', default=utils.get_hostname(),
+                       help=_('Address which drivers use to trigger')),
     cfg.PortOpt('port', default=9890,
                help=_('port number which drivers use to trigger'))
 ]
@@ -33,6 +33,15 @@ cfg.CONF.register_opts(OPTS, group='ceilometer')
 
 def config_opts():
     return [('ceilometer', OPTS)]
+
+ALARM_INFO = (
+    ALARM_ACTIONS, OK_ACTIONS, REPEAT_ACTIONS, ALARM,
+    INSUFFICIENT_DATA_ACTIONS, DESCRIPTION, ENABLED, TIME_CONSTRAINTS,
+    SEVERITY,
+) = ('alarm_actions', 'ok_actions', 'repeat_actions', 'alarm',
+     'insufficient_data_actions', 'description', 'enabled', 'time_constraints',
+     'severity',
+     )
 
 
 class VNFMonitorCeilometer(
@@ -67,3 +76,17 @@ class VNFMonitorCeilometer(
     def call_alarm_url(self, vnf, kwargs):
         '''must be used after call heat-create in plugin'''
         return self._create_alarm_url(**kwargs)
+
+    def _process_alarm(self, alarm_id, status):
+        if alarm_id and status == ALARM:
+            return True
+
+    def process_alarm(self, vnf, kwargs):
+        '''Check alarm state. if available, will be processed'''
+        return self._process_alarm(**kwargs)
+
+    def monitor_url(self, plugin, context, vnf):
+        pass
+
+    def monitor_call(self, vnf, kwargs):
+        pass

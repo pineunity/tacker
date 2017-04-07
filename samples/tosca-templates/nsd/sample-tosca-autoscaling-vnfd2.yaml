@@ -1,0 +1,113 @@
+tosca_definitions_version: tosca_simple_profile_for_nfv_1_0_0
+
+description: Demo example
+
+node_types:
+  tosca.nodes.nfv.VNF2:
+    capabilities:
+      forwarder1:
+          type: tosca.capabilities.nfv.Forwarder
+topology_template:
+  substitution_mappings:
+    node_type: tosca.nodes.nfv.VNF2
+    capabilities:
+      forwarder1: [CP21, forwarder]
+  node_templates:
+    VDU1:
+      type: tosca.nodes.nfv.VDU.Tacker
+      properties:
+        image: cirros-0.3.4-x86_64-uec
+        flavor: m1.tiny
+        availability_zone: nova
+        metadata: {metering.vnf: SG2}
+        mgmt_driver: noop
+        config: |
+          param0: key1
+          param1: key2
+
+    CP21:
+      type: tosca.nodes.nfv.CP.Tacker
+      properties:
+        management: true
+        anti_spoofing_protection: false
+      requirements:
+        - virtualLink:
+            node: VL1
+        - virtualBinding:
+            node: VDU1
+
+    VDU2:
+      type: tosca.nodes.nfv.VDU.Tacker
+      properties:
+        image: cirros-0.3.4-x86_64-uec
+        flavor: m1.medium
+        availability_zone: nova
+        metadata: {metering.vnf: SG2}
+        mgmt_driver: noop
+        config: |
+          param0: key1
+          param1: key2
+
+    CP22:
+      type: tosca.nodes.nfv.CP.Tacker
+      requirements:
+        - virtualLink:
+            node: VL2
+        - virtualBinding:
+            node: VDU2
+
+    VL1:
+      type: tosca.nodes.nfv.VL
+      properties:
+        network_name: net_mgmt
+        vendor: Tacker
+
+    VL2:
+      type: tosca.nodes.nfv.VL
+      properties:
+        network_name: net0
+        vendor: Tacker
+
+  policies:
+    - SP1:
+        type: tosca.policies.tacker.Scaling
+        properties:
+          increment: 1
+          cooldown: 120
+          min_instances: 1
+          max_instances: 3
+          default_instances: 1
+          targets: [VDU1,VDU2]
+
+    - vdu_cpu_usage_monitoring_policy:
+        type: tosca.policies.tacker.Alarming
+        triggers:
+            vdu_hcpu_usage_scaling_out:
+                event_type:
+                    type: tosca.events.resource.utilization
+                    implementation: ceilometer
+                metrics: cpu_util
+                condition:
+                    threshold: 50
+                    constraint: utilization greater_than 50%
+                    period: 600
+                    evaluations: 1
+                    method: avg
+                    comparison_operator: gt
+                metadata: SG2
+                actions: [SP1]
+
+            vdu_lcpu_usage_scaling_in:
+                event_type:
+                    type: tosca.events.resource.utilization
+                    implementation: ceilometer
+                metrics: cpu_util
+                condition:
+                    threshold: 10
+                    constraint: utilization less_than 10%
+                    period: 600
+                    evaluations: 1
+                    method: avg
+                    comparison_operator: lt
+                metadata: SG2
+                actions: [SP1]

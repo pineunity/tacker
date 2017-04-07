@@ -31,14 +31,6 @@ from tacker.services import service_base
 LOG = logging.getLogger(__name__)
 
 
-class InfraDriverNotSpecified(exceptions.InvalidInput):
-    message = _('infra driver is not specified')
-
-
-class MGMTDriverNotSpecified(exceptions.InvalidInput):
-    message = _('mgmt driver is not specified')
-
-
 class MultipleMGMTDriversSpecified(exceptions.InvalidInput):
     message = _('More than one MGMT Driver per vnfd is not supported')
 
@@ -56,7 +48,7 @@ class VNFInUse(exceptions.InUse):
 
 
 class InvalidInfraDriver(exceptions.InvalidInput):
-    message = _('invalid name for infra driver %(infra_driver)s')
+    message = _('VIM type %(vim_name)s is not supported as an infra driver ')
 
 
 class InvalidServiceType(exceptions.InvalidInput):
@@ -68,6 +60,10 @@ class VNFCreateFailed(exceptions.TackerException):
 
 
 class VNFCreateWaitFailed(exceptions.TackerException):
+    message = _('%(reason)s')
+
+
+class VNFScaleWaitFailed(exceptions.TackerException):
     message = _('%(reason)s')
 
 
@@ -97,14 +93,6 @@ class ToscaParserFailed(exceptions.InvalidInput):
 
 class HeatTranslatorFailed(exceptions.InvalidInput):
     message = _("heat-translator failed: - %(error_msg_details)s")
-
-
-class InputValuesMissing(exceptions.InvalidInput):
-    message = _("Parameter input values missing for the key '%(key)s'")
-
-
-class ParamYAMLInputMissing(exceptions.InvalidInput):
-    message = _("Parameter YAML input missing")
 
 
 class HeatClientException(exceptions.TackerException):
@@ -147,6 +135,25 @@ class InfraDriverUnreachable(exceptions.ServiceUnavailable):
 
 class VNFInactive(exceptions.InvalidInput):
     message = _("VNF %(vnf_id)s is not in Active state %(message)s")
+
+
+class MetadataNotMatched(exceptions.InvalidInput):
+    message = _("Metadata for alarm policy is not matched")
+
+
+class InvalidSubstitutionMapping(exceptions.InvalidInput):
+    message = _("Input for substitution mapping requirements are not"
+                " valid for %(requirement)s. They must be in the form"
+                " of list with two entries")
+
+
+class SMRequirementMissing(exceptions.InvalidInput):
+    message = _("All the requirements for substitution_mappings are not"
+                " provided. Missing requirement for %(requirement)s")
+
+
+class InvalidParamsForSM(exceptions.InvalidInput):
+    message = _("Please provide parameters for substitution mappings")
 
 
 def _validate_service_type_list(data, valid_values=None):
@@ -211,20 +218,6 @@ RESOURCE_ATTRIBUTE_MAP = {
             'is_visible': True,
             'default': attr.ATTR_NOT_SPECIFIED,
         },
-        'infra_driver': {
-            'allow_post': True,
-            'allow_put': False,
-            'validate': {'type:string': None},
-            'is_visible': True,
-            'default': attr.ATTR_NOT_SPECIFIED,
-        },
-        'mgmt_driver': {
-            'allow_post': True,
-            'allow_put': False,
-            'validate': {'type:string': None},
-            'is_visible': True,
-            'default': attr.ATTR_NOT_SPECIFIED,
-        },
         'attributes': {
             'allow_post': True,
             'allow_put': False,
@@ -242,6 +235,12 @@ RESOURCE_ATTRIBUTE_MAP = {
             'allow_post': False,
             'allow_put': False,
             'is_visible': True,
+        },
+        'template_source': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+            'default': 'onboarded'
         },
     },
 
@@ -265,6 +264,7 @@ RESOURCE_ATTRIBUTE_MAP = {
             'allow_put': False,
             'validate': {'type:uuid': None},
             'is_visible': True,
+            'default': None
         },
         'vim_id': {
             'allow_post': True,
@@ -332,6 +332,13 @@ RESOURCE_ATTRIBUTE_MAP = {
             'allow_put': False,
             'is_visible': True,
         },
+        'vnfd_template': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:dict_or_none': None},
+            'is_visible': True,
+            'default': None,
+        },
     },
 }
 
@@ -366,6 +373,14 @@ SUB_RESOURCE_ATTRIBUTE_MAP = {
                     },
                 }
             },
+        }
+    },
+    'triggers': {
+        'parent': {
+            'collection_name': 'vnfs',
+            'member_name': 'vnf'
+        },
+        'members': {
             'trigger': {
                 'parameters': {
                     'policy_name': {
@@ -394,7 +409,7 @@ SUB_RESOURCE_ATTRIBUTE_MAP = {
                         'is_visible': False
                     }
                 }
-            }
+            },
         }
     },
     'resources': {

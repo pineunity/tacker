@@ -14,6 +14,7 @@
 
 from oslo_config import cfg
 
+from tacker.plugins.common import constants as evt_constants
 from tacker.tests import constants
 from tacker.tests.functional import base
 from tacker.tests.utils import read_file
@@ -23,10 +24,9 @@ VNF_CIRROS_CREATE_TIMEOUT = 120
 
 
 class VnfTestCreate(base.BaseTackerTest):
-    def _test_create_delete_vnf(self, vnf_name, vim_id=None):
+    def _test_create_delete_vnf(self, vnf_name, vnfd_name, vim_id=None):
         data = dict()
-        data['tosca'] = read_file('sample_cirros_vnf_no_monitoring.yaml')
-        vnfd_name = 'sample_cirros_vnf_no_monitoring'
+        data['tosca'] = read_file('sample-tosca-vnfd-no-monitor.yaml')
         toscal = data['tosca']
         tosca_arg = {'vnfd': {'name': vnfd_name,
                      'attributes': {'vnfd': toscal}}}
@@ -58,23 +58,35 @@ class VnfTestCreate(base.BaseTackerTest):
         self.assertIn('id', vnf_details)
         self.assertIn('type', vnf_details)
 
+        self.verify_vnf_crud_events(
+            vnf_id, evt_constants.RES_EVT_CREATE,
+            evt_constants.PENDING_CREATE, cnt=2)
+        self.verify_vnf_crud_events(
+            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.ACTIVE)
+
         # Delete vnf_instance with vnf_id
         try:
             self.client.delete_vnf(vnf_id)
         except Exception:
             assert False, "vnf Delete failed"
 
+        self.wait_until_vnf_delete(vnf_id,
+                                   constants.VNF_CIRROS_DELETE_TIMEOUT)
+        self.verify_vnf_crud_events(vnf_id, evt_constants.RES_EVT_DELETE,
+                                    evt_constants.PENDING_DELETE, cnt=2)
+
         # Delete vnfd_instance
         self.addCleanup(self.client.delete_vnfd, vnfd_id)
-        self.addCleanup(self.wait_until_vnf_delete, vnf_id,
-            constants.VNF_CIRROS_DELETE_TIMEOUT)
 
     def test_create_delete_vnf_with_default_vim(self):
         self._test_create_delete_vnf(
-            vnf_name='test_vnf_with_cirros_no_monitoring')
+            vnf_name='test_vnf_with_cirros_no_monitoring_default_vim',
+            vnfd_name='sample_cirros_vnf_no_monitoring_default_vim')
 
     def test_create_delete_vnf_with_vim_id(self):
         vim_list = self.client.list_vims()
         vim0_id = self.get_vim(vim_list, 'VIM0')['id']
-        self._test_create_delete_vnf(vim_id=vim0_id,
-                           vnf_name='test_vnf_with_cirros_with_default_vim_id')
+        self._test_create_delete_vnf(
+            vim_id=vim0_id,
+            vnf_name='test_vnf_with_cirros_vim_id',
+            vnfd_name='sample_cirros_vnf_no_monitoring_vim_id')

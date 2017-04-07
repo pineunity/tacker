@@ -33,6 +33,7 @@ from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_service import service as common_service
 from oslo_service import systemd
+from oslo_utils import encodeutils
 from oslo_utils import excutils
 import routes.middleware
 import six
@@ -83,6 +84,14 @@ def config_opts():
 LOG = logging.getLogger(__name__)
 
 
+def encode_body(body):
+    """Encode unicode body.
+
+    WebOb requires to encode unicode body used to update response body.
+    """
+    return encodeutils.to_utf8(body)
+
+
 class WorkerService(common_service.ServiceBase):
     """Wraps a worker to be handled by ProcessLauncher."""
 
@@ -93,7 +102,7 @@ class WorkerService(common_service.ServiceBase):
 
     def start(self):
         # We may have just forked from parent process.  A quick disposal of the
-        # existing sql connections avoids producting 500 errors later when they
+        # existing sql connections avoids producing 500 errors later when they
         # are discovered to be broken.
         api.get_engine().pool.dispose()
         self._server = self._service.pool.spawn(self._service._run,
@@ -400,7 +409,7 @@ class JSONDictSerializer(DictSerializer):
     def default(self, data):
         def sanitizer(obj):
             return six.text_type(obj)
-        return jsonutils.dumps(data, default=sanitizer)
+        return encode_body(jsonutils.dumps(data, default=sanitizer))
 
 
 class ResponseHeaderSerializer(ActionDispatcher):
@@ -502,7 +511,7 @@ class RequestDeserializer(object):
         """Extract necessary pieces of the request.
 
         :param request: Request object
-        :returns tuple of expected controller action name, dictionary of
+        :returns: tuple of expected controller action name, dictionary of
                  keyword arguments to pass to the controller, the expected
                  content type of the response
 
@@ -615,7 +624,7 @@ class Application(object):
           res = exc.HTTPForbidden(explanation='Nice try')
 
           # Option 3: a webob Response object (in case you need to play with
-          # headers, or you want to be treated like an iterable, or or or)
+          # headers, or you want to be treated like an iterable, or or)
           res = Response();
           res.app_iter = open('somefile')
 
@@ -654,7 +663,7 @@ class Debug(Middleware):
         resp = req.get_response(self.application)
 
         print(("*" * 40) + " RESPONSE HEADERS")
-        for (key, value) in six.iteritems(resp.headers):
+        for (key, value) in (resp.headers).items():
             print(key, "=", value)
         print()
 
@@ -788,7 +797,7 @@ class Resource(Application):
         try:
             action_result = self.dispatch(request, action, args)
         except webob.exc.HTTPException as ex:
-            LOG.info(_("HTTP exception thrown: %s"), six.text_type(ex))
+            LOG.info(_("HTTP exception thrown: %s"), ex)
             action_result = Fault(ex,
                                   self._fault_body_function)
         except Exception:

@@ -29,11 +29,11 @@ Preparing the OpenStack site
 1. Create a new 'nfv' project and admin privileged 'nfv' user on the remote
    OpenStack site.
 2. Create the required neutron networks for management, packet in and packet
-   out networks that will be used by VNFs
+   out networks that will be used by VNFs.
 
 Register a new OpenStack VIM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-To register a new OpenStack VIM inside Tacker
+To register a new OpenStack VIM inside Tacker.
 
 ::
 
@@ -57,6 +57,7 @@ To register a new OpenStack VIM inside Tacker
 In the above command, config.yaml contains VIM specific parameters as below:
 
 ::
+
  auth_url: 'http://localhost:5000'
  username: 'nfv_user'
  password: 'devstack'
@@ -118,6 +119,7 @@ Tacker allows for updating VIM authorization parameters such as 'username',
 update.yaml in above command will contain:
 
 ::
+
  username: 'new_user'
  password: 'new_pw'
 
@@ -137,7 +139,7 @@ To delete a VIM :
 Features
 ~~~~~~~~
 * VIMs are shared across tenants -- As an admin operator, the user can register
-  a VIM once and allow tenants to deploy VNFs on the registered VIM
+  a VIM once and allow tenants to deploy VNFs on the registered VIM.
 * Pluggable driver module framework allowing Tacker to interact with multiple
   VIM types.
 * Compatible for OpenStack versions starting from Kilo.
@@ -147,8 +149,6 @@ Limitations
 ~~~~~~~~~~~
 * VNFs of all users currently land in the 'nfv' project that is specified
   during VIM registration.
-* Default VIM needs to be supplied in tacker.conf which requires a tacker
-  server restart if and when default VIM option changes.
 * Fernet keys for password encryption and decryption is stored on file systems.
   This is a limitation when multiple servers are serving behind a load balancer
   server and the keys need to be synced across tacker server systems.

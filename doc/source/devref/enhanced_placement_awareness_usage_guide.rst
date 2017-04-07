@@ -24,7 +24,7 @@ OpenStack to enable it be an EPA compute node for deploying high performance
 VNFs.
 
 Below table shows the configurations needed for the different features across
-BIOS, Hypervisor and OpenStack
+BIOS, Hypervisor and OpenStack.
 
 +----------------+------+------------+-----------+
 |                | BIOS | Hypervisor | OpenStack |
@@ -84,8 +84,8 @@ nova.conf file.
 
 The SR-IOV feature enablement requires configuration on both the controller
 and compute nodes. Please refer link similar to below for the appropriate
-OpenStack release to setup SR-IOV
-http://docs.openstack.org/networking-guide/adv-config-sriov.html
+OpenStack release to setup SR-IOV:
+http://docs.openstack.org/networking-guide/config-sriov.html
 
 The CPU Pinning feature enablement requires configuring the nova.conf on
 compute nodes. It requires an entry similar to below:
@@ -99,7 +99,7 @@ compute nodes. It requires an entry similar to below:
   virt_type = kvm
 
 **NOTE**: Please refer OpenStack release documentation for configuring the
-above mentioned features.
+above-mentioned features.
 
 Creating availability zone using compute nodes
 ----------------------------------------------
@@ -112,11 +112,11 @@ availability zone and adding compute nodes.
 
 .. code-block:: console
 
-  nova aggregate-create NFV-AGG NFV-AZ
+   openstack aggregate create --zone NFV-AZ NFV-AGG
 
-  nova aggregate-add-host NFV-AGG <NFV_HOST1>
+   openstack aggregate add host NFV-AGG <NFV_HOST1>
 
-  nova aggregate-add-host NFV-AGG <NFV_HOST2>
+   openstack aggregate add host NFV-AGG <NFV_HOST2>
 
 **NOTE**: Consult http://docs.openstack.org/cli-reference/nova.html for
 latest supported commands.

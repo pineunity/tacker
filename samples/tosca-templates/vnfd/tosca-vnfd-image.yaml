@@ -24,12 +24,13 @@ topology_template:
       artifacts:
         VNFImage:
           type: tosca.artifacts.Deployment.Image.VM
-          file: http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-uec.tar.gz
+          file: http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-disk.tar.gz
 
     CP1:
       type: tosca.nodes.nfv.CP.Tacker
       properties:
         management: true
+        order: 0
         anti_spoofing_protection: false
       requirements:
         - virtualLink:
@@ -40,6 +41,7 @@ topology_template:
     CP2:
       type: tosca.nodes.nfv.CP.Tacker
       properties:
+        order: 1
         anti_spoofing_protection: false
       requirements:
         - virtualLink:
@@ -50,6 +52,7 @@ topology_template:
     CP3:
       type: tosca.nodes.nfv.CP.Tacker
       properties:
+        order: 2
         anti_spoofing_protection: false
       requirements:
         - virtualLink:

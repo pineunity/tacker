@@ -30,13 +30,12 @@ described firstly like other TOSCA templates in Tacker.
 
      policies:
       - vdu1_cpu_usage_monitoring_policy:
-        type: tosca.policies.tacker.Alarming
-        triggers:
+          type: tosca.policies.tacker.Alarming
+          triggers:
             resize_compute:
                 event_type:
                     type: tosca.events.resource.utilization
                     implementation: ceilometer
-                    targets: [VDU1]
                 metrics: cpu_util
                 condition:
                     threshold: 50
@@ -45,29 +44,141 @@ described firstly like other TOSCA templates in Tacker.
                     evaluations: 1
                     method: avg
                     comparison_operator: gt
-                action:
-                  resize_compute: respawn
+                actions: [respawn]
 
 Alarm framework already supported the some default backend actions like
-**repsawn, log, and log_and_kill**. Tacker users could change the desired
-action as described in the above example. In the future, the backend actions
-could be pointed to the specific policy which is also described in TOSCA template
-like scaling policy.
+**scaling, respawn, log, and log_and_kill**.
+
+Tacker users could change the desired action as described in the above example.
+Until now, the backend actions could be pointed to the specific policy which
+is also described in TOSCA template like scaling policy. The integration between
+alarming monitoring and scaling was also supported by Alarm monitor in Tacker:
+
+.. code-block:: yaml
+
+    tosca_definitions_version: tosca_simple_profile_for_nfv_1_0_0
+    description: Demo example
+
+    metadata:
+     template_name: sample-tosca-vnfd
+
+    topology_template:
+      node_templates:
+        VDU1:
+          type: tosca.nodes.nfv.VDU.Tacker
+          capabilities:
+            nfv_compute:
+              properties:
+                disk_size: 1 GB
+                mem_size: 512 MB
+                num_cpus: 2
+          properties:
+            image: cirros-0.3.5-x86_64-disk
+            mgmt_driver: noop
+            availability_zone: nova
+            metadata: {metering.vnf: SG1}
+
+        CP1:
+          type: tosca.nodes.nfv.CP.Tacker
+          properties:
+            management: true
+            anti_spoofing_protection: false
+          requirements:
+            - virtualLink:
+                node: VL1
+            - virtualBinding:
+                node: VDU1
+        VDU2:
+          type: tosca.nodes.nfv.VDU.Tacker
+          capabilities:
+            nfv_compute:
+              properties:
+                disk_size: 1 GB
+                mem_size: 512 MB
+                num_cpus: 2
+          properties:
+            image: cirros-0.3.5-x86_64-disk
+            mgmt_driver: noop
+            availability_zone: nova
+            metadata: {metering.vnf: SG1}
+
+        CP2:
+          type: tosca.nodes.nfv.CP.Tacker
+          properties:
+            management: true
+            anti_spoofing_protection: false
+          requirements:
+            - virtualLink:
+                node: VL1
+            - virtualBinding:
+                node: VDU2
+
+        VL1:
+          type: tosca.nodes.nfv.VL
+          properties:
+            network_name: net_mgmt
+            vendor: Tacker
+
+      policies:
+        - SP1:
+            type: tosca.policies.tacker.Scaling
+            properties:
+              increment: 1
+              cooldown: 120
+              min_instances: 1
+              max_instances: 3
+              default_instances: 2
+              targets: [VDU1,VDU2]
+
+        - vdu_cpu_usage_monitoring_policy:
+            type: tosca.policies.tacker.Alarming
+            triggers:
+                vdu_hcpu_usage_scaling_out:
+                    event_type:
+                        type: tosca.events.resource.utilization
+                        implementation: ceilometer
+                    metrics: cpu_util
+                    condition:
+                        threshold: 50
+                        constraint: utilization greater_than 50%
+                        period: 600
+                        evaluations: 1
+                        method: avg
+                        comparison_operator: gt
+                    metadata: SG1
+                    actions: [SP1]
+
+                vdu_lcpu_usage_scaling_in:
+                    targets: [VDU1, VDU2]
+                    event_type:
+                        type: tosca.events.resource.utilization
+                        implementation: ceilometer
+                    metrics: cpu_util
+                    condition:
+                        threshold: 10
+                        constraint: utilization less_than 10%
+                        period: 600
+                        evaluations: 1
+                        method: avg
+                        comparison_operator: lt
+                    metadata: SG1
+                    actions: [SP1]
+
+
+**NOTE:**
+metadata defined in VDU properties must be matched with metadata in monitoring policy
 
 How to setup environment
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-If OpenStack Devstack is used to test alarm monitoring in Tacker, OpenStack Ceilometer
-and Aodh plugins will need to be enabled in local.conf:
+If OpenStack Devstack is used to test alarm monitoring in Tacker, OpenStack
+Ceilometer and Aodh plugins will need to be enabled in local.conf:
 
 .. code-block::ini
 
-**enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer**
+**enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer master**
 
-**enable_plugin aodh https://git.openstack.org/openstack/aodh**
-
-Further, once OpenStack Monasca is leveraged in Tacker, it will need to be enabled
-plugin in local.conf as well.
+**enable_plugin aodh https://git.openstack.org/openstack/aodh master**
 
 How to monitor VNFs via alarm triggers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -75,57 +186,63 @@ How to monitor VNFs via alarm triggers
 How to setup alarm configuration
 ================================
 
-Firstly, vnfd and vnf need to be created successfully using pre-defined TOSCA template
-for alarm monitoring. Then, in order to know whether alarm configuration defined in Tacker
-is successfully passed to Ceilometer, Tacker users could use CLI:
+Firstly, vnfd and vnf need to be created successfully using pre-defined TOSCA
+template for alarm monitoring. Then, in order to know whether alarm
+configuration defined in Tacker is successfully passed to Ceilometer,
+Tacker users could use CLI:
 
-.. code-block::ini
+.. code-block:: console
 
-$ ceilometer alarm-list
+    $aodh alarm list
 
-+--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+-------------------+----------+---------+------------+------------------------------------+------------------+
-| Alarm ID                             | Name                                                                                                                              | State             | Severity | Enabled | Continuous | Alarm condition                    | Time constraints |
-+--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+-------------------+----------+---------+------------+------------------------------------+------------------+
-| 35a80852-e24f-46ed-bd34-e2f831d00172 | tacker.vnfm.infra_drivers.heat.heat_DeviceHeat-6f3e523d-9e12-4973-a2e8-ea04b9601253-vdu1_cpu_usage_monitoring_policy-qer2ipsi2mk4 | insufficient data | low      | True    | True       | avg(cpu_util) > 50  during 1 x 65s | None             |
-+--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+-------------------+----------+---------+------------+------------------------------------+------------------+
+    +--------------------------------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------+-------------------+----------+---------+
+    | alarm_id                             | type      | name                                                                                                                                 | state             | severity | enabled |
+    +--------------------------------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------+-------------------+----------+---------+
+    | 6f2336b9-e0a2-4e33-88be-bc036192b42b | threshold | tacker.vnfm.infra_drivers.openstack.openstack_OpenStack-a0f60b00-ad3d-4769-92ef-e8d9518da2c8-vdu_lcpu_scaling_in-smgctfnc3ql5        | insufficient data | low      | True    |
+    | e049f0d3-09a8-46c0-9b88-e61f1f524aab | threshold | tacker.vnfm.infra_drivers.openstack.openstack_OpenStack-a0f60b00-ad3d-4769-92ef-e8d9518da2c8-vdu_hcpu_usage_scaling_out-lubylov5g6xb | insufficient data | low      | True    |
+    +--------------------------------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------+-------------------+----------+---------+
 
-$ ceilometer alarm-show 35a80852-e24f-46ed-bd34-e2f831d00172
+.. code-block:: console
 
-+---------------------------+--------------------------------------------------------------------------+
-| Property                  | Value                                                                    |
-+---------------------------+--------------------------------------------------------------------------+
-| alarm_actions             | ["http://ubuntu:9890/v1.0/vnfs/6f3e523d-9e12-4973-a2e8-ea04b9601253/vdu1 |
-|                           | _cpu_usage_monitoring_policy/respawn/g0jtsxu9"]                          |
-| alarm_id                  | 35a80852-e24f-46ed-bd34-e2f831d00172                                     |
-| comparison_operator       | gt                                                                       |
-| description               | utilization greater_than 50%                                             |
-| enabled                   | True                                                                     |
-| evaluation_periods        | 1                                                                        |
-| exclude_outliers          | False                                                                    |
-| insufficient_data_actions | None                                                                     |
-| meter_name                | cpu_util                                                                 |
-| name                      | tacker.vnfm.infra_drivers.heat.heat_DeviceHeat-6f3e523d-                 |
-|                           | 9e12-4973-a2e8-ea04b9601253-vdu1_cpu_usage_monitoring_policy-            |
-|                           | qer2ipsi2mk4                                                             |
-| ok_actions                | None                                                                     |
-| period                    | 65                                                                       |
-| project_id                | 8361286345c4482cb777da6657c38238                                         |
-| query                     |                                                                          |
-| repeat_actions            | True                                                                     |
-| severity                  | low                                                                      |
-| state                     | insufficient data                                                        |
-| statistic                 | avg                                                                      |
-| threshold                 | 50                                                                       |
-| type                      | threshold                                                                |
-| user_id                   | b5f7fefac7874e45ae93443e95447fb9                                         |
-+---------------------------+--------------------------------------------------------------------------+
+    $aodh alarm show 6f2336b9-e0a2-4e33-88be-bc036192b42b
+
+    +---------------------------+-------------------------------------------------------------------------------------------------------------------------------+
+    | Field                     | Value                                                                                                                         |
+    +---------------------------+-------------------------------------------------------------------------------------------------------------------------------+
+    | alarm_actions             | [u'http://pinedcn:9890/v1.0/vnfs/a0f60b00-ad3d-4769-92ef-e8d9518da2c8/vdu_lcpu_scaling_in/SP1-in/yl7kh5qd']                   |
+    | alarm_id                  | 6f2336b9-e0a2-4e33-88be-bc036192b42b                                                                                          |
+    | comparison_operator       | lt                                                                                                                            |
+    | description               | utilization less_than 10%                                                                                                     |
+    | enabled                   | True                                                                                                                          |
+    | evaluation_periods        | 1                                                                                                                             |
+    | exclude_outliers          | False                                                                                                                         |
+    | insufficient_data_actions | None                                                                                                                          |
+    | meter_name                | cpu_util                                                                                                                      |
+    | name                      | tacker.vnfm.infra_drivers.openstack.openstack_OpenStack-a0f60b00-ad3d-4769-92ef-e8d9518da2c8-vdu_lcpu_scaling_in-smgctfnc3ql5 |
+    | ok_actions                | None                                                                                                                          |
+    | period                    | 600                                                                                                                           |
+    | project_id                | 3db801789c9e4b61b14ce448c9e7fb6d                                                                                              |
+    | query                     | metadata.user_metadata.vnf_id = a0f60b00-ad3d-4769-92ef-e8d9518da2c8                                                          |
+    | repeat_actions            | True                                                                                                                          |
+    | severity                  | low                                                                                                                           |
+    | state                     | insufficient data                                                                                                             |
+    | state_timestamp           | 2016-11-16T18:39:30.134954                                                                                                    |
+    | statistic                 | avg                                                                                                                           |
+    | threshold                 | 10.0                                                                                                                          |
+    | time_constraints          | []                                                                                                                            |
+    | timestamp                 | 2016-11-16T18:39:30.134954                                                                                                    |
+    | type                      | threshold                                                                                                                     |
+    | user_id                   | a783e8a94768484fb9a43af03c6426cb                                                                                              |
+    +---------------------------+-------------------------------------------------------------------------------------------------------------------------------+
 
 
 How to trigger alarms:
 ======================
-As shown in the above Ceilometer command, alarm state is shown as "insufficient data". Alarm is
-triggered by Ceilometer once alarm state changes to "alarm".
-To make VNF instance reach to the pre-defined threshold, some simple scripts could be used.
+As shown in the above Ceilometer command, alarm state is shown as
+"insufficient data". Alarm is triggered by Ceilometer once alarm
+state changes to "alarm".
+To make VNF instance reach to the pre-defined threshold, some
+simple scripts could be used.
 
 Note: Because Ceilometer pipeline set the default interval to 600s (10 mins),
 in order to reduce this interval, users could edit "interval" value
@@ -135,9 +252,9 @@ Another way could be used to check if backend action is handled well in Tacker:
 
 .. code-block::ini
 
-curl -H "Content-Type: application/json" -X POST -d '{"trigger":{"policy_name":"vdu1_cpu_usage_monitoring_policy","action_name":"respawn", "params": {"key":"g0jtsxu9"}}}' http://ubuntu:9890/v1.0/vnfs/6f3e523d-9e12-4973-a2e8-ea04b9601253/vdu1_cpu_usage_monitoring_policy/respawn/g0jtsxu9
+curl -H "Content-Type: application/json" -X POST -d '{"alarm_id": "35a80852-e24f-46ed-bd34-e2f831d00172", "current": "alarm"}' http://pinedcn:9890/v1.0/vnfs/a0f60b00-ad3d-4769-92ef-e8d9518da2c8/vdu_lcpu_scaling_in/SP1-in/yl7kh5qd
 
-Then, users can check Horizon to know if vnf is respawned. Please note that the url used
-in the above command could be captured from "**ceilometer alarm-show** command as shown before.
-"key" atribute in body request need to be captured from the url. The reason is that key will be authenticated
+Then, users can check Horizon to know if vnf is respawned. Please note that
+the url used in the above command could be captured from "**ceilometer alarm-show** command as shown before.
+"key" attribute in body request need to be captured from the url. The reason is that key will be authenticated
 so that the url is requested only one time.

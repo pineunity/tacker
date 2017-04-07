@@ -18,6 +18,7 @@ import re
 import netaddr
 from oslo_log import log as logging
 from oslo_utils import uuidutils
+import six
 from six import iteritems
 
 from tacker.common import exceptions as n_exc
@@ -93,7 +94,7 @@ def _validate_string_or_none(data, max_len=None):
 
 
 def _validate_string(data, max_len=None):
-    if not isinstance(data, basestring):
+    if not isinstance(data, six.string_types):
         msg = _("'%s' is not a valid string") % data
         LOG.debug(msg)
         return msg
@@ -464,7 +465,7 @@ def _validate_non_negative(data, valid_values=None):
 
 
 def convert_to_boolean(data):
-    if isinstance(data, basestring):
+    if isinstance(data, six.string_types):
         val = data.lower()
         if val == "true" or val == "1":
             return True
@@ -485,14 +486,14 @@ def convert_to_int(data):
     try:
         return int(data)
     except (ValueError, TypeError):
-        msg = _("'%s' is not a integer") % data
+        msg = _("'%s' is not an integer") % data
         raise n_exc.InvalidInput(error_message=msg)
 
 
 def convert_kvp_str_to_list(data):
     """Convert a value of the form 'key=value' to ['key', 'value'].
 
-    :raises: n_exc.InvalidInput if any of the strings are malformed
+    :raises n_exc.InvalidInput: if any of the strings are malformed
                                 (e.g. do not contain a key).
     """
     kvp = [x.strip() for x in data.split('=', 1)]
@@ -505,7 +506,7 @@ def convert_kvp_str_to_list(data):
 def convert_kvp_list_to_dict(kvp_list):
     """Convert a list of 'key=value' strings to a dict.
 
-    :raises: n_exc.InvalidInput if any of the strings are malformed
+    :raises n_exc.InvalidInput: if any of the strings are malformed
                                 (e.g. do not contain a key) or if any
                                 of the keys appear more than once.
     """
@@ -531,7 +532,7 @@ def convert_none_to_empty_dict(value):
 def convert_to_list(data):
     if data is None:
         return []
-    elif hasattr(data, '__iter__'):
+    elif hasattr(data, '__iter__') and not isinstance(data, six.string_types):
         return list(data)
     else:
         return [data]

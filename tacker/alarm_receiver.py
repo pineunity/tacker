@@ -11,8 +11,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-import logging
-import os
+from oslo_config import cfg
+from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from six.moves.urllib import parse as urlparse
 from tacker.vnfm.monitor_drivers.token import Token
@@ -21,29 +21,50 @@ from tacker import wsgi
 
 LOG = logging.getLogger(__name__)
 
-# Getting keystone auth credentials from env
-username = os.getenv('OS_USERNAME')
-password = os.getenv('OS_PASSWORD')
-project_name = os.getenv('OS_PROJECT_NAME')
+OPTS = [
+    cfg.StrOpt('username', default='tacker',
+        help=_('User name for alarm monitoring')),
+    cfg.StrOpt('password', default='nomoresecret',
+        help=_('password for alarm monitoring')),
+    cfg.StrOpt('project_name', default='service',
+        help=_('project name for alarm monitoring')),
+    cfg.StrOpt('url', default='http://localhost:35357/v3',
+        help=_('url for alarm monitoring')),
+]
+
+cfg.CONF.register_opts(OPTS, 'alarm_auth')
+
+
+def config_opts():
+    return [('alarm_auth', OPTS)]
 
 
 class AlarmReceiver(wsgi.Middleware):
     def process_request(self, req):
-        if req.method != 'POST' or not self.handle_url(req.url):
+        LOG.debug(_('Process request: %s'), req)
+        if req.method != 'POST':
+            return
+        url = req.url
+        if not self.handle_url(url):
             return
         prefix, info, params = self.handle_url(req.url)
-        token = Token(username, password,
-                      project_name, auth_url="http://localhost:35357/v3")
+        token = Token(username=cfg.CONF.alarm_auth.username,
+                      password=cfg.CONF.alarm_auth.password,
+                      project_name=cfg.CONF.alarm_auth.project_name,
+                      auth_url=cfg.CONF.alarm_auth.url,
+                      user_domain_name='default',
+                      project_domain_name='default')
+
         token_identity = token.create_token()
         req.headers['X_AUTH_TOKEN'] = token_identity
         # Change the body request
-        if 'alarm_id' in req.body:
+        if req.body:
             body_dict = dict()
             body_dict['trigger'] = {}
             body_dict['trigger'].setdefault('params', {})
             # Update params in the body request
-            alarm_dict = jsonutils.loads(req.body)
-            body_dict['trigger']['params']['alarm'] = alarm_dict
+            body_info = jsonutils.loads(req.body)
+            body_dict['trigger']['params']['data'] = body_info
             body_dict['trigger']['params']['credential'] = info[6]
             # Update policy and action
             body_dict['trigger']['policy_name'] = info[4]
@@ -51,7 +72,7 @@ class AlarmReceiver(wsgi.Middleware):
             req.body = jsonutils.dumps(body_dict)
             LOG.debug('Body alarm: %s', req.body)
         # Need to change url because of mandatory
-        req.environ['PATH_INFO'] = prefix + 'actions'
+        req.environ['PATH_INFO'] = prefix + 'triggers'
         req.environ['QUERY_STRING'] = ''
         LOG.debug('alarm url in receiver: %s', req.url)
 
