@@ -34,8 +34,9 @@ from tacker.extensions import vnfm
 from tacker.plugins.common import constants
 from tacker.vnfm.mgmt_drivers import constants as mgmt_constants
 from tacker.vnfm import monitor
-from tacker.vnfm.tosca import utils as toscautils
 from tacker.vnfm import vim_client
+
+from tacker.tosca import utils as toscautils
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -150,10 +151,6 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
 
         LOG.debug(_('vnfd %s'), vnfd_data)
 
-        name = vnfd_data['name']
-        if self._get_by_name(context, vnfm_db.VNFD, name):
-            raise exceptions.DuplicateResourceName(resource='VNFD', name=name)
-
         service_types = vnfd_data.get('service_types')
         if not attributes.is_attr_set(service_types):
             LOG.debug(_('service type must be specified'))
@@ -179,7 +176,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
         if vnfd_yaml is None:
             return
 
-        inner_vnfd_dict = yaml.load(vnfd_yaml)
+        inner_vnfd_dict = yaml.safe_load(vnfd_yaml)
         LOG.debug(_('vnfd_dict: %s'), inner_vnfd_dict)
 
         # Prepend the tacker_defs.yaml import file with the full
@@ -224,7 +221,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
 
     def add_alarm_url_to_vnf(self, context, vnf_dict):
         vnfd_yaml = vnf_dict['vnfd']['attributes'].get('vnfd', '')
-        vnfd_dict = yaml.load(vnfd_yaml)
+        vnfd_dict = yaml.safe_load(vnfd_yaml)
         if vnfd_dict and vnfd_dict.get('tosca_definitions_version'):
             polices = vnfd_dict['topology_template'].get('policies', [])
             for policy_dict in polices:
@@ -337,8 +334,6 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
     def create_vnf(self, context, vnf):
         vnf_info = vnf['vnf']
         name = vnf_info['name']
-        if self._get_by_name(context, vnfm_db.VNF, name):
-            raise exceptions.DuplicateResourceName(resource='VNF', name=name)
 
         # if vnfd_template specified, create vnfd from template
         # create template dictionary structure same as needed in create_vnfd()
@@ -655,7 +650,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
     def get_vnf_policies(
             self, context, vnf_id, filters=None, fields=None):
         vnf = self.get_vnf(context, vnf_id)
-        vnfd_tmpl = yaml.load(vnf['vnfd']['attributes']['vnfd'])
+        vnfd_tmpl = yaml.safe_load(vnf['vnfd']['attributes']['vnfd'])
         policy_list = []
 
         polices = vnfd_tmpl['topology_template'].get('policies', [])

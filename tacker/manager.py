@@ -108,8 +108,8 @@ class TackerManager(object):
         Load class using stevedore alias or the class name
         :param namespace: namespace where alias is defined
         :param plugin_provider: plugin alias or class name
-        :returns plugin that is loaded
-        :raises ImportError if fails to load plugin
+        :returns: plugin that is loaded
+        :raises ImportError: if fails to load plugin
         """
 
         try:
@@ -179,3 +179,11 @@ class TackerManager(object):
     @classmethod
     def get_service_plugins(cls):
         return cls.get_instance().service_plugins
+
+    @classmethod
+    def has_instance(cls):
+        return cls._instance is not None
+
+    @classmethod
+    def clear_instance(cls):
+        cls._instance = None
