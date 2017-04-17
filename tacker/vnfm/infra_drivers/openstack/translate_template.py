@@ -582,6 +582,7 @@ class TOSCAToHOT(object):
                    'thres': monasca_threshold, 'cmp': monasca_cmp,
                    'eval': monasca_eval}
             properties['expression']['str_replace'] = str_replace_dict
+            properties['match_by'] = ['scale_group']
             ntf_name = ntf_name_dict[tpl_condition['comparison_operator']]
             ntf_dict = {'get_resource': ntf_name}
             properties['alarm_actions'] = [ntf_dict]
