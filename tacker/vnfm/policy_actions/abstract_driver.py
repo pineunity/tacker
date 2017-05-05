@@ -35,6 +35,6 @@ class ActionPolicyAbstractDriver(extensions.PluginInterface):
         pass
 
     @abc.abstractmethod
-    def execute_policy(self, plugin, context, vnf_dict, custom_driver):
-        """custom_driver: policy is enabled to execute with custom driver."""
+    def execute_policy(self, plugin, context, vnf_dict, args):
+        """args: policy is enabled to execute with additional arguments."""
         pass

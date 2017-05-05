@@ -24,7 +24,6 @@ from oslo_log import log as logging
 from oslo_utils import excutils
 from toscaparser.tosca_template import ToscaTemplate
 
-from tacker._i18n import _LE
 from tacker.api.v1 import attributes
 from tacker.common import driver_manager
 from tacker.common import exceptions
@@ -45,7 +44,7 @@ CONF = cfg.CONF
 def config_opts():
     return [('tacker', VNFMMgmtMixin.OPTS),
             ('tacker', VNFMPlugin.OPTS_INFRA_DRIVER),
-            ('tacker', VNFMPlugin.OPTS_POLICY_DRIVER)]
+            ('tacker', VNFMPlugin.OPTS_POLICY_ACTION)]
 
 
 class VNFMMgmtMixin(object):
@@ -120,13 +119,13 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
     ]
     cfg.CONF.register_opts(OPTS_INFRA_DRIVER, 'tacker')
 
-    OPTS_POLICY_DRIVER = [
+    OPTS_POLICY_ACTION = [
         cfg.ListOpt(
             'policy_driver', default=['autoscaling', 'respawn',
                                       'log_only', 'log_and_kill'],
             help=_('Hosting vnf drivers tacker plugin will use')),
     ]
-    cfg.CONF.register_opts(OPTS_POLICY_DRIVER, 'tacker')
+    cfg.CONF.register_opts(OPTS_POLICY_ACTION, 'tacker')
 
     supported_extension_aliases = ['vnfm']
 
@@ -139,7 +138,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
             'tacker.tacker.vnfm.drivers',
             cfg.CONF.tacker.infra_driver)
         self._vnf_policy = driver_manager.DriverManager(
-            'tacker.tacker.policy.drivers',
+            'tacker.tacker.policy.actions',
             cfg.CONF.tacker.policy_driver)
         self._vnf_monitor = monitor.VNFMonitor(self.boot_wait)
         self._vnf_alarm_monitor = monitor.VNFAlarmMonitor()
@@ -276,7 +275,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
                 vnf_dict=vnf_dict, vnf_id=instance_id,
                 auth_attr=auth_attr)
         except vnfm.VNFCreateWaitFailed as e:
-            LOG.error(_LE("VNF Create failed for vnf_id %s"), vnf_id)
+            LOG.error("VNF Create failed for vnf_id %s", vnf_id)
             create_failed = True
             vnf_dict['status'] = constants.ERROR
             self.set_vnf_error_status_reason(context, vnf_id,

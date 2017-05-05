@@ -693,16 +693,6 @@ RESOURCE_ATTRIBUTE_MAP = {
             'allow_put': False,
             'is_visible': True,
         },
-        'created_at': {
-            'allow_post': False,
-            'allow_put': False,
-            'is_visible': True,
-        },
-        'updated_at': {
-            'allow_post': False,
-            'allow_put': False,
-            'is_visible': True,
-        },
         'attributes': {
             'allow_post': True,
             'allow_put': False,
@@ -780,6 +770,10 @@ class NFVOPluginBase(service_base.NFVPluginBase):
 
     @abc.abstractmethod
     def create_vim(self, context, vim):
+        pass
+
+    @abc.abstractmethod
+    def update_vim(self, context, vim_id, vim):
         pass
 
     @abc.abstractmethod

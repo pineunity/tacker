@@ -18,7 +18,7 @@ from oslo_utils import timeutils
 from tacker.db.common_services import common_services_db
 from tacker.plugins.common import constants
 from tacker.vnfm.infra_drivers.openstack import heat_client as hc
-from tacker.vnfm.policy_drivers import abstract_driver
+from tacker.vnfm.policy_actions import abstract_driver
 from tacker.vnfm import vim_client
 
 LOG = logging.getLogger(__name__)
