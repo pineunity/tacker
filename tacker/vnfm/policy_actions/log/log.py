@@ -42,7 +42,7 @@ class VNFPolicyLogOnly(abstract_driver.ActionPolicyAbstractDriver):
     def get_description(self):
         return 'Tacker VNF logging policy'
 
-    def execute_action(self, plugin, context, vnf_dict, custom_driver):
+    def execute_action(self, plugin, context, vnf_dict, args):
         vnf_id = vnf_dict['id']
         LOG.error(_('vnf %s dead'), vnf_id)
         _log_monitor_events(context,
@@ -60,7 +60,7 @@ class VNFPolicyLogAndKill(abstract_driver.ActionPolicyAbstractDriver):
     def get_description(self):
         return 'Tacker VNF log_and_kill policy'
 
-    def execute_policy(self, plugin, context, vnf_dict, custom_driver):
+    def execute_policy(self, plugin, context, vnf_dict, args):
         _log_monitor_events(context,
                             vnf_dict,
                             "ActionLogAndKill invoked")

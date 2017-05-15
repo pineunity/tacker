@@ -44,7 +44,7 @@ class VNFPolicyRespawn(abstract_driver.ActionPolicyAbstractDriver):
     def get_description(self):
         return 'Tacker VNF respawning policy'
 
-    def execute_policy(self, plugin, context, vnf_dict, custom_driver):
+    def execute_policy(self, plugin, context, vnf_dict, args):
         vnf_id = vnf_dict['id']
         LOG.info(_('vnf %s is dead and needs to be respawned'), vnf_id)
         attributes = vnf_dict['attributes']

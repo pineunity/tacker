@@ -42,9 +42,9 @@ class VNFPolicyAutoscaling(abstract_driver.ActionPolicyAbstractDriver):
     def get_description(self):
         return 'Tacker VNF auto-scaling policy'
 
-    def execute_policy(self, plugin, context, vnf_dict, custom_driver):
+    def execute_policy(self, plugin, context, vnf_dict, args):
         vnf_id = vnf_dict['id']
         _log_monitor_events(context,
                             vnf_dict,
                             "ActionAutoscalingHeat invoked")
-        plugin.create_vnf_scale(context, vnf_id, custom_driver)
+        plugin.create_vnf_scale(context, vnf_id, args)

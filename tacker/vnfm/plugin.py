@@ -224,7 +224,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
                 LOG.debug('policy driver: %s', action)
                 self._vnf_policy.invoke(
                     action, 'execute_policy', plugin=self, context=context,
-                    vnf_dict=hosting_vnf['vnf'], custom_driver={})
+                    vnf_dict=hosting_vnf['vnf'], args={})
 
             hosting_vnf = self._vnf_monitor.to_hosting_vnf(
                 vnf_dict, action_cb)
@@ -775,7 +775,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
             LOG.debug(_('vnf for monitoring: %s'), vnf_dict)
             self._vnf_policy.invoke(
                 action, 'execute_policy', plugin=self, context=context,
-                vnf_dict=vnf_dict, custom_driver={})
+                vnf_dict=vnf_dict, args={})
 
         if trigger.get('bckend_policy'):
             bckend_policy = trigger['bckend_policy']
@@ -794,7 +794,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
                 scale['scale']['policy'] = bckend_policy['name']
                 self._vnf_policy.invoke(
                     action, 'execute_policy', plugin=self, context=context,
-                    vnf_dict=vnf_dict, custom_driver=scale)
+                    vnf_dict=vnf_dict, args=scale)
 
     def create_vnf_trigger(
             self, context, vnf_id, trigger):
