@@ -41,6 +41,7 @@ Getting Started
    :maxdepth: 1
 
    install/getting_started.rst
+   install/deploy_openwrt.rst
 
 Feature Documentation
 =====================
@@ -48,12 +49,22 @@ Feature Documentation
 .. toctree::
    :maxdepth: 1
 
+   devref/vnfm_usage_guide.rst
    devref/vnfd_template_description.rst
    devref/monitor-api.rst
    devref/vnfd_template_parameterization.rst
    devref/enhanced_placement_awareness_usage_guide.rst
    devref/multisite_vim_usage_guide.rst
    devref/mistral_workflows_usage_guide.rst
+   devref/scale_usage_guide.rst
+   devref/alarm_monitoring_usage_guide.rst
+   devref/event_logging.rst
+   devref/vnffgd_template_description.rst
+   devref/vnffg_usage_guide.rst
+   devref/nsd_usage_guide.rst
+   devref/vnf_component_usage_guide.rst
+   devref/tacker_conductor.rst
+   devref/tacker_vim_monitoring.rst
 
 API Documentation
 =================
@@ -81,6 +92,7 @@ Developer Info
    devref/api_layer.rst
    devref/api_extensions.rst
    devref/tacker_functional_test.rst
+   devref/dashboards.rst
 
 Project Info
 ============
@@ -96,3 +108,4 @@ Indices and tables
 ------------------
 
 * :ref:`search`
+* :ref:`modindex`

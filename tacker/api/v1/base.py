@@ -452,6 +452,8 @@ class Controller(object):
         orig_obj = self._item(request, id, field_list=field_list,
                               parent_id=parent_id)
         orig_obj.update(body[self._resource])
+        attribs = attributes.ATTRIBUTES_TO_UPDATE
+        orig_obj[attribs] = body[self._resource].keys()
         try:
             policy.enforce(request.context,
                            action,
@@ -563,6 +565,11 @@ class Controller(object):
             if 'validate' not in attr_vals:
                 continue
             for rule in attr_vals['validate']:
+                # skip validating vnfd_id when vnfd_template is specified to
+                # create vnf
+                if resource == 'vnf' and 'vnfd_template' in body['vnf'] and \
+                   attr == "vnfd_id" and is_create:
+                    continue
                 res = attributes.validators[rule](res_dict[attr],
                                                   attr_vals['validate'][rule])
                 if res:

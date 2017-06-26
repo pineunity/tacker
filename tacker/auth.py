@@ -30,7 +30,6 @@ class TackerKeystoneContext(wsgi.Middleware):
     @webob.dec.wsgify
     def __call__(self, req):
         # Determine the user ID
-        LOG.debug('alarm url in auth: %s', req.url)
         user_id = req.headers.get('X_USER_ID')
         if not user_id:
             LOG.debug(_("X_USER_ID is not found in request"))
@@ -60,6 +59,7 @@ class TackerKeystoneContext(wsgi.Middleware):
 
         # Inject the context...
         req.environ['tacker.context'] = ctx
+
         return self.application
 
 

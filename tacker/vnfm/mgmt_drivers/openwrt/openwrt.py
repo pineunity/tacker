@@ -20,7 +20,7 @@ from oslo_serialization import jsonutils
 import yaml
 
 from tacker.common import cmd_executer
-from tacker.common.exceptions import MgmtDriverException
+from tacker.common import exceptions
 from tacker.common import log
 from tacker.vnfm.mgmt_drivers import abstract_driver
 from tacker.vnfm.mgmt_drivers import constants as mgmt_constants
@@ -58,14 +58,19 @@ class DeviceMgmtOpenWRT(abstract_driver.DeviceMGMTAbstractDriver):
         password = cfg.CONF.openwrt.password
         try:
             cmd = "uci import %s; /etc/init.d/%s restart" % (service, service)
-            LOG.debug(_('execute command: %s'), (cmd))
-            commander = cmd_executer.RemoteCommandExecutor(user,
-                                                       password,
-                                                       mgmt_ip_address)
+            LOG.debug(_('execute command: %(cmd)s on mgmt_ip_address '
+                        '%(mgmt_ip)s'),
+                      {'cmd': cmd,
+                       'mgmt_ip': mgmt_ip_address})
+            commander = cmd_executer.RemoteCommandExecutor(
+                user, password, mgmt_ip_address)
             commander.execute_command(cmd, input_data=config)
         except Exception as ex:
-            LOG.error(_("While executing command on remote: %s"), ex)
-            raise MgmtDriverException()
+            LOG.error(_("While executing command on remote "
+                        "%(mgmt_ip)s: %(exception)s"),
+                      {'mgmt_ip': mgmt_ip_address,
+                       'exception': ex})
+            raise exceptions.MgmtDriverException()
 
     @log.log
     def mgmt_call(self, plugin, context, vnf, kwargs):
@@ -79,20 +84,26 @@ class DeviceMgmtOpenWRT(abstract_driver.DeviceMGMTAbstractDriver):
             return
 
         vdus_config = dev_attrs.get('config', '')
-        config_yaml = yaml.load(vdus_config)
+        config_yaml = yaml.safe_load(vdus_config)
         if not config_yaml:
             return
         vdus_config_dict = config_yaml.get('vdus', {})
         for vdu, vdu_dict in vdus_config_dict.items():
             config = vdu_dict.get('config', {})
             for key, conf_value in config.items():
-                KNOWN_SERVICES = ('firewall', )
+                KNOWN_SERVICES = ('firewall', 'network')
                 if key not in KNOWN_SERVICES:
                     continue
                 mgmt_ip_address = mgmt_url.get(vdu, '')
                 if not mgmt_ip_address:
                     LOG.warning(_('tried to configure unknown mgmt '
-                                  'address %s'),
-                                vdu)
+                                  'address on VNF %(vnf)s VDU %(vdu)s'),
+                                {'vnf': vnf.get('name'),
+                                 'vdu': vdu})
                     continue
-                self._config_service(mgmt_ip_address, key, conf_value)
+
+                if isinstance(mgmt_ip_address, list):
+                    for ip_address in mgmt_ip_address:
+                        self._config_service(ip_address, key, conf_value)
+                else:
+                    self._config_service(mgmt_ip_address, key, conf_value)

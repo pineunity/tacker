@@ -10,7 +10,7 @@ topology_template:
     VDU1:
       type: tosca.nodes.nfv.VDU.Tacker
       properties:
-        image: cirros-0.3.4-x86_64-uec
+        image: cirros-0.3.5-x86_64-disk
         mgmt_driver: noop
         availability_zone: nova
         flavor: m1.tiny
@@ -19,6 +19,7 @@ topology_template:
       type: tosca.nodes.nfv.CP.Tacker
       properties:
         management: true
+        order: 0
         anti_spoofing_protection: false
       requirements:
         - virtualLink:
@@ -29,7 +30,7 @@ topology_template:
     VDU2:
       type: tosca.nodes.nfv.VDU.Tacker
       properties:
-        image: cirros-0.3.4-x86_64-uec
+        image: cirros-0.3.5-x86_64-disk
         mgmt_driver: noop
         availability_zone: nova
         flavor: m1.tiny
@@ -38,6 +39,7 @@ topology_template:
       type: tosca.nodes.nfv.CP.Tacker
       properties:
         management: true
+        order: 0
         anti_spoofing_protection: false
       requirements:
         - virtualLink:
@@ -48,12 +50,12 @@ topology_template:
     VL1:
       type: tosca.nodes.nfv.VL
       properties:
-        network_name: private
+        network_name: net_mgmt
         vendor: Tacker
 
   policies:
     - SP1:
-        type: tosca.policy.tacker.Scaling
+        type: tosca.policies.tacker.Scaling
         properties:
           increment: 1
           cooldown: 120
