@@ -84,7 +84,8 @@ HEAT_RESOURCE_MAP = {
     "image": "OS::Glance::Image"
 }
 
-SCALE_RESOURCES = ("OS::Heat::AutoScalingGroup", "OS::Heat::ScalingPolicy")
+SCALE_GROUP_RESOURCE = "OS::Heat::AutoScalingGroup"
+SCALE_POLICY_RESOURCE = "OS::Heat::ScalingPolicy"
 
 
 @log.log
@@ -347,7 +348,7 @@ def post_process_heat_template(heat_tpl, mgmt_ports, metadata,
         for trigger_name, alarm_actions_dict in alarm_actions.items():
             if heat_dict['resources'].get(trigger_name):
                 heat_dict['resources'][trigger_name]['properties']. \
-                    update(alarm_actions_dict[trigger_name])
+                    update(alarm_actions_dict)
 
     add_resources_tpl(heat_dict, res_tpl)
     for res in heat_dict["resources"].values():
@@ -532,6 +533,28 @@ def get_resources_dict(template, flavor_extra_input=None):
         else:
             res_dict[res] = res_method(template)
     return res_dict
+
+
+@log.log
+def get_scaling_policy(template):
+    scaling_policy_names = list()
+    for policy in template.policies:
+        if (policy.type_definition.is_derived_from(SCALING)):
+            scaling_policy_names.append(policy.name)
+    return scaling_policy_names
+
+
+@log.log
+def get_scaling_group_dict(ht_template, scaling_policy_names):
+    scaling_group_dict = dict()
+    scaling_group_names = list()
+    heat_dict = yamlparser.simple_ordered_parse(ht_template)
+    for resource_name, resource_dict in heat_dict['resources'].items():
+        if resource_dict['type'] == SCALE_GROUP_RESOURCE:
+            scaling_group_names.append(resource_name)
+    if scaling_group_names:
+        scaling_group_dict[scaling_policy_names[0]] = scaling_group_names[0]
+    return scaling_group_dict
 
 
 def get_nested_resources_name(template):

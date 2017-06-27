@@ -160,7 +160,7 @@ class VNFMonitor(object):
                         vdu_delay):
                         continue
 
-                actions = policy[driver].get('actions', {})
+                actions = policy[driver].get('action', {})
                 if 'mgmt_ip' not in params:
                     params['mgmt_ip'] = mgmt_ips[vdu]
 
@@ -220,7 +220,7 @@ class VNFAlarmMonitor(object):
             params['vnf_id'] = vnf['id']
             params['mon_policy_name'] = trigger_name
             driver = trigger_dict['event_type']['implementation']
-            policy_action_list = trigger_dict.get('actions')
+            policy_action_list = trigger_dict.get('action')
             if len(policy_action_list) == 0:
                 _log_monitor_events(t_context.get_admin_context(),
                                     vnf,

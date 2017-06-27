@@ -79,7 +79,7 @@ topology_template:
                 event_type:
                     type: tosca.events.resource.utilization
                     implementation: ceilometer
-                metrics: cpu_util
+                meter_name: cpu_util
                 condition:
                     threshold: 50
                     constraint: utilization greater_than 50%
@@ -88,14 +88,14 @@ topology_template:
                     method: average
                     comparison_operator: gt
                 metadata: SG1
-                actions: [SP1]
+                action: [SP1]
 
             vdu_lcpu_usage_scaling_in:
                 targets: [VDU1, VDU2]
                 event_type:
                     type: tosca.events.resource.utilization
                     implementation: ceilometer
-                metrics: cpu_util
+                meter_name: cpu_util
                 condition:
                     threshold: 10
                     constraint: utilization less_than 10%
@@ -104,4 +104,4 @@ topology_template:
                     method: average
                     comparison_operator: lt
                 metadata: SG1
-                actions: [SP1]
+                action: [SP1]

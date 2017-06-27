@@ -276,6 +276,7 @@ class TOSCAToHOT(object):
         res_tpl = toscautils.get_resources_dict(tosca,
                                                 self.STACK_FLAVOR_EXTRA)
         toscautils.post_process_template(tosca)
+        scaling_policy_names = toscautils.get_scaling_policy(tosca)
         try:
             translator = tosca_translator.TOSCATranslator(tosca,
                                                           parsed_params)
@@ -297,7 +298,15 @@ class TOSCAToHOT(object):
             nested_tpl = toscautils.update_nested_scaling_resources(
                 self.nested_resources, mgmt_ports)
             self.fields['files'] = nested_tpl
+            self.vnf['attributes'][nested_resource_name] =\
+                nested_tpl[nested_resource_name]
             mgmt_ports.clear()
+
+        if scaling_policy_names:
+            scaling_group_dict = toscautils.get_scaling_group_dict(
+                heat_template_yaml, scaling_policy_names)
+            self.vnf['attributes']['scaling_group_names'] =\
+                jsonutils.dumps(scaling_group_dict)
 
         heat_template_yaml = toscautils.post_process_heat_template(
             heat_template_yaml, mgmt_ports, metadata, alarm_resources,

@@ -14,6 +14,7 @@
 #    under the License.
 
 import codecs
+import json
 import mock
 import os
 import unittest
@@ -268,6 +269,11 @@ class TestOpenStack(base.TestCase):
         vnf = self._get_dummy_tosca_vnf(tosca_tpl_name, input_params)
         expected_result = '4a4c2d44-8a52-4895-9a75-9d1c76c3e738'
         expected_fields = self._get_expected_fields_tosca(hot_tpl_name)
+        expected_vnf = self._get_expected_tosca_vnf(tosca_tpl_name,
+                                                    hot_tpl_name,
+                                                    input_params,
+                                                    is_monitor,
+                                                    multi_vdus)
         result = self.infra_driver.create(plugin=None, context=self.context,
                                          vnf=vnf,
                                          auth_attr=utils.get_vim_auth_obj())
@@ -289,6 +295,20 @@ class TestOpenStack(base.TestCase):
             vnf["attributes"]["heat_template"])
         self.heat_client.create.assert_called_once_with(expected_fields)
         self.assertEqual(expected_result, result)
+
+        if files:
+            expected_fields["files"] = {}
+            for k, v in files.items():
+                expected_vnf["attributes"][k] = yaml.safe_load(
+                    _get_template(v))
+                vnf["attributes"][k] = yaml.safe_load(
+                    vnf["attributes"][k])
+            expected_vnf["attributes"]['scaling_group_names'] = {
+                'SP1': 'SP1_group'}
+            vnf["attributes"]['scaling_group_names'] = json.loads(
+                vnf["attributes"]['scaling_group_names']
+            )
+        self.assertEqual(expected_vnf, vnf)
 
     def test_create_tosca(self):
         # self.skipTest("Not ready yet")
