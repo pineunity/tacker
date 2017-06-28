@@ -17,7 +17,6 @@ import codecs
 import json
 import mock
 import os
-import unittest
 import yaml
 
 from tacker import context
@@ -440,12 +439,11 @@ class TestOpenStack(base.TestCase):
             is_monitor=False
         )
 
-    @unittest.skip("Related Bug 1682098")
     def test_create_tosca_alarm_scale(self):
         self._test_assert_equal_for_tosca_templates(
             'tosca_alarm_scale.yaml',
             'hot_tosca_alarm_scale.yaml',
-            files={'scaling.yaml': 'hot_alarm_scale_custom.yaml'},
+            files={'SP1_res.yaml': 'hot_alarm_scale_custom.yaml'},
             is_monitor=False
         )
 

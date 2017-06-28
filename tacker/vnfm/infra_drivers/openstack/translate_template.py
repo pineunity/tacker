@@ -296,7 +296,7 @@ class TOSCAToHOT(object):
 
         if self.nested_resources:
             nested_tpl = toscautils.update_nested_scaling_resources(
-                self.nested_resources, mgmt_ports)
+                self.nested_resources, mgmt_ports, metadata)
             self.fields['files'] = nested_tpl
             self.vnf['attributes'][nested_resource_name] =\
                 nested_tpl[nested_resource_name]

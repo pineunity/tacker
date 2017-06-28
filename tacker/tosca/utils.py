@@ -332,8 +332,9 @@ def post_process_heat_template(heat_tpl, mgmt_ports, metadata,
         LOG.debug(_('Added output for %s'), outputname)
     if metadata:
         for vdu_name, metadata_dict in metadata['vdus'].items():
-            heat_dict['resources'][vdu_name]['properties']['metadata'] =\
-                metadata_dict
+            if heat_dict['resources'].get(vdu_name):
+                heat_dict['resources'][vdu_name]['properties']['metadata'] =\
+                    metadata_dict
     matching_metadata = alarm_resources.get('matching_metadata')
     alarm_actions = alarm_resources.get('alarm_actions')
     if matching_metadata:
@@ -564,13 +565,17 @@ def get_nested_resources_name(template):
             return nested_resource_name
 
 
-def update_nested_scaling_resources(nested_resources, mgmt_ports):
+def update_nested_scaling_resources(nested_resources, mgmt_ports, metadata):
     nested_tpl = dict()
     if nested_resources:
         nested_resource_name, nested_resources_yaml =\
             list(nested_resources.items())[0]
         nested_resources_dict =\
             yamlparser.simple_ordered_parse(nested_resources_yaml)
+        if metadata:
+            for vdu_name, metadata_dict in metadata['vdus'].items():
+                nested_resources_dict['resources'][vdu_name]['properties']['metadata'] = \
+                    metadata_dict
         for outputname, portname in mgmt_ports.items():
             ipval = {'get_attr': [portname, 'fixed_ips', 0, 'ip_address']}
             output = {outputname: {'value': ipval}}
