@@ -252,9 +252,10 @@ def add_resources_tpl(heat_dict, hot_res_tpl):
 
             for prop, val in iteritems(vdu_dict):
                 heat_dict["resources"][res_name]["properties"][prop] = val
-            heat_dict["resources"][vdu]["properties"][res] = {
-                "get_resource": res_name
-            }
+            if heat_dict["resources"].get(vdu):
+                heat_dict["resources"][vdu]["properties"][res] = {
+                    "get_resource": res_name
+                }
 
 
 @log.log
@@ -565,7 +566,8 @@ def get_nested_resources_name(template):
             return nested_resource_name
 
 
-def update_nested_scaling_resources(nested_resources, mgmt_ports, metadata):
+def update_nested_scaling_resources(nested_resources, mgmt_ports, metadata,
+                                    res_tpl, unsupported_res_prop=None):
     nested_tpl = dict()
     if nested_resources:
         nested_resource_name, nested_resources_yaml =\
@@ -576,6 +578,18 @@ def update_nested_scaling_resources(nested_resources, mgmt_ports, metadata):
             for vdu_name, metadata_dict in metadata['vdus'].items():
                 nested_resources_dict['resources'][vdu_name]['properties']['metadata'] = \
                     metadata_dict
+        add_resources_tpl(nested_resources_dict, res_tpl)
+        for res in nested_resources_dict["resources"].values():
+            if not res['type'] == HEAT_SOFTWARE_CONFIG:
+                continue
+            config = res["properties"]["config"]
+            if 'get_file' in config:
+                res["properties"]["config"] = open(config["get_file"]).read()
+
+        if unsupported_res_prop:
+            convert_unsupported_res_prop(nested_resources_dict,
+                                         unsupported_res_prop)
+
         for outputname, portname in mgmt_ports.items():
             ipval = {'get_attr': [portname, 'fixed_ips', 0, 'ip_address']}
             output = {outputname: {'value': ipval}}
