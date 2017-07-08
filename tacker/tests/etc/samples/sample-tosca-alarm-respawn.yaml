@@ -8,17 +8,12 @@ topology_template:
   node_templates:
     VDU1:
       type: tosca.nodes.nfv.VDU.Tacker
-      capabilities:
-        nfv_compute:
-          properties:
-            disk_size: 1 GB
-            mem_size: 512 MB
-            num_cpus: 2
       properties:
         image: cirros-0.3.5-x86_64-disk
         mgmt_driver: noop
         availability_zone: nova
         metadata: {metering.vnf: VDU1}
+        flavor: m1.tiny
 
     CP1:
       type: tosca.nodes.nfv.CP.Tacker
