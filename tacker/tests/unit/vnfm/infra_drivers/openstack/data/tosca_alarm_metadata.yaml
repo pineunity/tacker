@@ -48,13 +48,13 @@ topology_template:
                 event_type:
                     type: tosca.events.resource.utilization
                     implementation: Ceilometer
-                meter_name: cpu_util
+                metrics: cpu_util
                 condition:
                     threshold: 50
                     constraint: utilization greater_than 50%
                     period: 60
                     evaluations: 1
-                    method: avg
+                    method: average
                     comparison_operator: gt
                 metadata: VDU1
-                action: ''
+                actions: ''

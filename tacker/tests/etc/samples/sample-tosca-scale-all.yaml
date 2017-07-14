@@ -10,11 +10,16 @@ topology_template:
   node_templates:
     VDU1:
       type: tosca.nodes.nfv.VDU.Tacker
+      capabilities:
+        nfv_compute:
+          properties:
+            num_cpus: 1
+            mem_size: 512 MB
+            disk_size: 1 GB
       properties:
         image: cirros-0.3.5-x86_64-disk
         mgmt_driver: noop
         availability_zone: nova
-        flavor: m1.tiny
 
     CP1:
       type: tosca.nodes.nfv.CP.Tacker
@@ -36,10 +41,10 @@ topology_template:
   policies:
     - SP1:
         type: tosca.policies.tacker.Scaling
-        targets: [VDU1]
         properties:
           increment: 1
           cooldown: 60
           min_instances: 1
           max_instances: 3
           default_instances: 2
+          targets: [VDU1]

@@ -75,7 +75,7 @@ class VnfTestAlarmMonitor(base.BaseTackerTest):
                     if policy['type'] == constants.POLICY_ALARMING:
                         triggers = policy['triggers']
                         for trigger_name, trigger_dict in triggers.items():
-                            policy_action_list = trigger_dict['action']
+                            policy_action_list = trigger_dict['actions']
                             for policy_action in policy_action_list:
                                 mon_policy[trigger_name] = policy_action
             return mon_policy
@@ -139,6 +139,7 @@ class VnfTestAlarmMonitor(base.BaseTackerTest):
         self.addCleanup(self.wait_until_vnf_delete, vnf_id,
                         constants.VNF_CIRROS_DELETE_TIMEOUT)
 
+    @unittest.skip("Related Bug 1682098")
     def test_vnf_alarm_respawn(self):
         self._test_vnf_tosca_alarm(
             'sample-tosca-alarm-respawn.yaml',
