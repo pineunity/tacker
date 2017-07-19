@@ -71,7 +71,7 @@ class VnfTestToscaScale(base.BaseTackerTest):
         self.assertIn('VDU1', resources_list)
 
         self.assertIn('CP1', resources_list)
-        self.assertIn('G1', resources_list)
+        self.assertIn('SP1_group', resources_list)
 
         def _scale(type, count):
             body = {"scale": {'type': type, 'policy': 'SP1'}}
