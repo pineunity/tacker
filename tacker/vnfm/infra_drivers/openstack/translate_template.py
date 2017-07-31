@@ -71,9 +71,7 @@ class TOSCAToHOT(object):
         LOG.debug('vnfd_dict %s', vnfd_dict)
         self._get_unsupported_resource_props(self.heatclient)
 
-#        is_tosca_format = False
         self._generate_hot_from_tosca(vnfd_dict, dev_attrs)
-#        is_tosca_format = True
         self.fields['template'] = self.heat_template_yaml
         if not self.vnf['attributes'].get('heat_template'):
             self.vnf['attributes']['heat_template'] = self.fields['template']
@@ -87,7 +85,7 @@ class TOSCAToHOT(object):
         self.vnfd_yaml = self.attributes.pop('vnfd', None)
         if self.vnfd_yaml is None:
             # TODO(kangaraj-manickam) raise user level exception
-            LOG.info(_("VNFD is not provided, so no vnf is created !!"))
+            LOG.info("VNFD is not provided, so no vnf is created !!")
             return
         LOG.debug('vnfd_yaml %s', self.vnfd_yaml)
 

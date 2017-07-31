@@ -54,7 +54,7 @@ topology_template:
                     constraint: utilization greater_than 50%
                     period: 60
                     evaluations: 1
-                    method: avg
+                    method: average
                     comparison_operator: gt
                 metadata: VDU1
                 action: ''

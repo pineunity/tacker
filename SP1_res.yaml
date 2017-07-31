@@ -1,20 +1,20 @@
 description: Tacker Scaling template
 resources:
-  VL1:
-    type: OS::Neutron::Net
   CP1:
     type: OS::Neutron::Port
     properties:
-      port_security_enabled: false
       network: net_mgmt
+      port_security_enabled: false
   VDU1:
     type: OS::Nova::Server
     properties:
-      image: cirros-0.3.5-x86_64-disk
+      flavor: m1.tiny
       networks:
       - port: { get_resource: CP1 }
-      user_data_format: SOFTWARE_CONFIG
       config_drive: false
-      flavor: m1.tiny
       availability_zone: nova
+      user_data_format: SOFTWARE_CONFIG
+      image: cirros-0.3.5-x86_64-disk
+  VL1:
+    type: OS::Neutron::Net
 heat_template_version: 2013-05-23
