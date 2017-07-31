@@ -123,7 +123,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
     OPTS_POLICY_ACTION = [
         cfg.ListOpt(
             'policy_action', default=['autoscaling', 'respawn',
-                                      'log_only', 'log_and_kill'],
+                                      'log', 'log_and_kill'],
             help=_('Hosting vnf drivers tacker plugin will use')),
     ]
     cfg.CONF.register_opts(OPTS_POLICY_ACTION, 'tacker')
@@ -736,9 +736,9 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
             raise exceptions.AlarmUrlInvalid(vnf_id=vnf_id)
 
         # validate policy action. if action is composite, split it.
-        # ex: respawn&notify
+        # ex: respawn%notify
         action = trigger['action_name']
-        action_list = action.split('&')
+        action_list = action.split('%')
         pl_action_dict = dict()
         pl_action_dict['policy_actions'] = dict()
         pl_action_dict['policy_actions']['def_actions'] = list()
@@ -766,6 +766,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
                                    'bckend_action': action_}})
 
         LOG.debug(_("Trigger %s is validated successfully"), trigger)
+
         return pl_action_dict
         # validate url
 
@@ -804,8 +805,8 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
         # Multiple actions support
         if trigger.get('policy_actions'):
             policy_actions = trigger['policy_actions']
-            if policy_actions.get('default_actions'):
-                for action in policy_actions['default_actions']:
+            if policy_actions.get('def_actions'):
+                for action in policy_actions['def_actions']:
                     self._vnf_action.invoke(
                         action, 'execute_action', plugin=self, context=context,
                         vnf_dict=vnf_dict, args={})

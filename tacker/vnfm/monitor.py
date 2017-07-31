@@ -249,8 +249,8 @@ class VNFAlarmMonitor(object):
                         policy_action[index] = _refactor_backend_policy(
                             policy_action_name, scaling_type)
 
-            # Support multiple action. Ex: respawn & notify
-            action_name = '&'.join(policy_action)
+            # Support multiple action. Ex: respawn % notify
+            action_name = '%'.join(policy_action)
 
             params['mon_policy_action'] = action_name
             alarm_url[trigger_name] =\

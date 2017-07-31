@@ -49,10 +49,11 @@ class AlarmReceiver(wsgi.Middleware):
         if not self.handle_url(url):
             return
         prefix, info, params = self.handle_url(req.url)
-        token = Token(username=cfg.CONF.alarm_auth.username,
-                      password=cfg.CONF.alarm_auth.password,
-                      project_name=cfg.CONF.alarm_auth.project_name,
-                      auth_url=cfg.CONF.alarm_auth.url,
+        auth = cfg.CONF.keystone_authtoken
+        token = Token(username='admin',
+                      password=c'devstack',
+                      project_name='admin',
+                      auth_url=auth.auth_url + '/v3',
                       user_domain_name='default',
                       project_domain_name='default')
 
