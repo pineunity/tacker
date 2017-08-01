@@ -51,7 +51,7 @@ class AlarmReceiver(wsgi.Middleware):
         prefix, info, params = self.handle_url(req.url)
         auth = cfg.CONF.keystone_authtoken
         token = Token(username='admin',
-                      password=c'devstack',
+                      password='devstack',
                       project_name='admin',
                       auth_url=auth.auth_url + '/v3',
                       user_domain_name='default',
