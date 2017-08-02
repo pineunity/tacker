@@ -51,7 +51,7 @@ class AlarmReceiver(wsgi.Middleware):
         token = Token(username=cfg.CONF.alarm_auth.username,
                       password=cfg.CONF.alarm_auth.password,
                       project_name=cfg.CONF.alarm_auth.project_name,
-                      auth_url=auth.auth_url + 'v3',
+                      auth_url=auth.auth_url + '/v3',
                       user_domain_name='default',
                       project_domain_name='default')
 
