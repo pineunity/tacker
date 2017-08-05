@@ -23,8 +23,8 @@ from tacker.vnfm.monitor_drivers import abstract_driver
 LOG = logging.getLogger(__name__)
 
 OPTS = [
-    cfg.StrOpt('host', default=utils.get_hostname(),
-               help=_('Address which drivers use to trigger')),
+    cfg.HostAddressOpt('host', default=utils.get_hostname(),
+                       help=_('Address which drivers use to trigger')),
     cfg.PortOpt('port', default=9890,
                help=_('port number which drivers use to trigger'))
 ]
@@ -60,7 +60,7 @@ class VNFMonitorCeilometer(
         # -name/action-name?key=8785'
         host = cfg.CONF.ceilometer.host
         port = cfg.CONF.ceilometer.port
-        LOG.info(_("Tacker in heat listening on %(host)s:%(port)s"),
+        LOG.info("Tacker in heat listening on %(host)s:%(port)s",
                  {'host': host,
                   'port': port})
         origin = "http://%(host)s:%(port)s/v1.0/vnfs" % {

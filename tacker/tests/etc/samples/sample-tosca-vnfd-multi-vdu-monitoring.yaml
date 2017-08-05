@@ -10,7 +10,7 @@ topology_template:
     VDU1:
       type: tosca.nodes.nfv.VDU.Tacker
       properties:
-        image: cirros-0.3.4-x86_64-uec
+        image: cirros-0.3.5-x86_64-disk
         flavor: m1.tiny
         availability_zone: nova
         mgmt_driver: noop
@@ -18,6 +18,15 @@ topology_template:
           param0: key1
           param1: key2
         mgmt_driver: noop
+        monitoring_policy:
+          name: ping
+          actions:
+            failure: respawn
+          parameters:
+            count: 3
+            interval: 10
+            monitoring_delay: 45
+            timeout: 2
 
     CP11:
       type: tosca.nodes.nfv.CP.Tacker
@@ -53,13 +62,22 @@ topology_template:
     VDU2:
       type: tosca.nodes.nfv.VDU.Tacker
       properties:
-        image: cirros-0.3.4-x86_64-uec
-        flavor: m1.medium
+        image: cirros-0.3.5-x86_64-disk
+        flavor: m1.tiny
         availability_zone: nova
         mgmt_driver: noop
         config: |
           param0: key1
           param1: key2
+        monitoring_policy:
+          name: ping
+          actions:
+            failure: respawn
+          parameters:
+            count: 3
+            interval: 10
+            monitoring_delay: 45
+            timeout: 2
 
     CP21:
       type: tosca.nodes.nfv.CP.Tacker
@@ -90,7 +108,7 @@ topology_template:
     VDU3:
       type: tosca.nodes.nfv.VDU.Tacker
       properties:
-        image: cirros-0.3.4-x86_64-uec
+        image: cirros-0.3.5-x86_64-disk
         flavor: m1.tiny
         availability_zone: nova
         mgmt_driver: noop

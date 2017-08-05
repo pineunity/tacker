@@ -40,8 +40,6 @@ Request Parameters
   - name: name
   - description: description_opt
   - service_types: service_types
-  - infra_driver: infra_driver_opt
-  - mgmt_driver: mgmt_driver_opt
   - attributes: vnfd_attributes
 
 Request Example
@@ -61,8 +59,6 @@ Response Parameters
   - tenant_id: tenant_id
   - created_at: created_at
   - updated_at: updated_at
-  - mgmt_driver: mgmt_driver
-  - infra_driver: infra_driver
   - attributes: vnfd_attributes
   - id: vnfd_id
   - name: name
@@ -103,11 +99,10 @@ Response Parameters
   - tenant_id: tenant_id
   - created_at: created_at
   - updated_at: updated_at
-  - mgmt_driver: mgmt_driver
-  - infra_driver: infra_driver
   - attributes: vnfd_attributes
   - id: vnfd_id
   - name: name
+  - template_source: vnfd_template_source
 
 
 Response Example
@@ -154,11 +149,10 @@ Response Parameters
   - tenant_id: tenant_id
   - created_at: created_at
   - updated_at: updated_at
-  - mgmt_driver: mgmt_driver
-  - infra_driver: infra_driver
   - attributes: vnfd_attributes
   - id: vnfd_id
   - name: name
+  - template_source: vnfd_template_source
 
 Response Example
 ----------------
@@ -214,8 +208,6 @@ Response Parameters
   - tenant_id: tenant_id
   - created_at: created_at
   - updated_at: updated_at
-  - mgmt_driver: mgmt_driver
-  - infra_driver: infra_driver
   - attributes: vnfd_attributes
   - id: vnfd_id
   - name: name

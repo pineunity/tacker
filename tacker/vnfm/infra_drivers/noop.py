@@ -15,9 +15,8 @@
 #    under the License.
 
 # TODO(yamahata): once unittests are impletemted, move this there
-import uuid
-
 from oslo_log import log as logging
+from oslo_utils import uuidutils
 
 from tacker.common import log
 from tacker.vnfm.infra_drivers import abstract_driver
@@ -45,7 +44,7 @@ class DeviceNoop(abstract_driver.DeviceAbstractDriver):
 
     @log.log
     def create(self, **kwargs):
-        instance_id = str(uuid.uuid4())
+        instance_id = uuidutils.generate_uuid()
         self._instances.add(instance_id)
         return instance_id
 
@@ -56,7 +55,7 @@ class DeviceNoop(abstract_driver.DeviceAbstractDriver):
     @log.log
     def update(self, plugin, context, vnf_id, vnf_dict, vnf):
         if vnf_id not in self._instances:
-            LOG.debug(_('not found'))
+            LOG.debug('not found')
             raise ValueError('No instance %s' % vnf_id)
 
     @log.log
@@ -73,4 +72,4 @@ class DeviceNoop(abstract_driver.DeviceAbstractDriver):
 
     def get_resource_info(self, plugin, context, vnf_info, auth_attr,
                           region_name=None):
-        return {'noop': {'id': str(uuid.uuid4()), 'type': 'noop'}}
+        return {'noop': {'id': uuidutils.generate_uuid(), 'type': 'noop'}}

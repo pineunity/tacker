@@ -17,10 +17,10 @@
 import os
 
 from cryptography import fernet
-from keystoneclient.auth import identity
+from keystoneauth1 import exceptions
+from keystoneauth1 import identity
+from keystoneauth1 import session
 from keystoneclient import client
-from keystoneclient import exceptions
-from keystoneclient import session
 from oslo_config import cfg
 from oslo_log import log as logging
 
@@ -39,7 +39,7 @@ class Keystone(object):
     def get_version(self, base_url=None):
         try:
             keystone_client = client.Client(auth_url=base_url)
-        except exceptions.ConnectionRefused:
+        except exceptions.ConnectionError:
             raise
         return keystone_client.version
 
@@ -53,10 +53,16 @@ class Keystone(object):
     def initialize_client(self, version, **kwargs):
         if version == 'v2.0':
             from keystoneclient.v2_0 import client
-            auth_plugin = identity.v2.Password(**kwargs)
+            if 'token' in kwargs:
+                auth_plugin = identity.v2.Token(**kwargs)
+            else:
+                auth_plugin = identity.v2.Password(**kwargs)
         else:
             from keystoneclient.v3 import client
-            auth_plugin = identity.v3.Password(**kwargs)
+            if 'token' in kwargs:
+                auth_plugin = identity.v3.Token(**kwargs)
+            else:
+                auth_plugin = identity.v3.Password(**kwargs)
         ses = self.get_session(auth_plugin=auth_plugin)
         cli = client.Client(session=ses)
         return cli
@@ -64,16 +70,15 @@ class Keystone(object):
     @staticmethod
     def create_key_dir(path):
         if not os.access(path, os.F_OK):
-            LOG.info(_(
-                '[fernet_tokens] key_repository does not appear to exist; '
-                'attempting to create it'))
+            LOG.info('[fernet_tokens] key_repository does not appear to '
+                     'exist; attempting to create it')
             try:
                 os.makedirs(path, 0o700)
             except OSError:
-                LOG.error(_(
+                LOG.error(
                     'Failed to create [fernet_tokens] key_repository: either'
                     'it already exists or you don\'t have sufficient'
-                    'permissions to create it'))
+                    'permissions to create it')
 
     def create_fernet_key(self):
         fernet_key = fernet.Fernet.generate_key()

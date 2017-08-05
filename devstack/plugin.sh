@@ -25,8 +25,8 @@ if is_service_enabled tacker; then
         # Initialize and start the tacker service
         echo_summary "Initializing Tacker"
         init_tacker
-        echo_summary "Starting Tacker API"
-        start_tacker_api
+        echo_summary "Starting Tacker API and conductor"
+        start_tacker
         echo_summary "Installing tacker horizon"
         tacker_horizon_install
         if [[ "${TACKER_MODE}" == "all" ]]; then
@@ -34,8 +34,8 @@ if is_service_enabled tacker; then
             modify_heat_flavor_policy_rule
             echo_summary "Setup initial tacker network"
             tacker_create_initial_network
-            echo_summary "Upload OpenWrt image"
-            tacker_create_openwrt_image
+            echo_summary "Check and download images for tacker initial"
+            tacker_check_and_download_images
             echo_summary "Registering default VIM"
             tacker_register_default_vim
         fi

@@ -1,4 +1,6 @@
 TACKER_MODE=${TACKER_MODE:-all}
+USE_BARBICAN=True
+
 if [ "${TACKER_MODE}" == "all" ]; then
     # Nova
     disable_service n-net
@@ -18,15 +20,9 @@ if [ "${TACKER_MODE}" == "all" ]; then
     enable_service q-svc
     enable_service neutron
 
-    # Heat
-    enable_service heat
-    enable_service h-eng
-    enable_service h-api
-    enable_service h-api-cfn
-    enable_service h-api-cw
-
     enable_service tacker
-
+    # enable tacker-conductor will make systemctl enable conductor service
+    enable_service tacker-conductor
     # tacker-horizon isn't installable from pip
     LIBS_FROM_GIT=tacker-horizon
 
@@ -48,7 +44,8 @@ if [ "${TACKER_MODE}" == "all" ]; then
     FIXED_RANGE1=${FIXED_RANGE1:-10.10.1.0/24}
     NETWORK_GATEWAY1=${NETWORK_GATEWAY1:-10.10.1.1}
 elif [ "${TACKER_MODE}" == "standalone" ]; then
-    ENABLED_SERVICES=key,horizon,tacker,mysql,dstat
+    # set the enabled services here. This will need tacker devstack plugin put as the last one in local.conf
+    ENABLED_SERVICES=key,horizon,tacker,tacker-conductor,mysql,dstat,barbican,mistral,mistral-api,mistral-engine,mistral-executor,mistral-event-engine
 else
     die $LINENO "invalid value: $TACKER_MODE for TACKER_MODE"
 fi

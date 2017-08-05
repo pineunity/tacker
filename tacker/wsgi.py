@@ -33,6 +33,7 @@ from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_service import service as common_service
 from oslo_service import systemd
+from oslo_utils import encodeutils
 from oslo_utils import excutils
 import routes.middleware
 import six
@@ -83,6 +84,14 @@ def config_opts():
 LOG = logging.getLogger(__name__)
 
 
+def encode_body(body):
+    """Encode unicode body.
+
+    WebOb requires to encode unicode body used to update response body.
+    """
+    return encodeutils.to_utf8(body)
+
+
 class WorkerService(common_service.ServiceBase):
     """Wraps a worker to be handled by ProcessLauncher."""
 
@@ -93,7 +102,7 @@ class WorkerService(common_service.ServiceBase):
 
     def start(self):
         # We may have just forked from parent process.  A quick disposal of the
-        # existing sql connections avoids producting 500 errors later when they
+        # existing sql connections avoids producing 500 errors later when they
         # are discovered to be broken.
         api.get_engine().pool.dispose()
         self._server = self._service.pool.spawn(self._service._run,
@@ -136,7 +145,7 @@ class Server(object):
             family = info[0]
             bind_addr = info[-1]
         except Exception:
-            LOG.exception(_("Unable to listen on %(host)s:%(port)s"),
+            LOG.exception("Unable to listen on %(host)s:%(port)s",
                           {'host': host, 'port': port})
             sys.exit(1)
 
@@ -186,7 +195,7 @@ class Server(object):
                         eventlet.sleep(0.1)
         if not sock:
             raise RuntimeError(_("Could not bind to %(host)s:%(port)s "
-                               "after trying for %(time)d seconds") %
+                                 "after trying for %(time)d seconds") %
                                {'host': host,
                                 'port': port,
                                 'time': CONF.retry_until_window})
@@ -346,7 +355,7 @@ class Request(webob.Request):
     def get_content_type(self):
         allowed_types = ("application/json")
         if "Content-Type" not in self.headers:
-            LOG.debug(_("Missing Content-Type"))
+            LOG.debug("Missing Content-Type")
             return None
         _type = self.content_type
         if _type in allowed_types:
@@ -400,7 +409,7 @@ class JSONDictSerializer(DictSerializer):
     def default(self, data):
         def sanitizer(obj):
             return six.text_type(obj)
-        return jsonutils.dumps(data, default=sanitizer)
+        return encode_body(jsonutils.dumps(data, default=sanitizer))
 
 
 class ResponseHeaderSerializer(ActionDispatcher):
@@ -502,7 +511,7 @@ class RequestDeserializer(object):
         """Extract necessary pieces of the request.
 
         :param request: Request object
-        :returns tuple of expected controller action name, dictionary of
+        :returns: tuple of expected controller action name, dictionary of
                  keyword arguments to pass to the controller, the expected
                  content type of the response
 
@@ -524,23 +533,23 @@ class RequestDeserializer(object):
         try:
             content_type = request.best_match_content_type()
         except exception.InvalidContentType:
-            LOG.debug(_("Unrecognized Content-Type provided in request"))
+            LOG.debug("Unrecognized Content-Type provided in request")
             return {}
 
         if content_type is None:
-            LOG.debug(_("No Content-Type provided in request"))
+            LOG.debug("No Content-Type provided in request")
             return {}
 
         if not len(request.body) > 0:
-            LOG.debug(_("Empty body provided in request"))
+            LOG.debug("Empty body provided in request")
             return {}
 
         try:
             deserializer = self.get_body_deserializer(content_type)
         except exception.InvalidContentType:
             with excutils.save_and_reraise_exception():
-                LOG.debug(_("Unable to deserialize body as provided "
-                            "Content-Type"))
+                LOG.debug("Unable to deserialize body as provided "
+                          "Content-Type")
 
         return deserializer.deserialize(request.body, action)
 
@@ -615,7 +624,7 @@ class Application(object):
           res = exc.HTTPForbidden(explanation='Nice try')
 
           # Option 3: a webob Response object (in case you need to play with
-          # headers, or you want to be treated like an iterable, or or or)
+          # headers, or you want to be treated like an iterable, or or)
           res = Response();
           res.app_iter = open('somefile')
 
@@ -654,7 +663,7 @@ class Debug(Middleware):
         resp = req.get_response(self.application)
 
         print(("*" * 40) + " RESPONSE HEADERS")
-        for (key, value) in six.iteritems(resp.headers):
+        for (key, value) in (resp.headers).items():
             print(key, "=", value)
         print()
 
@@ -771,28 +780,28 @@ class Resource(Application):
     def __call__(self, request):
         """WSGI method that controls (de)serialization and method dispatch."""
 
-        LOG.info(_("%(method)s %(url)s"), {"method": request.method,
-                                           "url": request.url})
+        LOG.info("%(method)s %(url)s", {"method": request.method,
+                                        "url": request.url})
 
         try:
             action, args, accept = self.deserializer.deserialize(request)
         except exception.InvalidContentType:
-            msg = _("Unsupported Content-Type")
-            LOG.exception(_("InvalidContentType: %s"), msg)
-            return Fault(webob.exc.HTTPBadRequest(explanation=msg))
+            LOG.exception("InvalidContentType: Unsupported Content-Type")
+            return Fault(webob.exc.HTTPBadRequest(
+                explanation=_("Unsupported Content-Type")))
         except exception.MalformedRequestBody:
-            msg = _("Malformed request body")
-            LOG.exception(_("MalformedRequestBody: %s"), msg)
-            return Fault(webob.exc.HTTPBadRequest(explanation=msg))
+            LOG.exception("MalformedRequestBody: Malformed request body")
+            return Fault(webob.exc.HTTPBadRequest(
+                explanation=_("Malformed request body")))
 
         try:
             action_result = self.dispatch(request, action, args)
         except webob.exc.HTTPException as ex:
-            LOG.info(_("HTTP exception thrown: %s"), six.text_type(ex))
+            LOG.info("HTTP exception thrown: %s", ex)
             action_result = Fault(ex,
                                   self._fault_body_function)
         except Exception:
-            LOG.exception(_("Internal error"))
+            LOG.exception("Internal error")
             # Do not include the traceback to avoid returning it to clients.
             action_result = Fault(webob.exc.HTTPServerError(),
                                   self._fault_body_function)

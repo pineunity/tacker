@@ -13,6 +13,7 @@
 
 import json
 import time
+import unittest
 
 from oslo_config import cfg
 
@@ -26,6 +27,7 @@ CONF = cfg.CONF
 
 
 class VnfTestToscaScale(base.BaseTackerTest):
+    @unittest.skip("Related Bug 1682098")
     def test_vnf_tosca_scale(self):
         data = dict()
         data['tosca'] = read_file('sample-tosca-scale-all.yaml')
@@ -61,6 +63,15 @@ class VnfTestToscaScale(base.BaseTackerTest):
             self.assertEqual(count, len(json.loads(vnf['mgmt_url'])['VDU1']))
 
         _wait(2)
+        # Get nested resources when vnf is in active state
+        vnf_details = self.client.list_vnf_resources(vnf_id)['resources']
+        resources_list = list()
+        for vnf_detail in vnf_details:
+            resources_list.append(vnf_detail['name'])
+        self.assertIn('VDU1', resources_list)
+
+        self.assertIn('CP1', resources_list)
+        self.assertIn('SP1_group', resources_list)
 
         def _scale(type, count):
             body = {"scale": {'type': type, 'policy': 'SP1'}}
@@ -93,4 +104,4 @@ class VnfTestToscaScale(base.BaseTackerTest):
         # Delete vnfd_instance
         self.addCleanup(self.client.delete_vnfd, vnfd_id)
         self.addCleanup(self.wait_until_vnf_delete, vnf_id,
-            constants.VNF_CIRROS_DELETE_TIMEOUT)
+                        constants.VNF_CIRROS_DELETE_TIMEOUT)

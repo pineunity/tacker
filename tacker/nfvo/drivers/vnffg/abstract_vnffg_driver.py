@@ -67,3 +67,23 @@ class VnffgAbstractDriver(extensions.PluginInterface):
     def delete_flow_classifier(self, fc_id, auth_attr=None):
         """Delete flow classifier"""
         pass
+
+    @abc.abstractmethod
+    def get_port_pair(self, fc_id, auth_attr=None):
+        """Delete flow classifier"""
+        pass
+
+    @abc.abstractmethod
+    def get_port_pair_group(self, fc_id, auth_attr=None):
+        """Delete flow classifier"""
+        pass
+
+    @abc.abstractmethod
+    def get_chain(self, fc_id, auth_attr=None):
+        """Delete flow classifier"""
+        pass
+
+    @abc.abstractmethod
+    def get_flow_classifier(self, fc_id, auth_attr=None):
+        """Delete flow classifier"""
+        pass

@@ -30,9 +30,10 @@ Install from master
     $ git clone https://git.openstack.org/openstack-dev/devstack
     $ cd devstack
 
-2. Add this repo as an external repository into your ``local.conf`` file::
+2. Enable both heat and tacker devstack plugins in ``local.conf`` file::
 
     [[local|localrc]]
+    enable_plugin heat https://git.openstack.org/openstack/heat
     enable_plugin tacker https://git.openstack.org/openstack/tacker
 
 3. Run ``stack.sh``::
@@ -61,9 +62,10 @@ place of branch-name as given below:
     $ ./stack.sh
 
 Standalone mode installation
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-By default, the tacker devstack plugin will install the tacker and other OpenStack
-services together. By setting TACKER_MODE=standalone in local.conf, we will install
-a standalone tacker environment with some mandatory OpenStack services, such as
-KeyStone. After this installation, a default VIM must be registered manually.
+By default, the tacker devstack plugin will install the tacker and
+other OpenStack services together. By setting TACKER_MODE=standalone
+in local.conf, we will install a standalone tacker environment with
+some mandatory OpenStack services, such as KeyStone.
+After this installation, a default VIM must be registered manually.
