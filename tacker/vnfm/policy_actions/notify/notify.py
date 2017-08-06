@@ -77,10 +77,12 @@ class VNFActionNotify(abstract_action.AbstractPolicyAction):
             try:
                 if action in constants.DEFAULT_ALARM_ACTIONS:
                     target = conductorrpc.AutoHealingRPC.AutoHealingRPC.target
-                    self.current_status = _establish_rpc(target, 'vnf_respawning_event')
+                    output = _establish_rpc(target, 'vnf_respawning_event')
+                    LOG.debug('RPC respawning output: %s', output)
                 else:
                     target = conductorrpc.AutoScalingRPC.AutoScalingRPC.target
-                    self.current_status = _establish_rpc(target, 'vnf_scaling_event')
+                    output = _establish_rpc(target, 'vnf_scaling_event')
+                    LOG.debug('RPC scaling output: %s', output)
             except Exception:
                 LOG.exception('failed to establish rpc call for vnf %s',
                               vnf_id)

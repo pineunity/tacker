@@ -83,6 +83,11 @@ class Conductor(manager.Manager):
         #                  'updated_at': update_time})
         #
         # return vnffg_id or ns_id
+        # action: in or out
+
+        # check state pending_scale_out_in, pending_scale_out become active
+
+        return vnf_id
 
     def vnf_respawning_event(self, vnf_id):
         # case 2: Auto-healing support
@@ -101,6 +106,10 @@ class Conductor(manager.Manager):
         #    try:
         #        query = t_admin_context.session.query(vnffg_db.Vnffg)
         #        vnffg_list = query.filter(vnffg_db.Vnffg.vnf_mapping)
+
+        # check pending_create for resoawnng action until become active
+
+        return vnf_id
 
 
         # return vnffg_id or ns_id
