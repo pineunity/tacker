@@ -14,21 +14,22 @@
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
-from six.moves.urllib import parse
+from six.moves.urllib import parse as urlparse
 from tacker.vnfm.monitor_drivers.token import Token
 from tacker import wsgi
 # check alarm url with db --> move to plugin
 
-
 LOG = logging.getLogger(__name__)
 
 OPTS = [
-    cfg.StrOpt('username', default='admin',
+    cfg.StrOpt('username', default='tacker',
         help=_('User name for alarm monitoring')),
-    cfg.StrOpt('password', default='devstack',
+    cfg.StrOpt('password', default='nomoresecret',
         help=_('password for alarm monitoring')),
-    cfg.StrOpt('project_name', default='admin',
+    cfg.StrOpt('project_name', default='service',
         help=_('project name for alarm monitoring')),
+    cfg.StrOpt('url', default='http://localhost:35357/v3',
+        help=_('url for alarm monitoring')),
 ]
 
 cfg.CONF.register_opts(OPTS, 'alarm_auth')
@@ -40,18 +41,17 @@ def config_opts():
 
 class AlarmReceiver(wsgi.Middleware):
     def process_request(self, req):
-        LOG.debug('Process request: %s', req)
+        LOG.debug(_('Process request: %s'), req)
         if req.method != 'POST':
             return
         url = req.url
         if not self.handle_url(url):
             return
         prefix, info, params = self.handle_url(req.url)
-        auth = cfg.CONF.keystone_authtoken
         token = Token(username=cfg.CONF.alarm_auth.username,
                       password=cfg.CONF.alarm_auth.password,
                       project_name=cfg.CONF.alarm_auth.project_name,
-                      auth_url=auth.auth_url + '/v3',
+                      auth_url=cfg.CONF.alarm_auth.url,
                       user_domain_name='default',
                       project_domain_name='default')
 
@@ -78,16 +78,14 @@ class AlarmReceiver(wsgi.Middleware):
 
     def handle_url(self, url):
         # alarm_url = 'http://host:port/v1.0/vnfs/vnf-uuid/mon-policy-name/action-name/8ef785' # noqa
-        parts = parse.urlparse(url)
+        parts = urlparse.urlparse(url)
         p = parts.path.split('/')
         if len(p) != 7:
             return None
 
         if any((p[0] != '', p[2] != 'vnfs')):
             return None
-        # decode action name: respawn%25log
-        p[5] = parse.unquote(p[5])
-        qs = parse.parse_qs(parts.query)
+        qs = urlparse.parse_qs(parts.query)
         params = dict((k, v[0]) for k, v in qs.items())
         prefix_url = '/%(collec)s/%(vnf_uuid)s/' % {'collec': p[2],
                                                     'vnf_uuid': p[3]}
