@@ -25,7 +25,7 @@ LOG = logging.getLogger(__name__)
 OPTS = [
     cfg.StrOpt('username', default='admin',
         help=_('User name for alarm monitoring')),
-    cfg.StrOpt('password', default='nomoresecret',
+    cfg.StrOpt('password', default='devstack',
         help=_('password for alarm monitoring')),
     cfg.StrOpt('project_name', default='admin',
         help=_('project name for alarm monitoring')),
@@ -92,3 +92,4 @@ class AlarmReceiver(wsgi.Middleware):
         prefix_url = '/%(collec)s/%(vnf_uuid)s/' % {'collec': p[2],
                                                     'vnf_uuid': p[3]}
         return prefix_url, p, params
+
