@@ -738,7 +738,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
         # validate policy action. if action is composite, split it.
         # ex: respawn%25notify
         action = trigger['action_name']
-        action_list = action.split('%25')
+        action_list = action.split('%')
         pl_action_dict = dict()
         pl_action_dict['policy_actions'] = dict()
         pl_action_dict['policy_actions']['def_actions'] = list()
