@@ -179,10 +179,6 @@ class BarbicanKeyManager(key_manager.KeyManager):
             msg = _("Key ID is None")
             raise exception.KeyManagerError(reason=msg)
         base_url = self._base_url
-        if 'key-manager' not in base_url:
-            base_url_list = base_url.split('/')
-            base_url_list[3] = 'key-manager/' + base_url_list[3]
-            base_url = '/'.join(base_url_list)
 
         if base_url[-1] != '/':
             base_url += '/'
