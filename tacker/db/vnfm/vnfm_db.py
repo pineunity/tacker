@@ -14,18 +14,22 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import uuid
+from datetime import datetime
 
+from oslo_db.exception import DBDuplicateEntry
 from oslo_log import log as logging
 from oslo_utils import timeutils
+from oslo_utils import uuidutils
 
 import sqlalchemy as sa
 from sqlalchemy import orm
 from sqlalchemy.orm import exc as orm_exc
+from sqlalchemy import schema
 
 from tacker.api.v1 import attributes
+from tacker.common import exceptions
 from tacker import context as t_context
-from tacker.db.common_services import common_services_db
+from tacker.db.common_services import common_services_db_plugin
 from tacker.db import db_base
 from tacker.db import model_base
 from tacker.db import models_v1
@@ -56,18 +60,26 @@ class VNFD(model_base.BASE, models_v1.HasId, models_v1.HasTenant,
 
     # service type that this service vm provides.
     # At first phase, this includes only single service
-    # In future, single service VM may accomodate multiple services.
+    # In future, single service VM may accommodate multiple services.
     service_types = orm.relationship('ServiceType', backref='vnfd')
 
-    # driver to create hosting vnf. e.g. noop, nova, heat, etc...
-    infra_driver = sa.Column(sa.String(255))
-
-    # driver to communicate with service managment
+    # driver to communicate with service management
     mgmt_driver = sa.Column(sa.String(255))
 
     # (key, value) pair to spin up
     attributes = orm.relationship('VNFDAttribute',
                                   backref='vnfd')
+
+    # vnfd template source - inline or onboarded
+    template_source = sa.Column(sa.String(255), server_default='onboarded')
+
+    __table_args__ = (
+        schema.UniqueConstraint(
+            "tenant_id",
+            "name",
+            "deleted_at",
+            name="uniq_vnfd0tenant_id0name0deleted_at"),
+    )
 
 
 class ServiceType(model_base.BASE, models_v1.HasId, models_v1.HasTenant):
@@ -84,8 +96,7 @@ class ServiceType(model_base.BASE, models_v1.HasId, models_v1.HasTenant):
 class VNFDAttribute(model_base.BASE, models_v1.HasId):
     """Represents attributes necessary for spinning up VM in (key, value) pair
 
-    key value pair is adopted for being agnostic to actuall manager of VMs
-    like nova, heat or others. e.g. image-id, flavor-id for Nova.
+    key value pair is adopted for being agnostic to actuall manager of VMs.
     The interpretation is up to actual driver of hosting vnf.
     """
 
@@ -112,7 +123,7 @@ class VNF(model_base.BASE, models_v1.HasId, models_v1.HasTenant,
     description = sa.Column(sa.Text, nullable=True)
 
     # sufficient information to uniquely identify hosting vnf.
-    # In case of service VM, it's UUID of nova VM.
+    # In case of openstack manager, it's UUID of heat stack.
     instance_id = sa.Column(sa.String(64), nullable=True)
 
     # For a management tool to talk to manage this hosting vnf.
@@ -127,12 +138,19 @@ class VNF(model_base.BASE, models_v1.HasId, models_v1.HasTenant,
     vim = orm.relationship('Vim')
     error_reason = sa.Column(sa.Text, nullable=True)
 
+    __table_args__ = (
+        schema.UniqueConstraint(
+            "tenant_id",
+            "name",
+            "deleted_at",
+            name="uniq_vnf0tenant_id0name0deleted_at"),
+    )
+
 
 class VNFAttribute(model_base.BASE, models_v1.HasId):
     """Represents kwargs necessary for spinning up VM in (key, value) pair.
 
-    key value pair is adopted for being agnostic to actuall manager of VMs
-    like nova, heat or others. e.g. image-id, flavor-id for Nova.
+    key value pair is adopted for being agnostic to actuall manager of VMs.
     The interpretation is up to actual driver of hosting vnf.
     """
 
@@ -157,11 +175,13 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
 
     def __init__(self):
         super(VNFMPluginDb, self).__init__()
-        self._cos_db_plg = common_services_db.CommonServicesPluginDb()
+        self._cos_db_plg = common_services_db_plugin.CommonServicesPluginDb()
 
     def _get_resource(self, context, model, id):
         try:
-            return self._get_by_id(context, model, id)
+            if uuidutils.is_uuid_like(id):
+                return self._get_by_id(context, model, id)
+            return self._get_by_name(context, model, id)
         except orm_exc.NoResultFound:
             if issubclass(model, VNFD):
                 raise vnfm.VNFDNotFound(vnfd_id=id)
@@ -176,8 +196,7 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
         return dict((attr.key, attr.value) for attr in attributes_db)
 
     def _make_service_types_list(self, service_types):
-        return [{'id': service_type.id,
-                 'service_type': service_type.service_type}
+        return [service_type.service_type
                 for service_type in service_types]
 
     def _make_vnfd_dict(self, vnfd, fields=None):
@@ -187,8 +206,8 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
                 vnfd.service_types)
         }
         key_list = ('id', 'tenant_id', 'name', 'description',
-                    'infra_driver', 'mgmt_driver',
-                    'created_at', 'updated_at')
+                    'mgmt_driver', 'created_at', 'updated_at',
+                    'template_source')
         res.update((key, vnfd[key]) for key in key_list)
         return self._fields(res, fields)
 
@@ -196,8 +215,8 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
         return dict((arg.key, arg.value) for arg in dev_attrs_db)
 
     def _make_vnf_dict(self, vnf_db, fields=None):
-        LOG.debug(_('vnf_db %s'), vnf_db)
-        LOG.debug(_('vnf_db attributes %s'), vnf_db.attributes)
+        LOG.debug('vnf_db %s', vnf_db)
+        LOG.debug('vnf_db attributes %s', vnf_db.attributes)
         res = {
             'vnfd':
             self._make_vnfd_dict(vnf_db.vnfd),
@@ -210,10 +229,6 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
         return self._fields(res, fields)
 
     @staticmethod
-    def _infra_driver_name(vnf_dict):
-        return vnf_dict['vnfd']['infra_driver']
-
-    @staticmethod
     def _mgmt_driver_name(vnf_dict):
         return vnf_dict['vnfd']['mgmt_driver']
 
@@ -223,51 +238,56 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
 
     def create_vnfd(self, context, vnfd):
         vnfd = vnfd['vnfd']
-        LOG.debug(_('vnfd %s'), vnfd)
+        LOG.debug('vnfd %s', vnfd)
         tenant_id = self._get_tenant_id_for_create(context, vnfd)
-        infra_driver = vnfd.get('infra_driver')
-        mgmt_driver = vnfd.get('mgmt_driver')
         service_types = vnfd.get('service_types')
+        mgmt_driver = vnfd.get('mgmt_driver')
+        template_source = vnfd.get("template_source")
 
         if (not attributes.is_attr_set(service_types)):
-            LOG.debug(_('service types unspecified'))
+            LOG.debug('service types unspecified')
             raise vnfm.ServiceTypesNotSpecified()
 
-        with context.session.begin(subtransactions=True):
-            vnfd_id = str(uuid.uuid4())
-            vnfd_db = VNFD(
-                id=vnfd_id,
-                tenant_id=tenant_id,
-                name=vnfd.get('name'),
-                description=vnfd.get('description'),
-                infra_driver=infra_driver,
-                mgmt_driver=mgmt_driver)
-            context.session.add(vnfd_db)
-            for (key, value) in vnfd.get('attributes', {}).items():
-                attribute_db = VNFDAttribute(
-                    id=str(uuid.uuid4()),
-                    vnfd_id=vnfd_id,
-                    key=key,
-                    value=value)
-                context.session.add(attribute_db)
-            for service_type in (item['service_type']
-                                 for item in vnfd['service_types']):
-                service_type_db = ServiceType(
-                    id=str(uuid.uuid4()),
+        try:
+            with context.session.begin(subtransactions=True):
+                vnfd_id = uuidutils.generate_uuid()
+                vnfd_db = VNFD(
+                    id=vnfd_id,
                     tenant_id=tenant_id,
-                    vnfd_id=vnfd_id,
-                    service_type=service_type)
-                context.session.add(service_type_db)
-
-        LOG.debug(_('vnfd_db %(vnfd_db)s %(attributes)s '),
+                    name=vnfd.get('name'),
+                    description=vnfd.get('description'),
+                    mgmt_driver=mgmt_driver,
+                    template_source=template_source,
+                    deleted_at=datetime.min)
+                context.session.add(vnfd_db)
+                for (key, value) in vnfd.get('attributes', {}).items():
+                    attribute_db = VNFDAttribute(
+                        id=uuidutils.generate_uuid(),
+                        vnfd_id=vnfd_id,
+                        key=key,
+                        value=value)
+                    context.session.add(attribute_db)
+                for service_type in (item['service_type']
+                                     for item in vnfd['service_types']):
+                    service_type_db = ServiceType(
+                        id=uuidutils.generate_uuid(),
+                        tenant_id=tenant_id,
+                        vnfd_id=vnfd_id,
+                        service_type=service_type)
+                    context.session.add(service_type_db)
+        except DBDuplicateEntry as e:
+            raise exceptions.DuplicateEntity(
+                _type="vnfd",
+                entry=e.columns)
+        LOG.debug('vnfd_db %(vnfd_db)s %(attributes)s ',
                   {'vnfd_db': vnfd_db,
                    'attributes': vnfd_db.attributes})
         vnfd_dict = self._make_vnfd_dict(vnfd_db)
-        LOG.debug(_('vnfd_dict %s'), vnfd_dict)
+        LOG.debug('vnfd_dict %s', vnfd_dict)
         self._cos_db_plg.create_event(
             context, res_id=vnfd_dict['id'],
             res_type=constants.RES_TYPE_VNFD,
-            res_state=constants.RES_EVT_VNFD_NA_STATE,
+            res_state=constants.RES_EVT_ONBOARDED,
             evt_type=constants.RES_EVT_CREATE,
             tstamp=vnfd_dict[constants.RES_EVT_CREATED_FLD])
         return vnfd_dict
@@ -283,7 +303,7 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
             self._cos_db_plg.create_event(
                 context, res_id=vnfd_dict['id'],
                 res_type=constants.RES_TYPE_VNFD,
-                res_state=constants.RES_EVT_VNFD_NA_STATE,
+                res_state=constants.RES_EVT_NA_STATE,
                 evt_type=constants.RES_EVT_UPDATE,
                 tstamp=vnfd_dict[constants.RES_EVT_UPDATED_FLD])
         return vnfd_dict
@@ -298,9 +318,7 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
             vnfs_db = context.session.query(VNF).filter_by(
                 vnfd_id=vnfd_id).first()
             if vnfs_db is not None and vnfs_db.deleted_at is None:
-                raise vnfm.VNFDInUse(
-                    vnfd_id=vnfd_id)
-
+                raise vnfm.VNFDInUse(vnfd_id=vnfd_id)
             vnfd_db = self._get_resource(context, VNFD,
                                          vnfd_id)
             if soft_delete:
@@ -308,7 +326,7 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
                 self._cos_db_plg.create_event(
                     context, res_id=vnfd_db['id'],
                     res_type=constants.RES_TYPE_VNFD,
-                    res_state=constants.RES_EVT_VNFD_NA_STATE,
+                    res_state=constants.RES_EVT_NA_STATE,
                     evt_type=constants.RES_EVT_DELETE,
                     tstamp=vnfd_db[constants.RES_EVT_DELETED_FLD])
             else:
@@ -323,6 +341,9 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
         return self._make_vnfd_dict(vnfd_db)
 
     def get_vnfds(self, context, filters, fields=None):
+        if 'template_source' in filters and \
+           filters['template_source'][0] == 'all':
+                filters.pop('template_source')
         return self._get_collection(context, VNFD,
                                     self._make_vnfd_dict,
                                     filters=filters, fields=fields)
@@ -330,7 +351,7 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
     def choose_vnfd(self, context, service_type,
                     required_attributes=None):
         required_attributes = required_attributes or []
-        LOG.debug(_('required_attributes %s'), required_attributes)
+        LOG.debug('required_attributes %s', required_attributes)
         with context.session.begin(subtransactions=True):
             query = (
                 context.session.query(VNFD).
@@ -346,7 +367,7 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
                         VNFD.id ==
                         VNFDAttribute.vnfd_id,
                         VNFDAttribute.key == key)))
-            LOG.debug(_('statements %s'), query)
+            LOG.debug('statements %s', query)
             vnfd_db = query.first()
             if vnfd_db:
                 return self._make_vnfd_dict(vnfd_db)
@@ -360,39 +381,45 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
             arg.value = value
         else:
             arg = VNFAttribute(
-                id=str(uuid.uuid4()), vnf_id=vnf_id,
+                id=uuidutils.generate_uuid(), vnf_id=vnf_id,
                 key=key, value=value)
             context.session.add(arg)
 
     # called internally, not by REST API
     def _create_vnf_pre(self, context, vnf):
-        LOG.debug(_('vnf %s'), vnf)
+        LOG.debug('vnf %s', vnf)
         tenant_id = self._get_tenant_id_for_create(context, vnf)
         vnfd_id = vnf['vnfd_id']
         name = vnf.get('name')
-        vnf_id = str(uuid.uuid4())
+        vnf_id = uuidutils.generate_uuid()
         attributes = vnf.get('attributes', {})
         vim_id = vnf.get('vim_id')
         placement_attr = vnf.get('placement_attr', {})
-        with context.session.begin(subtransactions=True):
-            vnfd_db = self._get_resource(context, VNFD,
-                                         vnfd_id)
-            vnf_db = VNF(id=vnf_id,
-                         tenant_id=tenant_id,
-                         name=name,
-                         description=vnfd_db.description,
-                         instance_id=None,
-                         vnfd_id=vnfd_id,
-                         vim_id=vim_id,
-                         placement_attr=placement_attr,
-                         status=constants.PENDING_CREATE,
-                         error_reason=None)
-            context.session.add(vnf_db)
-            for key, value in attributes.items():
-                    arg = VNFAttribute(
-                        id=str(uuid.uuid4()), vnf_id=vnf_id,
-                        key=key, value=value)
-                    context.session.add(arg)
+        try:
+            with context.session.begin(subtransactions=True):
+                vnfd_db = self._get_resource(context, VNFD,
+                                             vnfd_id)
+                vnf_db = VNF(id=vnf_id,
+                             tenant_id=tenant_id,
+                             name=name,
+                             description=vnfd_db.description,
+                             instance_id=None,
+                             vnfd_id=vnfd_id,
+                             vim_id=vim_id,
+                             placement_attr=placement_attr,
+                             status=constants.PENDING_CREATE,
+                             error_reason=None,
+                             deleted_at=datetime.min)
+                context.session.add(vnf_db)
+                for key, value in attributes.items():
+                        arg = VNFAttribute(
+                            id=uuidutils.generate_uuid(), vnf_id=vnf_id,
+                            key=key, value=value)
+                        context.session.add(arg)
+        except DBDuplicateEntry as e:
+            raise exceptions.DuplicateEntity(
+                _type="vnf",
+                entry=e.columns)
         evt_details = "VNF UUID assigned."
         self._cos_db_plg.create_event(
             context, res_id=vnf_id,
@@ -407,7 +434,7 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
     # intsance_id = None means error on creation
     def _create_vnf_post(self, context, vnf_id, instance_id,
                          mgmt_url, vnf_dict):
-        LOG.debug(_('vnf_dict %s'), vnf_dict)
+        LOG.debug('vnf_dict %s', vnf_dict)
         with context.session.begin(subtransactions=True):
             query = (self._model_query(context, VNF).
                      filter(VNF.id == vnf_id).
@@ -442,7 +469,7 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
                 res_type=constants.RES_TYPE_VNF,
                 res_state=new_status,
                 evt_type=constants.RES_EVT_CREATE,
-                tstamp=timeutils.utcnow(), details="VNF status updated")
+                tstamp=timeutils.utcnow(), details="VNF creation completed")
 
     def _get_vnf_db(self, context, vnf_id, current_statuses, new_status):
         try:
@@ -492,13 +519,14 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
         return updated_vnf_dict
 
     def _update_vnf_post(self, context, vnf_id, new_status,
-                         new_vnf_dict=None):
+                         new_vnf_dict):
+        updated_time_stamp = timeutils.utcnow()
         with context.session.begin(subtransactions=True):
             (self._model_query(context, VNF).
              filter(VNF.id == vnf_id).
              filter(VNF.status == constants.PENDING_UPDATE).
              update({'status': new_status,
-                     'updated_at': timeutils.utcnow()}))
+                     'updated_at': updated_time_stamp}))
 
             dev_attrs = new_vnf_dict.get('attributes', {})
             (context.session.query(VNFAttribute).
@@ -513,9 +541,9 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
         self._cos_db_plg.create_event(
             context, res_id=vnf_id,
             res_type=constants.RES_TYPE_VNF,
-            res_state=new_vnf_dict['status'],
+            res_state=new_status,
             evt_type=constants.RES_EVT_UPDATE,
-            tstamp=new_vnf_dict[constants.RES_EVT_UPDATED_FLD])
+            tstamp=updated_time_stamp)
 
     def _delete_vnf_pre(self, context, vnf_id):
         with context.session.begin(subtransactions=True):
@@ -531,7 +559,8 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
             tstamp=timeutils.utcnow(), details="VNF delete initiated")
         return deleted_vnf_db
 
-    def _delete_vnf_post(self, context, vnf_id, error, soft_delete=True):
+    def _delete_vnf_post(self, context, vnf_dict, error, soft_delete=True):
+        vnf_id = vnf_dict['id']
         with context.session.begin(subtransactions=True):
             query = (
                 self._model_query(context, VNF).
@@ -562,13 +591,17 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
                      filter(VNFAttribute.vnf_id == vnf_id).delete())
                     query.delete()
 
+                # Delete corresponding vnfd
+                if vnf_dict['vnfd']['template_source'] == "inline":
+                    self.delete_vnfd(context, vnf_dict["vnfd_id"])
+
     # reference implementation. needs to be overrided by subclass
     def create_vnf(self, context, vnf):
         vnf_dict = self._create_vnf_pre(context, vnf)
         # start actual creation of hosting vnf.
         # Waiting for completion of creation should be done backgroundly
         # by another thread if it takes a while.
-        instance_id = str(uuid.uuid4())
+        instance_id = uuidutils.generate_uuid()
         vnf_dict['instance_id'] = instance_id
         self._create_vnf_post(context, vnf_dict['id'], instance_id, None,
                               vnf_dict)
@@ -582,17 +615,19 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
         # start actual update of hosting vnf
         # waiting for completion of update should be done backgroundly
         # by another thread if it takes a while
-        self._update_vnf_post(context, vnf_id, constants.ACTIVE)
+        self._update_vnf_post(context, vnf_id,
+                              constants.ACTIVE,
+                              vnf_dict)
         return vnf_dict
 
     # reference implementation. needs to be overrided by subclass
     def delete_vnf(self, context, vnf_id, soft_delete=True):
-        self._delete_vnf_pre(context, vnf_id)
+        vnf_dict = self._delete_vnf_pre(context, vnf_id)
         # start actual deletion of hosting vnf.
         # Waiting for completion of deletion should be done backgroundly
         # by another thread if it takes a while.
         self._delete_vnf_post(context,
-                              vnf_id,
+                              vnf_dict,
                               False,
                               soft_delete=soft_delete)
 
@@ -620,7 +655,7 @@ class VNFMPluginDb(vnfm.VNFMPluginBase, db_base.CommonDbMixin):
                     filter(~VNF.status.in_(exclude_status)).
                     with_lockmode('update').one())
             except orm_exc.NoResultFound:
-                LOG.warning(_('no vnf found %s'), vnf_id)
+                LOG.warning('no vnf found %s', vnf_id)
                 return False
 
             vnf_db.update({'status': new_status})

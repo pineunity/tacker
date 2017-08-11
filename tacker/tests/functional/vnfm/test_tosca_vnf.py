@@ -12,6 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import time
+import unittest
 import yaml
 
 from novaclient import exceptions
@@ -28,7 +30,8 @@ VNF_CIRROS_CREATE_TIMEOUT = 120
 
 
 class VnfTestToscaCreate(base.BaseTackerTest):
-    def _test_create_vnf(self, vnfd_file, vnf_name):
+    def _test_create_vnf(self, vnfd_file, vnf_name,
+                         template_source="onboarded"):
         data = dict()
         values_str = read_file(vnfd_file)
         data['tosca'] = values_str
@@ -36,16 +39,23 @@ class VnfTestToscaCreate(base.BaseTackerTest):
         tosca_arg = {'vnfd': {'name': vnf_name,
                               'attributes': {'vnfd': toscal}}}
 
-        # Create vnfd with tosca template
-        vnfd_instance = self.client.create_vnfd(body=tosca_arg)
-        self.assertIsNotNone(vnfd_instance)
+        if template_source == "onboarded":
+            # Create vnfd with tosca template
+            vnfd_instance = self.client.create_vnfd(body=tosca_arg)
+            self.assertIsNotNone(vnfd_instance)
 
-        # Create vnf with vnfd_id
-        vnfd_id = vnfd_instance['vnfd']['id']
-        vnf_arg = {'vnf': {'vnfd_id': vnfd_id, 'name': vnf_name}}
-        vnf_instance = self.client.create_vnf(body=vnf_arg)
+            # Create vnf with vnfd_id
+            vnfd_id = vnfd_instance['vnfd']['id']
+            vnf_arg = {'vnf': {'vnfd_id': vnfd_id, 'name': vnf_name}}
+            vnf_instance = self.client.create_vnf(body=vnf_arg)
+            self.validate_vnf_instance(vnfd_instance, vnf_instance)
 
-        self.validate_vnf_instance(vnfd_instance, vnf_instance)
+        if template_source == 'inline':
+            # create vnf directly from template
+            template = yaml.safe_load(values_str)
+            vnf_arg = {'vnf': {'vnfd_template': template, 'name': vnf_name}}
+            vnf_instance = self.client.create_vnf(body=vnf_arg)
+            vnfd_id = vnf_instance['vnf']['vnfd_id']
 
         vnf_id = vnf_instance['vnf']['id']
         self.wait_until_vnf_active(
@@ -55,14 +65,14 @@ class VnfTestToscaCreate(base.BaseTackerTest):
         vnf_show_out = self.client.show_vnf(vnf_id)['vnf']
         self.assertIsNotNone(vnf_show_out['mgmt_url'])
 
-        input_dict = yaml.load(values_str)
+        input_dict = yaml.safe_load(values_str)
         prop_dict = input_dict['topology_template']['node_templates'][
             'CP1']['properties']
 
         # Verify if ip_address is static, it is same as in show_vnf
         if prop_dict.get('ip_address'):
             mgmt_url_input = prop_dict.get('ip_address')
-            mgmt_info = yaml.load(
+            mgmt_info = yaml.safe_load(
                 vnf_show_out['mgmt_url'])
             self.assertEqual(mgmt_url_input, mgmt_info['VDU1'])
 
@@ -76,8 +86,8 @@ class VnfTestToscaCreate(base.BaseTackerTest):
                                                   resource_name=field)
 
         self.verify_vnf_crud_events(
-            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.PENDING_CREATE,
-            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
+            vnf_id, evt_constants.RES_EVT_CREATE,
+            evt_constants.PENDING_CREATE, cnt=2)
         self.verify_vnf_crud_events(
             vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.ACTIVE)
         return vnfd_id, vnf_id
@@ -100,10 +110,10 @@ class VnfTestToscaCreate(base.BaseTackerTest):
         self.addCleanup(self.wait_until_vnf_delete, vnf_id,
             constants.VNF_CIRROS_DELETE_TIMEOUT)
 
-    def test_create_delete_vnf_tosca(self):
-        vnfd_id, vnf_id = self._test_create_vnf(
-            'sample-tosca-vnfd.yaml',
-            'test_tosca_vnf_with_cirros')
+    def _test_create_delete_vnf_tosca(self, vnfd_file, vnf_name,
+            template_source):
+        vnfd_id, vnf_id = self._test_create_vnf(vnfd_file, vnf_name,
+                                                template_source)
         servers = self.novaclient().servers.list()
         vdus = []
         for server in servers:
@@ -116,7 +126,27 @@ class VnfTestToscaCreate(base.BaseTackerTest):
             vdu_ports.append(port['name'])
         self.assertIn('test-cp', vdu_ports)
         self._test_delete_vnf(vnf_id)
-        self._test_cleanup_vnfd(vnfd_id, vnf_id)
+        if template_source == "onboarded":
+            self._test_cleanup_vnfd(vnfd_id, vnf_id)
+
+    def test_create_delete_vnf_tosca_from_vnfd(self):
+        self._test_create_delete_vnf_tosca('sample-tosca-vnfd.yaml',
+                                           'test_tosca_vnf_with_cirros',
+                                           'onboarded')
+
+    def test_create_delete_vnf_from_template(self):
+        self._test_create_delete_vnf_tosca('sample-tosca-vnfd.yaml',
+                                           'test_tosca_vnf_with_cirros_inline',
+                                           'inline')
+
+    def test_re_create_delete_vnf(self):
+        self._test_create_delete_vnf_tosca('sample-tosca-vnfd.yaml',
+                                           'test_vnf',
+                                           'inline')
+        time.sleep(1)
+        self._test_create_delete_vnf_tosca('sample-tosca-vnfd.yaml',
+                                           'test_vnf',
+                                           'inline')
 
     def test_create_delete_vnf_static_ip(self):
         vnfd_id, vnf_id = self._test_create_vnf(
@@ -154,8 +184,8 @@ class VnfTestToscaCreateFlavorCreation(base.BaseTackerTest):
         self.assertIsNotNone(self.client.show_vnf(vnf_id)['vnf']['mgmt_url'])
 
         self.verify_vnf_crud_events(
-            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.PENDING_CREATE,
-            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
+            vnf_id, evt_constants.RES_EVT_CREATE,
+            evt_constants.PENDING_CREATE, cnt=2)
         self.verify_vnf_crud_events(
             vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.ACTIVE)
 
@@ -189,6 +219,8 @@ class VnfTestToscaCreateFlavorCreation(base.BaseTackerTest):
 
 
 class VnfTestToscaCreateImageCreation(base.BaseTackerTest):
+
+    @unittest.skip("Until BUG 1673099")
     def test_create_delete_vnf_tosca_no_monitoring(self):
         vnfd_name = 'tosca_vnfd_with_auto_image'
         input_yaml = read_file('sample-tosca-vnfd-image.yaml')
@@ -216,8 +248,8 @@ class VnfTestToscaCreateImageCreation(base.BaseTackerTest):
         self.assertIsNotNone(self.client.show_vnf(vnf_id)['vnf']['mgmt_url'])
 
         self.verify_vnf_crud_events(
-            vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.PENDING_CREATE,
-            vnf_instance['vnf'][evt_constants.RES_EVT_CREATED_FLD])
+            vnf_id, evt_constants.RES_EVT_CREATE,
+            evt_constants.PENDING_CREATE, cnt=2)
         self.verify_vnf_crud_events(
             vnf_id, evt_constants.RES_EVT_CREATE, evt_constants.ACTIVE)
 

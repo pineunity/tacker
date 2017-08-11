@@ -20,6 +20,8 @@ Tacker base exception handling.
 from oslo_utils import excutils
 import six
 
+from tacker._i18n import _
+
 
 class TackerException(Exception):
     """Base Tacker Exception.
@@ -41,10 +43,18 @@ class TackerException(Exception):
                     # at least get the core message out if something happened
                     super(TackerException, self).__init__(self.message)
 
-    def __unicode__(self):
-        return six.text_type(self.msg)
+    if six.PY2:
+        def __unicode__(self):
+            return unicode(self.msg)
+
+    def __str__(self):
+        return self.msg
 
     def use_fatal_exceptions(self):
+        """Is the instance using fatal exceptions.
+
+        :returns: Always returns False.
+        """
         return False
 
 
@@ -252,6 +262,7 @@ class AlarmUrlInvalid(BadRequest):
 class TriggerNotFound(NotFound):
     message = _("Trigger %(trigger_name)s does not exist for VNF %(vnf_id)s")
 
+
 class VnfPolicyNotFound(NotFound):
     message = _("Policy %(policy)s does not exist for VNF %(vnf_id)s")
 
@@ -268,3 +279,7 @@ class VnfPolicyTypeInvalid(BadRequest):
 
 class DuplicateResourceName(TackerException):
     message = _("%(resource)s with name %(name)s already exists")
+
+
+class DuplicateEntity(TackerException):
+    message = _("%(_type)s already exist with given %(entry)s")

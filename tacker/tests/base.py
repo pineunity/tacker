@@ -28,7 +28,6 @@ import fixtures
 import mock
 from oslo_config import cfg
 from oslo_messaging import conffixture as messaging_conffixture
-from six import iteritems
 import testtools
 
 from tacker.common import config
@@ -166,7 +165,7 @@ class BaseTestCase(testtools.TestCase):
             fake_use_fatal_exceptions))
 
         self.useFixture(fixtures.MonkeyPatch(
-            'oslo.messaging.Notifier', fake_notifier.FakeNotifier))
+            'oslo_messaging.Notifier', fake_notifier.FakeNotifier))
 
         self.messaging_conf = messaging_conffixture.ConfFixture(CONF)
         self.messaging_conf.transport_driver = 'fake'
@@ -195,7 +194,7 @@ class BaseTestCase(testtools.TestCase):
         test by the fixtures cleanup process.
         """
         group = kw.pop('group', None)
-        for k, v in iteritems(kw):
+        for k, v in (kw).items():
             CONF.set_override(k, v, group)
 
     @contextlib.contextmanager

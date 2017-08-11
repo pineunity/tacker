@@ -19,18 +19,8 @@ import sys
 
 import mock
 
-from tacker.db import migration
 from tacker.db.migration import cli
 from tacker.tests import base
-
-
-class TestDbMigration(base.BaseTestCase):
-    def test_should_run_plugin_in_list(self):
-        self.assertTrue(migration.should_run(['foo'], ['foo', 'bar']))
-        self.assertFalse(migration.should_run(['foo'], ['bar']))
-
-    def test_should_run_plugin_wildcard(self):
-        self.assertTrue(migration.should_run(['foo'], ['*']))
 
 
 class TestCli(base.BaseTestCase):
@@ -108,26 +98,11 @@ class TestCli(base.BaseTestCase):
             {'sql': False}
         )
 
-    def test_downgrade(self):
-        self._main_test_helper(
-            ['prog', 'downgrade', '--sql', 'folsom'],
-            'downgrade',
-            ('folsom',),
-            {'sql': True}
-        )
-
-        self._main_test_helper(
-            ['prog', 'downgrade', '--delta', '2'],
-            'downgrade',
-            ('-2',),
-            {'sql': False}
-        )
-
     def _test_validate_head_file_helper(self, heads, file_content=None):
         with mock.patch('alembic.script.ScriptDirectory.from_config') as fc:
             fc.return_value.get_heads.return_value = heads
             fc.return_value.get_current_head.return_value = heads[0]
-            with mock.patch('__builtin__.open') as mock_open:
+            with mock.patch('six.moves.builtins.open') as mock_open:
                 mock_open.return_value.__enter__ = lambda s: s
                 mock_open.return_value.__exit__ = mock.Mock()
                 mock_open.return_value.read.return_value = file_content
@@ -173,7 +148,7 @@ class TestCli(base.BaseTestCase):
         with mock.patch('alembic.script.ScriptDirectory.from_config') as fc:
             fc.return_value.get_heads.return_value = ['a']
             fc.return_value.get_current_head.return_value = 'a'
-            with mock.patch('__builtin__.open') as mock_open:
+            with mock.patch('six.moves.builtins.open') as mock_open:
                 mock_open.return_value.__enter__ = lambda s: s
                 mock_open.return_value.__exit__ = mock.Mock()
 

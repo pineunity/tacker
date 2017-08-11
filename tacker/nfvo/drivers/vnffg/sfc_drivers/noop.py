@@ -13,16 +13,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import uuid
-
 from oslo_log import log as logging
+from oslo_utils import uuidutils
 from tacker.common import log
-from tacker.nfvo.drivers.vnffg.sfc_drivers import abstract_driver
+from tacker.nfvo.drivers.vnffg import abstract_vnffg_driver
 
 LOG = logging.getLogger(__name__)
 
 
-class VNFFGNoop(abstract_driver.SfcAbstractDriver):
+class VNFFGNoop(abstract_vnffg_driver.VnffgAbstractDriver):
 
     """Noop driver for VNFFG tests"""
 
@@ -41,14 +40,14 @@ class VNFFGNoop(abstract_driver.SfcAbstractDriver):
 
     @log.log
     def create_chain(self, name, fc_id, vnfs, auth_attr=None):
-        instance_id = str(uuid.uuid4())
+        instance_id = uuidutils.generate_uuid()
         self._instances.add(instance_id)
         return instance_id
 
     @log.log
     def update_chain(self, chain_id, fc_ids, vnfs, auth_attr=None):
         if chain_id not in self._instances:
-            LOG.debug(_('Chain not found'))
+            LOG.debug('Chain not found')
             raise ValueError('No chain instance %s' % chain_id)
 
     @log.log
@@ -57,14 +56,14 @@ class VNFFGNoop(abstract_driver.SfcAbstractDriver):
 
     @log.log
     def create_flow_classifier(self, name, fc, auth_attr=None):
-        instance_id = str(uuid.uuid4())
+        instance_id = uuidutils.generate_uuid()
         self._instances.add(instance_id)
         return instance_id
 
     @log.log
     def update_flow_classifier(self, fc_id, fc, auth_attr=None):
         if fc_id not in self._instances:
-            LOG.debug(_('FC not found'))
+            LOG.debug('FC not found')
             raise ValueError('No FC instance %s' % fc_id)
 
     @log.log

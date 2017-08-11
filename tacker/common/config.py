@@ -32,8 +32,8 @@ from tacker import version
 LOG = logging.getLogger(__name__)
 
 core_opts = [
-    cfg.StrOpt('bind_host', default='0.0.0.0',
-               help=_("The host IP to bind to")),
+    cfg.HostAddressOpt('bind_host', default='0.0.0.0',
+                       help=_("The host IP to bind to")),
     cfg.IntOpt('bind_port', default=9890,
                help=_("The port to bind to")),
     cfg.StrOpt('api_paste_config', default="api-paste.ini",
@@ -53,39 +53,19 @@ core_opts = [
     cfg.BoolOpt('allow_sorting', default=False,
                 help=_("Allow the usage of the sorting")),
     cfg.StrOpt('pagination_max_limit', default="-1",
-               help=_("The maximum number of items returned in a single "
-                      "response, value was 'infinite' or negative integer "
-                      "means no limit")),
-    cfg.StrOpt('host', default=utils.get_hostname(),
-               help=_("The hostname Tacker is running on")),
-    cfg.StrOpt('nova_url',
-               default='http://127.0.0.1:8774/v2',
-               help=_('URL for connection to nova')),
-    cfg.StrOpt('nova_admin_username',
-               help=_('Username for connecting to nova in admin context')),
-    cfg.StrOpt('nova_admin_password',
-               help=_('Password for connection to nova in admin context'),
-               secret=True),
-    cfg.StrOpt('nova_admin_tenant_id',
-               help=_('The uuid of the admin nova tenant')),
-    cfg.StrOpt('nova_admin_auth_url',
-               default='http://localhost:5000/v2.0',
-               help=_('Authorization URL for connecting to nova in admin '
-                      'context')),
-    cfg.StrOpt('nova_ca_certificates_file',
-               help=_('CA file for novaclient to verify server certificates')),
-    cfg.BoolOpt('nova_api_insecure', default=False,
-                help=_("If True, ignore any SSL validation issues")),
-    cfg.StrOpt('nova_region_name',
-               help=_('Name of nova region to use. Useful if keystone manages'
-                      ' more than one region.')),
+               help=_("The maximum number of items returned "
+                      "in a single response, value was 'infinite' "
+                      "or negative integer means no limit")),
+    cfg.HostAddressOpt('host', default=utils.get_hostname(),
+                       help=_("The hostname Tacker is running on")),
 ]
 
 core_cli_opts = [
     cfg.StrOpt('state_path',
                default='/var/lib/tacker',
                help=_("Where to store Tacker state files. "
-                      "This directory must be writable by the agent.")),
+                      "This directory must be writable by "
+                      "the agent.")),
 ]
 
 logging.register_options(cfg.CONF)
@@ -131,15 +111,15 @@ def setup_logging(conf):
     """
     product_name = "tacker"
     logging.setup(conf, product_name)
-    LOG.info(_("Logging enabled!"))
+    LOG.info("Logging enabled!")
 
 
 def load_paste_app(app_name):
     """Builds and returns a WSGI app from a paste config file.
 
     :param app_name: Name of the application to load
-    :raises ConfigFilesNotFoundError when config file cannot be located
-    :raises RuntimeError when application cannot be loaded from config file
+    :raises ConfigFilesNotFoundError: when config file cannot be located
+    :raises RuntimeError: when application cannot be loaded from config file
     """
 
     config_path = cfg.CONF.find_file(cfg.CONF.api_paste_config)
@@ -147,7 +127,7 @@ def load_paste_app(app_name):
         raise cfg.ConfigFilesNotFoundError(
             config_files=[cfg.CONF.api_paste_config])
     config_path = os.path.abspath(config_path)
-    LOG.info(_("Config paste file: %s"), config_path)
+    LOG.info("Config paste file: %s", config_path)
 
     try:
         app = deploy.loadapp("config:%s" % config_path, name=app_name)

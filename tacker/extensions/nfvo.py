@@ -38,16 +38,8 @@ class VimInUseException(exceptions.TackerException):
     message = _("VIM %(vim_id)s is still in use by VNF")
 
 
-# Deprecated. Will be removed in Ocata release
-class VimDefaultNameNotDefined(exceptions.TackerException):
-    message = _("Default VIM is not set. Either specify a"
-                " valid VIM during the VNF creation or set default VIM"
-                " in tacker.conf")
-
-
-class VimDefaultNameNotFound(exceptions.TackerException):
-    message = _("Default VIM name %(vim_name)s is invalid. Please specify a "
-                "valid default VIM name in tacker.conf")
+class VimDefaultNotDefined(exceptions.TackerException):
+    message = _("Default VIM is not defined.")
 
 
 class VimDefaultDuplicateException(exceptions.TackerException):
@@ -67,18 +59,23 @@ class VimKeyNotFoundException(exceptions.TackerException):
     message = _("Unable to find key file for VIM %(vim_id)s")
 
 
-class VimDuplicateUrlException(exceptions.TackerException):
-    message = _("VIM with specified auth URL already exists. Cannot register "
-                "duplicate VIM")
-
-
 class VimUnsupportedResourceTypeException(exceptions.TackerException):
     message = _("Resource type %(type) is unsupported by VIM")
 
 
 class VimGetResourceException(exceptions.TackerException):
     message = _("Error while trying to issue %(cmd)s to find resource type "
-                "%(type)s")
+                "%(type)s by resource name %(name)s")
+
+
+class VimGetResourceNameNotUnique(exceptions.TackerException):
+    message = _("Getting resource id from VIM with resource name %(name)s "
+                "by %(cmd)s returns more than one")
+
+
+class VimGetResourceNotFoundException(exceptions.TackerException):
+    message = _("Getting resource id from VIM with resource name %(name)s "
+                "by %(cmd)s returns nothing")
 
 
 class VimFromVnfNotFoundException(exceptions.NotFound):
@@ -120,6 +117,11 @@ class VnffgdCpNoForwardingException(exceptions.TackerException):
                 "included in forwarding path")
 
 
+class VnffgdWrongEndpointNumber(exceptions.TackerException):
+    message = _("Specified number_of_endpoints %(number)s is not equal to "
+                "the number of connection_point %(cps)s")
+
+
 class VnffgdInUse(exceptions.InUse):
     message = _('VNFFGD %(vnffgd_id)s is still in use')
 
@@ -138,8 +140,17 @@ class VnffgInvalidMappingException(exceptions.TackerException):
                 "creating/updating VNFFG.")
 
 
-class VnffgVimMappingException(exceptions.TackerException):
-    message = _("VNF Instance VNF %(vnf_id)s does not match VIM ID %(vim_id).")
+class VnffgParamValueFormatError(exceptions.TackerException):
+    message = _("Param values %(param_value)s is not in dict format.")
+
+
+class VnffgTemplateParamParsingException(exceptions.TackerException):
+    message = _("Failed to parse VNFFG Template due to "
+                "missing input param %(get_input)s.")
+
+
+class VnffgParamValueNotUsed(exceptions.TackerException):
+    message = _("Param input %(param_key)s not used.")
 
 
 class VnffgPropertyNotFoundException(exceptions.NotFound):
@@ -215,6 +226,18 @@ class ClassifierInUse(exceptions.InUse):
 
 class ClassifierNotFoundException(exceptions.NotFound):
     message = _('Classifier %(classifier_id)s could not be found')
+
+
+class NSDInUse(exceptions.InUse):
+    message = _('NSD %(nsd_id)s is still in use')
+
+
+class NSInUse(exceptions.InUse):
+    message = _('NS %(ns_id)s is still in use')
+
+
+class NoTasksException(exceptions.TackerException):
+    message = _('No tasks to run for %(action)s on %(resource)s')
 
 
 RESOURCE_ATTRIBUTE_MAP = {
@@ -344,6 +367,12 @@ RESOURCE_ATTRIBUTE_MAP = {
             'is_visible': True,
             'default': None,
         },
+        'template_source': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+            'default': 'onboarded'
+        }
     },
 
     'vnffgs': {
@@ -366,6 +395,7 @@ RESOURCE_ATTRIBUTE_MAP = {
             'allow_put': False,
             'validate': {'type:uuid': None},
             'is_visible': True,
+            'default': None
         },
         'name': {
             'allow_post': True,
@@ -381,6 +411,14 @@ RESOURCE_ATTRIBUTE_MAP = {
             'default': '',
         },
         'vnf_mapping': {
+            'allow_post': True,
+            'allow_put': True,
+            'convert_to': attr.convert_none_to_empty_dict,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+            'default': None,
+        },
+        'attributes': {
             'allow_post': True,
             'allow_put': True,
             'convert_to': attr.convert_none_to_empty_dict,
@@ -404,6 +442,13 @@ RESOURCE_ATTRIBUTE_MAP = {
             'allow_post': False,
             'allow_put': False,
             'is_visible': True,
+        },
+        'vnffgd_template': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+            'default': None,
         },
     },
 
@@ -557,7 +602,156 @@ RESOURCE_ATTRIBUTE_MAP = {
             'allow_put': False,
             'is_visible': True,
         },
-    }
+    },
+
+    'nsds': {
+        'id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+            'primary_key': True,
+        },
+        'tenant_id': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'required_by_policy': True,
+            'is_visible': True,
+        },
+        'name': {
+            'allow_post': True,
+            'allow_put': True,
+            'validate': {'type:string': None},
+            'is_visible': True,
+        },
+        'description': {
+            'allow_post': True,
+            'allow_put': True,
+            'validate': {'type:string': None},
+            'is_visible': True,
+            'default': '',
+        },
+        'created_at': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'updated_at': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'attributes': {
+            'allow_post': True,
+            'allow_put': False,
+            'convert_to': attr.convert_none_to_empty_dict,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+            'default': None,
+        },
+        'template_source': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+            'default': 'onboarded'
+        },
+
+    },
+
+    'nss': {
+        'id': {
+            'allow_post': False,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+            'primary_key': True,
+        },
+        'tenant_id': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'required_by_policy': True,
+            'is_visible': True,
+        },
+        'name': {
+            'allow_post': True,
+            'allow_put': True,
+            'validate': {'type:string': None},
+            'is_visible': True,
+        },
+        'description': {
+            'allow_post': True,
+            'allow_put': True,
+            'validate': {'type:string': None},
+            'is_visible': True,
+            'default': '',
+        },
+        'created_at': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'updated_at': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'vnf_ids': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'is_visible': True,
+            'default': '',
+        },
+        'nsd_id': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:uuid': None},
+            'is_visible': True,
+            'default': None,
+        },
+        'vim_id': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:string': None},
+            'is_visible': True,
+            'default': '',
+        },
+        'status': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'error_reason': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+        },
+        'attributes': {
+            'allow_post': True,
+            'allow_put': False,
+            'convert_to': attr.convert_none_to_empty_dict,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+            'default': None,
+        },
+        'mgmt_urls': {
+            'allow_post': False,
+            'allow_put': False,
+            'convert_to': attr.convert_none_to_empty_dict,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+        },
+        'nsd_template': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+            'default': None,
+        },
+    },
+
 }
 
 
@@ -618,6 +812,10 @@ class NFVOPluginBase(service_base.NFVPluginBase):
 
     @abc.abstractmethod
     def create_vim(self, context, vim):
+        pass
+
+    @abc.abstractmethod
+    def update_vim(self, context, vim_id, vim):
         pass
 
     @abc.abstractmethod
