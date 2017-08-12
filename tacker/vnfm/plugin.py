@@ -833,8 +833,6 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
                             action, 'execute_action', plugin=self,
                             context=context, vnf_dict=vnf_dict, args=scale)
 
-            # in case of (respawn + notify), if vnf is active then call notify function
-
     def create_vnf_trigger(
             self, context, vnf_id, trigger):
         trigger_ = self.get_vnf_trigger(

@@ -21,7 +21,7 @@ from tacker.common import topics
 class AutoScalingRPC(object):
 
     target = oslo_messaging.Target(
-        exchange='tacker',
+        exchange='vnffg-scaling',
         topic=topics.TOPIC_CONDUCTOR,
         fanout=False,
         version='1.0')

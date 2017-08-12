@@ -27,7 +27,7 @@ CONF = cfg.CONF
 
 
 class VnfTestToscaScale(base.BaseTackerTest):
-    @unittest.skip("Related Bug 1682098")
+    @unittest.skip("Skip and wait for releasing Heat Translator")
     def test_vnf_tosca_scale(self):
         data = dict()
         data['tosca'] = read_file('sample-tosca-scale-all.yaml')

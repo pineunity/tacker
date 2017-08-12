@@ -75,8 +75,8 @@ class VnfTestAlarmMonitor(base.BaseTackerTest):
                     if policy['type'] == constants.POLICY_ALARMING:
                         triggers = policy['triggers']
                         for trigger_name, trigger_dict in triggers.items():
-                            policy_action = trigger_dict['action']
-                            for policy_action_name in policy_action:
+                            policy_action_list = trigger_dict['action']
+                            for policy_action_name in policy_action_list:
                                 mon_policy[trigger_name] = policy_action_name
             return mon_policy
 
@@ -144,7 +144,7 @@ class VnfTestAlarmMonitor(base.BaseTackerTest):
             'sample-tosca-alarm-respawn.yaml',
             'alarm and respawn vnf')
 
-    @unittest.skip("Related Bug 1682098")
+    @unittest.skip("Skip and wait for releasing Heat Translator")
     def test_vnf_alarm_scale(self):
         self._test_vnf_tosca_alarm(
             'sample-tosca-alarm-scale.yaml',

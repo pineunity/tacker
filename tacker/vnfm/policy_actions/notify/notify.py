@@ -12,17 +12,12 @@
 #    under the License.
 #
 
-from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import timeutils
 
 from tacker.db.common_services import common_services_db_plugin
 from tacker.plugins.common import constants
 from tacker.vnfm.policy_actions import abstract_action
-from tacker.common import rpc
-from tacker.common import topics
-from tacker.conductor import conductorrpc
-from tacker import context as t_context
 
 LOG = logging.getLogger(__name__)
 
@@ -48,44 +43,47 @@ class VNFActionNotify(abstract_action.AbstractPolicyAction):
         return 'Tacker VNF notification policy'
 
     def execute_action(self, plugin, context, vnf_dict, args):
-        # args be like actions: DEFAULT_ALARM_ACTIONS
+        # Let args be like actions: DEFAULT_ALARM_ACTIONS
         vnf_id = vnf_dict['id']
+        _log_monitor_events(context,
+                            vnf_dict,
+                            "ActionAutoscalingHeat invoked")
 
-        def start_rpc_listeners():
-            """Start the RPC loop to let the server communicate with actions."""
-            self.endpoints = [self]
-            self.conn = rpc.create_connection()
-            self.conn.create_consumer(topics.TOPIC_ACTION_KILL,
-                                      self.endpoints, fanout=False,
-                                      host=vnf_id)
-            return self.conn.consume_in_threads()
+        if args in constants.DEFAULT_ALARM_ACTIONS:
+            from tacker.conductor.conductorrpc import AutoHealingRPC
+            return
+        else:
+            from tacker.conductor.conductorrpc import AutoScalingRPC
 
-        def _establish_rpc(target, event_func_name):
+        def _update(self, status):
+            LOG.info("VIM %s changed to status %s", self.vim_id, status)
+            target = vim_monitor_rpc.VIMUpdateRPC.target
             rpc_client = rpc.get_client(target)
             cctxt = rpc_client.prepare()
             return cctxt.call(t_context.get_admin_context_without_session(),
-                              event_func_name,
-                              vnf_id=vnf_id)
+                              'update_vim',
+                              vim_id=self.vim_id,
+                              status=status)
 
-        def _execute_action(action):
+        def run(self):
+            servers = []
             try:
                 rpc.init_action_rpc(cfg.CONF)
-                servers = start_rpc_listeners()
+                servers = self.start_rpc_listeners()
             except Exception:
-                LOG.exception('failed to start rpc for auto-healing function')
+                LOG.exception('failed to start rpc in vim action')
                 return 'FAILED'
             try:
-                if action in constants.DEFAULT_ALARM_ACTIONS:
-                    target = conductorrpc.AutoHealingRPC.AutoHealingRPC.target
-                    output = _establish_rpc(target, 'vnf_respawning_event')
-                    LOG.debug('RPC respawning output: %s', output)
-                else:
-                    target = conductorrpc.AutoScalingRPC.AutoScalingRPC.target
-                    output = _establish_rpc(target, 'vnf_scaling_event')
-                    LOG.debug('RPC scaling output: %s', output)
+                while True:
+                    if self.killed:
+                        break
+                    status = self._ping()
+                    if self.current_status != status:
+                        self.current_status = self._update(status)
+                        # TODO(gongysh) If we need to sleep a little time here?
             except Exception:
-                LOG.exception('failed to establish rpc call for vnf %s',
-                              vnf_id)
+                LOG.exception('failed to run mistral action for vim %s',
+                              self.vim_id)
                 return 'FAILED'
             # to stop rpc connection
             for server in servers:
@@ -93,6 +91,9 @@ class VNFActionNotify(abstract_action.AbstractPolicyAction):
                     server.stop()
                 except Exception:
                     LOG.exception(
-                        'failed to stop rpc connection for vnf %s',
-                        vnf_id)
-        _execute_action(args['action'])
+                        'failed to stop rpc connection for vim %s',
+                        self.vim_id)
+            return 'KILLED'
+
+        def test(self):
+            return 'REACHABLE'

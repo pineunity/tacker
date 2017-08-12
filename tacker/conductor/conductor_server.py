@@ -26,7 +26,7 @@ from tacker.common import topics
 from tacker import context as t_context
 from tacker.db.common_services import common_services_db
 from tacker.db.nfvo import nfvo_db
-from tacker.db.nfvo import vnffg_db
+from tacker.db.nfvo import  vnffg_db
 from tacker.extensions import nfvo
 from tacker.plugins.common import constants
 from tacker import manager
@@ -67,52 +67,39 @@ class Conductor(manager.Manager):
             t_admin_context.session.add(event_db)
         return status
 
-    def vnf_scaling_event(self, context, vnf_id):
+    #Call ha functions here including both auto-healing and auto-scaling
+    def vnf_scaling_event(self, vnf_id):
+        # case 1: Auto-scaling support
         # check VNFFGs or NSs which VNFs belong to
-        LOG.debug('vnf scaling event called sucesfully: %s', vnf_id)
-        # t_admin_context = t_context.get_admin_context()
-        # vnfm_plugin = manager.TackerManager.get_service_plugins()['VNFM']
-        # vnf = vnfm_plugin.g
-        # et_vnf_resources(t_admin_context, vnf_id)
-        # with t_admin_context.session.begin(subtransactions=True):
-        #     try:
-        #         query = t_admin_context.session.query(vnffg_db.Vnffg)
-        #         query.filter(
-        #             nfvo_db.Vim.id == vim_id).update(
-        #                 {'status': status,
-        #                  'updated_at': update_time})
-        #
-        # return vnffg_id or ns_id
-        # action: in or out
+        t_admin_context = t_context.get_admin_context()
+        vnfm_plugin = manager.TackerManager.get_service_plugins()['VNFM']
+        vnf = vnfm_plugin.get_vnf_resources(t_admin_context, vnf_id)
+        with t_admin_context.session.begin(subtransactions=True):
+            try:
+                query = t_admin_context.session.query(vnffg_db.Vnffg)
+                query.filter(
+                    nfvo_db.Vim.id == vim_id).update(
+                        {'status': status,
+                         'updated_at': update_time})
 
-        # check state pending_scale_out_in, pending_scale_out become active
+        return vnffg_id or ns_id
 
-        return vnf_id
 
-    def vnf_respawning_event(self, context, vnf_id):
+    def vnf_respawning_event(self, vnf_id):
         # case 2: Auto-healing support
         # check VNFFGs or NSs which VNFs belong to
-
-        LOG.debug('vnf respawning event called sucesfully: %s', vnf_id)
-
-        # t_admin_context = t_context.get_admin_context()
-        # vnfm_plugin = manager.TackerManager.get_service_plugins()['VNFM']
-        # vnf = vnfm_plugin.get_vnf_resources(t_admin_context, vnf_id)
-        # nfvo_plugin = manager.TackerManager.get_service_plugins('NFVO')
-        # vnffg = nfvo_plugin.get_vnffg_list(t_admin_context)
-
+        t_admin_context = t_context.get_admin_context()
+        vnfm_plugin = manager.TackerManager.get_service_plugins()['VNFM']
+        vnf = vnfm_plugin.get_vnf_resources(t_admin_context, vnf_id)
+        nfvo_plugin = manager.TackerManager.get_service_plugins('NFVO')
+        vnffg = nfvo_plugin.get_vnffg_list(t_admin_context)
 
         #with t_admin_context.session.begin(subtransactions=True):
         #    try:
         #        query = t_admin_context.session.query(vnffg_db.Vnffg)
         #        vnffg_list = query.filter(vnffg_db.Vnffg.vnf_mapping)
 
-        # check pending_create for resoawnng action until become active
-
-        return vnf_id
-
-
-        # return vnffg_id or ns_id
+        return vnffg_id or ns_id
 
 
 def init(args, **kwargs):

@@ -21,7 +21,7 @@ from tacker.common import topics
 class AutoHealingRPC(object):
 
     target = oslo_messaging.Target(
-        exchange='tacker',
+        exchange='vnffg-healing',
         topic=topics.TOPIC_CONDUCTOR,
         fanout=False,
         version='1.0')
