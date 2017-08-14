@@ -36,26 +36,26 @@ def _log_vnffg_events(context, vnffg, evt_details):
                              details=evt_details)
 
 
-class VNFFGScaling(absttract_vnffg_ha_driver.VnffgHaAbstractDriver):
+class VNFFGHealing(absttract_vnffg_ha_driver.VnffgHaAbstractDriver):
 
-    """Auto-scaling policy for VNFFG"""
+    """Auto-healing policy for VNFFG"""
 
     def __init__(self):
-        super(VNFFGScaling, self).__init__()
+        super(VNFFGHealing, self).__init__()
         self._instances = set()
 
     def get_type(self):
-        return 'vnffg_scaling'
+        return 'vnffg_healing'
 
     def get_name(self):
-        return 'vnffg_scaling'
+        return 'vnffg_healing'
 
     def get_description(self):
-        return 'VNFFG scaling policy'
+        return 'VNFFG Healing policy'
 
     @log.log
     def execute_policy(self, context, vnffg_id, vnfs, auth_attr=None):
-        # Add event/audit function
+        # add event-audit functions
         instance_id = str(uuid.uuid4())
         self._instances.add(instance_id)
         return instance_id
