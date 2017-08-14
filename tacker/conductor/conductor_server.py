@@ -67,7 +67,7 @@ class Conductor(manager.Manager):
             t_admin_context.session.add(event_db)
         return status
 
-    def vnf_scaling_event(self, context, vnf_id):
+    # def vnf_scaling_event(self, context, vnf_id):
         # check VNFFGs or NSs which VNFs belong to
         LOG.debug('vnf scaling event called sucesfully: %s', vnf_id)
         # t_admin_context = t_context.get_admin_context()
@@ -87,9 +87,9 @@ class Conductor(manager.Manager):
 
         # check state pending_scale_out_in, pending_scale_out become active
 
-        return vnf_id
+    # return vnf_id
 
-    def vnf_respawning_event(self, context, vnf_id):
+    # def vnf_respawning_event(self, context, vnf_id):
         # case 2: Auto-healing support
         # check VNFFGs or NSs which VNFs belong to
 
@@ -109,7 +109,7 @@ class Conductor(manager.Manager):
 
         # check pending_create for resoawnng action until become active
 
-        return vnf_id
+    # return vnf_id
         # return vnffg_id or ns_id
 
 
