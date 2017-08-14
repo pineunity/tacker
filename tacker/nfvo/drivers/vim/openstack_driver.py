@@ -640,7 +640,7 @@ class NeutronClient(object):
     def get_port_pair(self):
         """Get port pair list"""
         try:
-            pp_list = self.client.get_port_pair()
+            pp_list = self.client.list_port_pair()
         except nc_exceptions.BadRequest as e:
             LOG.warning(_('get port pair list returns %s'), e)
             raise ValueError(str(e))
@@ -649,7 +649,7 @@ class NeutronClient(object):
     def get_port_pair_group(self, fc_id, auth_attr=None):
         """Get specific port pair group"""
         try:
-            ppg_list = self.client.get_port_pair_group()
+            ppg_list = self.client.list_port_pair_group()
         except nc_exceptions.BadRequest as e:
             LOG.warning(_('get port pair group list returns %s'), e)
             raise ValueError(str(e))
@@ -658,7 +658,7 @@ class NeutronClient(object):
     def get_chain(self):
         """Get port chain list"""
         try:
-            pc_list = self.client.get_port_chain()
+            pc_list = self.client.list_port_chain()
         except nc_exceptions.BadRequest as e:
             LOG.warning(_('get port chain list returns %s'), e)
             raise ValueError(str(e))
@@ -667,7 +667,7 @@ class NeutronClient(object):
     def get_flow_classifier(self):
         """Get flow classifier"""
         try:
-            flc_list = self.client.get_flow_classifier()
+            flc_list = self.client.list_flow_classifier()
         except nc_exceptions.BadRequest as e:
             LOG.warning(_('get flow classifier list returns %s'), e)
             raise ValueError(str(e))
