@@ -69,7 +69,7 @@ class Conductor(manager.Manager):
 
     # def vnf_scaling_event(self, context, vnf_id):
         # check VNFFGs or NSs which VNFs belong to
-        LOG.debug('vnf scaling event called sucesfully: %s', vnf_id)
+    #    LOG.debug('vnf scaling event called sucesfully: %s', vnf_id)
         # t_admin_context = t_context.get_admin_context()
         # vnfm_plugin = manager.TackerManager.get_service_plugins()['VNFM']
         # vnf = vnfm_plugin.g
@@ -93,7 +93,7 @@ class Conductor(manager.Manager):
         # case 2: Auto-healing support
         # check VNFFGs or NSs which VNFs belong to
 
-        LOG.debug('vnf respawning event called sucesfully: %s', vnf_id)
+     #   LOG.debug('vnf respawning event called sucesfully: %s', vnf_id)
 
         # t_admin_context = t_context.get_admin_context()
         # vnfm_plugin = manager.TackerManager.get_service_plugins()['VNFM']
