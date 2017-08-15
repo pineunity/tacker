@@ -55,7 +55,7 @@ MISTRAL_RETRY_WAIT = 6
 
 def config_opts():
     return [('nfvo_vim', NfvoPlugin.OPTS_VIM_DRIVER),
-            ('nfvo_vnffg', NfvoPlugin.OPTS_VNFFG_POLICIES)]
+            ('nfvo_vim', NfvoPlugin.OPTS_VNFFG_POLICIES)]
 
 
 class NfvoPlugin(nfvo_db_plugin.NfvoPluginDb, vnffg_db.VnffgPluginDbMixin,
@@ -81,10 +81,10 @@ class NfvoPlugin(nfvo_db_plugin.NfvoPluginDb, vnffg_db.VnffgPluginDbMixin,
 
     OPTS_VNFFG_POLICIES = [
         cfg.ListOpt(
-            'vnffg_ha', default=['vnffg_healing', 'vnffg_scaling'],
+            'vnffg_policies', default=['vnffg_healing', 'vnffg_scaling'],
             help=_('HA policies for launching VNFFGs'))
     ]
-    cfg.CONF.register_opts(OPTS_VNFFG_POLICIES, 'nfvo_vnffg')
+    cfg.CONF.register_opts(OPTS_VNFFG_POLICIES, 'nfvo_vim')
 
     def __init__(self):
         super(NfvoPlugin, self).__init__()
@@ -92,9 +92,9 @@ class NfvoPlugin(nfvo_db_plugin.NfvoPluginDb, vnffg_db.VnffgPluginDbMixin,
         self._vim_drivers = driver_manager.DriverManager(
             'tacker.nfvo.vim.drivers',
             cfg.CONF.nfvo_vim.vim_drivers)
-        self._vnffg_ha_manager = driver_manager.DriverManager(
+        self._vnffg_policies = driver_manager.DriverManager(
             'tacker.nfvo.vnffg.drivers',
-            cfg.CONF.nfvo_vnffg.vnffg_ha)
+            cfg.CONF.nfvo_vnffg.vnffg_policies)
         self.vim_client = vim_client.VimClient()
 
     def get_auth_dict(self, context):

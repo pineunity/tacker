@@ -21,7 +21,7 @@ from tacker.plugins.common import constants
 
 from oslo_log import log as logging
 from tacker.common import log
-from tacker.nfvo.drivers.vnffg import absttract_vnffg_ha_driver
+from tacker.nfvo.drivers.vnffg import absttract_vnffg_policies
 
 LOG = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def _log_vnffg_events(context, vnffg, evt_details):
                              details=evt_details)
 
 
-class VNFFGHealing(absttract_vnffg_ha_driver.VnffgHaAbstractDriver):
+class VNFFGHealing(absttract_vnffg_policies.VnffgHaAbstractDriver):
 
     """Auto-healing policy for VNFFG"""
 
