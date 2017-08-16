@@ -94,7 +94,7 @@ class NfvoPlugin(nfvo_db_plugin.NfvoPluginDb, vnffg_db.VnffgPluginDbMixin,
             cfg.CONF.nfvo_vim.vim_drivers)
         self._vnffg_policies = driver_manager.DriverManager(
             'tacker.nfvo.vnffg.drivers',
-            cfg.CONF.nfvo_vnffg.vnffg_policies)
+            cfg.CONF.nfvo_vim.vnffg_policies)
         self.vim_client = vim_client.VimClient()
 
     def get_auth_dict(self, context):
