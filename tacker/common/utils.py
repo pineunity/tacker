@@ -33,10 +33,9 @@ from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_log import versionutils
 from oslo_utils import importutils
-from six import iteritems
 from stevedore import driver
 
-from tacker._i18n import _LE
+from tacker._i18n import _
 from tacker.common import constants as q_const
 
 
@@ -163,7 +162,7 @@ def change_memory_unit(mem, to):
     """
 
     mem = str(mem) + " MB" if str(mem).isdigit() else mem.upper()
-    for unit, value in iteritems(MEM_UNITS):
+    for unit, value in (MEM_UNITS).items():
         mem_arr = mem.split(unit)
         if len(mem_arr) < 2:
             continue
@@ -183,7 +182,7 @@ def load_class_by_alias_or_classname(namespace, name):
     """
 
     if not name:
-        LOG.error(_LE("Alias or class name is not set"))
+        LOG.error("Alias or class name is not set")
         raise ImportError(_("Class not found."))
     try:
         # Try to resolve class by alias
@@ -195,9 +194,9 @@ def load_class_by_alias_or_classname(namespace, name):
         try:
             class_to_load = importutils.import_class(name)
         except (ImportError, ValueError):
-            LOG.error(_LE("Error loading class by alias"),
+            LOG.error("Error loading class by alias",
                       exc_info=e1_info)
-            LOG.error(_LE("Error loading class by class name"),
+            LOG.error("Error loading class by class name",
                       exc_info=True)
             raise ImportError(_("Class not found."))
     return class_to_load

@@ -117,6 +117,11 @@ class VnffgdCpNoForwardingException(exceptions.TackerException):
                 "included in forwarding path")
 
 
+class VnffgdWrongEndpointNumber(exceptions.TackerException):
+    message = _("Specified number_of_endpoints %(number)s is not equal to "
+                "the number of connection_point %(cps)s")
+
+
 class VnffgdInUse(exceptions.InUse):
     message = _('VNFFGD %(vnffgd_id)s is still in use')
 
@@ -135,8 +140,17 @@ class VnffgInvalidMappingException(exceptions.TackerException):
                 "creating/updating VNFFG.")
 
 
-class VnffgVimMappingException(exceptions.TackerException):
-    message = _("VNF Instance VNF %(vnf_id)s does not match VIM ID %(vim_id).")
+class VnffgParamValueFormatError(exceptions.TackerException):
+    message = _("Param values %(param_value)s is not in dict format.")
+
+
+class VnffgTemplateParamParsingException(exceptions.TackerException):
+    message = _("Failed to parse VNFFG Template due to "
+                "missing input param %(get_input)s.")
+
+
+class VnffgParamValueNotUsed(exceptions.TackerException):
+    message = _("Param input %(param_key)s not used.")
 
 
 class VnffgPropertyNotFoundException(exceptions.NotFound):
@@ -353,6 +367,12 @@ RESOURCE_ATTRIBUTE_MAP = {
             'is_visible': True,
             'default': None,
         },
+        'template_source': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+            'default': 'onboarded'
+        }
     },
 
     'vnffgs': {
@@ -375,6 +395,7 @@ RESOURCE_ATTRIBUTE_MAP = {
             'allow_put': False,
             'validate': {'type:uuid': None},
             'is_visible': True,
+            'default': None
         },
         'name': {
             'allow_post': True,
@@ -421,6 +442,13 @@ RESOURCE_ATTRIBUTE_MAP = {
             'allow_post': False,
             'allow_put': False,
             'is_visible': True,
+        },
+        'vnffgd_template': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+            'default': None,
         },
     },
 
@@ -622,6 +650,12 @@ RESOURCE_ATTRIBUTE_MAP = {
             'is_visible': True,
             'default': None,
         },
+        'template_source': {
+            'allow_post': False,
+            'allow_put': False,
+            'is_visible': True,
+            'default': 'onboarded'
+        },
 
     },
 
@@ -675,6 +709,7 @@ RESOURCE_ATTRIBUTE_MAP = {
             'allow_put': False,
             'validate': {'type:uuid': None},
             'is_visible': True,
+            'default': None,
         },
         'vim_id': {
             'allow_post': True,
@@ -707,6 +742,13 @@ RESOURCE_ATTRIBUTE_MAP = {
             'convert_to': attr.convert_none_to_empty_dict,
             'validate': {'type:dict_or_nodata': None},
             'is_visible': True,
+        },
+        'nsd_template': {
+            'allow_post': True,
+            'allow_put': False,
+            'validate': {'type:dict_or_nodata': None},
+            'is_visible': True,
+            'default': None,
         },
     },
 
@@ -770,6 +812,10 @@ class NFVOPluginBase(service_base.NFVPluginBase):
 
     @abc.abstractmethod
     def create_vim(self, context, vim):
+        pass
+
+    @abc.abstractmethod
+    def update_vim(self, context, vim_id, vim):
         pass
 
     @abc.abstractmethod

@@ -14,16 +14,15 @@
 #    under the License.
 
 import codecs
-import datetime
+from datetime import datetime
 import mock
 import os
-import uuid
-
+from oslo_utils import uuidutils
 
 from mock import patch
 
 from tacker import context
-from tacker.db.common_services import common_services_db
+from tacker.db.common_services import common_services_db_plugin
 from tacker.db.nfvo import nfvo_db
 from tacker.db.nfvo import ns_db
 from tacker.db.nfvo import vnffg_db
@@ -57,7 +56,7 @@ class FakeDriverManager(mock.Mock):
     def invoke(self, *args, **kwargs):
         if any(x in ['create', 'create_chain', 'create_flow_classifier'] for
                x in args):
-            return str(uuid.uuid4())
+            return uuidutils.generate_uuid()
         elif 'execute_workflow' in args:
             mock_execution = mock.Mock()
             mock_execution.id.return_value = \
@@ -73,30 +72,11 @@ class FakeDriverManager(mock.Mock):
             raise nfvo.NoTasksException()
 
 
-def get_fake_nsd():
-    create_time = datetime.datetime(2017, 1, 19, 9, 2, 11)
-    return {'description': u'',
-            'tenant_id': u'a81900a92bda40588c52699e1873a92f',
-            'created_at': create_time, 'updated_at': None,
-            'vnfds': {u'tosca.nodes.nfv.VNF1': u'vnf1',
-                      u'tosca.nodes.nfv.VNF2': u'vnf2'},
-            'attributes': {u'nsd': u'imports: [tinku1, tinku2]\ntopology_'
-            'template:\n  inputs:\n    vl1_name: {default: net_mgmt, '
-            'description: name of VL1 virtuallink, type: string}\n    '
-            'vl2_name: {default: net0, description: name of VL2 virtuallink, '
-            'type: string}\n  node_templates:\n    VL1:\n      properties:\n'
-            '        network_name: {get_input: vl1_name}\n        vendor: '
-            'tacker\n      type: tosca.nodes.nfv.VL\n    VL2:\n      '
-            'properties:\n        network_name: {get_input: vl2_name}\n    '
-            '    vendor: tacker\n      type: tosca.nodes.nfv.VL\n    VNF1:\n'
-            '      requirements:\n      - {virtualLink1: VL1}\n      - {'
-            'virtualLink2: VL2}\n      type: tosca.nodes.nfv.VNF1\n    VNF2: '
-            '{type: tosca.nodes.nfv.VNF2}\ntosca_definitions_version: tosca_'
-            'simple_profile_for_nfv_1_0_0\n'},
-            'id': u'eb094833-995e-49f0-a047-dfb56aaf7c4e', 'name': u'nsd'}
-
-
 def get_by_name():
+    return False
+
+
+def get_by_id():
     return False
 
 
@@ -217,14 +197,14 @@ class TestNfvoPlugin(db_base.SqlTestCase):
         self.addCleanup(mock.patch.stopall)
         self.context = context.get_admin_context()
         self._mock_driver_manager()
-        mock.patch('tacker.nfvo.nfvo_plugin.NfvoPlugin.__run__').start()
         mock.patch('tacker.nfvo.nfvo_plugin.NfvoPlugin._get_vim_from_vnf',
                    side_effect=dummy_get_vim).start()
         self.nfvo_plugin = nfvo_plugin.NfvoPlugin()
-        mock.patch('tacker.db.common_services.common_services_db.'
+        mock.patch('tacker.db.common_services.common_services_db_plugin.'
                    'CommonServicesPluginDb.create_event'
                    ).start()
-        self._cos_db_plugin = common_services_db.CommonServicesPluginDb()
+        self._cos_db_plugin =\
+            common_services_db_plugin.CommonServicesPluginDb()
 
     def _mock_driver_manager(self):
         self._driver_manager = mock.Mock(wraps=FakeDriverManager())
@@ -244,6 +224,7 @@ class TestNfvoPlugin(db_base.SqlTestCase):
             description='fake_vim_description',
             type='openstack',
             status='Active',
+            deleted_at=datetime.min,
             placement_attr={'regions': ['RegionOne']})
         vim_auth_db = nfvo_db.VimAuth(
             vim_id='6261579e-d6f3-49ad-8bc3-a9cb974778ff',
@@ -251,7 +232,32 @@ class TestNfvoPlugin(db_base.SqlTestCase):
             auth_url='http://localhost:5000',
             vim_project={'name': 'test_project'},
             auth_cred={'username': 'test_user', 'user_domain_id': 'default',
-                       'project_domain_id': 'default'})
+                       'project_domain_id': 'default',
+                       'key_type': 'fernet_key'})
+        session.add(vim_db)
+        session.add(vim_auth_db)
+        session.flush()
+
+    def _insert_dummy_vim_barbican(self):
+        session = self.context.session
+        vim_db = nfvo_db.Vim(
+            id='6261579e-d6f3-49ad-8bc3-a9cb974778ff',
+            tenant_id='ad7ebc56538745a08ef7c5e97f8bd437',
+            name='fake_vim',
+            description='fake_vim_description',
+            type='openstack',
+            status='Active',
+            deleted_at=datetime.min,
+            placement_attr={'regions': ['RegionOne']})
+        vim_auth_db = nfvo_db.VimAuth(
+            vim_id='6261579e-d6f3-49ad-8bc3-a9cb974778ff',
+            password='encrypted_pw',
+            auth_url='http://localhost:5000',
+            vim_project={'name': 'test_project'},
+            auth_cred={'username': 'test_user', 'user_domain_id': 'default',
+                       'project_domain_id': 'default',
+                       'key_type': 'barbican_key',
+                       'secret_uuid': 'fake-secret-uuid'})
         session.add(vim_db)
         session.add(vim_auth_db)
         session.flush()
@@ -264,14 +270,9 @@ class TestNfvoPlugin(db_base.SqlTestCase):
             self.context, evt_type=constants.RES_EVT_CREATE, res_id=mock.ANY,
             res_state=mock.ANY, res_type=constants.RES_TYPE_VIM,
             tstamp=mock.ANY)
-        self._cos_db_plugin.create_event.assert_any_call(
-            mock.ANY, evt_type=constants.RES_EVT_MONITOR, res_id=mock.ANY,
-            res_state=mock.ANY, res_type=constants.RES_TYPE_VIM,
-            tstamp=mock.ANY)
-        self._driver_manager.invoke.assert_any_call(vim_type,
-            'register_vim', vim_obj=vim_dict['vim'])
-        self._driver_manager.invoke.assert_any_call('openstack', 'vim_status',
-            auth_url='http://localhost:5000')
+        self._driver_manager.invoke.assert_any_call(
+            vim_type, 'register_vim',
+            context=self.context, vim_obj=vim_dict['vim'])
         self.assertIsNotNone(res)
         self.assertEqual(SECRET_PASSWORD, res['auth_cred']['password'])
         self.assertIn('id', res)
@@ -281,12 +282,14 @@ class TestNfvoPlugin(db_base.SqlTestCase):
 
     def test_delete_vim(self):
         self._insert_dummy_vim()
-        vim_type = 'openstack'
+        vim_type = u'openstack'
         vim_id = '6261579e-d6f3-49ad-8bc3-a9cb974778ff'
+        vim_obj = self.nfvo_plugin._get_vim(self.context, vim_id)
         self.nfvo_plugin.delete_vim(self.context, vim_id)
-        self._driver_manager.invoke.assert_called_once_with(vim_type,
-                                                            'deregister_vim',
-                                                            vim_id=vim_id)
+        self._driver_manager.invoke.assert_called_once_with(
+            vim_type, 'deregister_vim',
+            context=self.context,
+            vim_obj=vim_obj)
         self._cos_db_plugin.create_event.assert_called_with(
             self.context, evt_type=constants.RES_EVT_DELETE, res_id=mock.ANY,
             res_state=mock.ANY, res_type=constants.RES_TYPE_VIM,
@@ -297,15 +300,52 @@ class TestNfvoPlugin(db_base.SqlTestCase):
                             'vim_project': {'name': 'new_project'},
                             'auth_cred': {'username': 'new_user',
                                           'password': 'new_password'}}}
-        vim_type = 'openstack'
+        vim_type = u'openstack'
         vim_auth_username = vim_dict['vim']['auth_cred']['username']
         vim_project = vim_dict['vim']['vim_project']
         self._insert_dummy_vim()
         res = self.nfvo_plugin.update_vim(self.context, vim_dict['vim']['id'],
                                           vim_dict)
-        self._driver_manager.invoke.assert_called_once_with(vim_type,
-                                                            'register_vim',
-                                                            vim_obj=mock.ANY)
+        vim_obj = self.nfvo_plugin._get_vim(
+            self.context, vim_dict['vim']['id'])
+        vim_obj['updated_at'] = None
+        self._driver_manager.invoke.assert_called_with(
+            vim_type, 'register_vim',
+            context=self.context,
+            vim_obj=vim_obj)
+        self.assertIsNotNone(res)
+        self.assertIn('id', res)
+        self.assertIn('placement_attr', res)
+        self.assertEqual(vim_project, res['vim_project'])
+        self.assertEqual(vim_auth_username, res['auth_cred']['username'])
+        self.assertEqual(SECRET_PASSWORD, res['auth_cred']['password'])
+        self.assertIn('updated_at', res)
+        self._cos_db_plugin.create_event.assert_called_with(
+            self.context, evt_type=constants.RES_EVT_UPDATE, res_id=mock.ANY,
+            res_state=mock.ANY, res_type=constants.RES_TYPE_VIM,
+            tstamp=mock.ANY)
+
+    def test_update_vim_barbican(self):
+        vim_dict = {'vim': {'id': '6261579e-d6f3-49ad-8bc3-a9cb974778ff',
+                            'vim_project': {'name': 'new_project'},
+                            'auth_cred': {'username': 'new_user',
+                                          'password': 'new_password'}}}
+        vim_type = u'openstack'
+        vim_auth_username = vim_dict['vim']['auth_cred']['username']
+        vim_project = vim_dict['vim']['vim_project']
+        self._insert_dummy_vim_barbican()
+        old_vim_obj = self.nfvo_plugin._get_vim(
+            self.context, vim_dict['vim']['id'])
+        res = self.nfvo_plugin.update_vim(self.context, vim_dict['vim']['id'],
+                                          vim_dict)
+        vim_obj = self.nfvo_plugin._get_vim(
+            self.context, vim_dict['vim']['id'])
+        vim_obj['updated_at'] = None
+        self._driver_manager.invoke.assert_called_with(
+            vim_type, 'delete_vim_auth',
+            context=self.context,
+            vim_id=vim_obj['id'],
+            auth=old_vim_obj['auth_cred'])
         self.assertIsNotNone(res)
         self.assertIn('id', res)
         self.assertIn('placement_attr', res)
@@ -325,7 +365,21 @@ class TestNfvoPlugin(db_base.SqlTestCase):
             tenant_id='ad7ebc56538745a08ef7c5e97f8bd437',
             name='fake_template',
             description='fake_template_description',
-            template={u'vnffgd': utils.vnffgd_tosca_template})
+            template={u'vnffgd': utils.vnffgd_tosca_template},
+            template_source='onboarded')
+        session.add(vnffg_template)
+        session.flush()
+        return vnffg_template
+
+    def _insert_dummy_vnffg_template_inline(self):
+        session = self.context.session
+        vnffg_template = vnffg_db.VnffgTemplate(
+            id='11da9f20-9347-4283-bc68-eb98061ef8f7',
+            tenant_id='ad7ebc56538745a08ef7c5e97f8bd437',
+            name='dummy_vnffgd_inline',
+            description='dummy_vnffgd_description_inline',
+            template={u'vnffgd': utils.vnffgd_tosca_template},
+            template_source='inline')
         session.add(vnffg_template)
         session.flush()
         return vnffg_template
@@ -338,6 +392,30 @@ class TestNfvoPlugin(db_base.SqlTestCase):
             name='fake_template',
             description='fake_template_description',
             template={u'vnffgd': utils.vnffgd_tosca_param_template})
+        session.add(vnffg_template)
+        session.flush()
+        return vnffg_template
+
+    def _insert_dummy_vnffg_str_param_template(self):
+        session = self.context.session
+        vnffg_template = vnffg_db.VnffgTemplate(
+            id='eb094833-995e-49f0-a047-dfb56aaf7c4e',
+            tenant_id='ad7ebc56538745a08ef7c5e97f8bd437',
+            name='fake_template',
+            description='fake_template_description',
+            template={u'vnffgd': utils.vnffgd_tosca_str_param_template})
+        session.add(vnffg_template)
+        session.flush()
+        return vnffg_template
+
+    def _insert_dummy_vnffg_multi_param_template(self):
+        session = self.context.session
+        vnffg_template = vnffg_db.VnffgTemplate(
+            id='eb094833-995e-49f0-a047-dfb56aaf7c4e',
+            tenant_id='ad7ebc56538745a08ef7c5e97f8bd437',
+            name='fake_template',
+            description='fake_template_description',
+            template={u'vnffgd': utils.vnffgd_tosca_multi_param_template})
         session.add(vnffg_template)
         session.flush()
         return vnffg_template
@@ -420,12 +498,32 @@ class TestNfvoPlugin(db_base.SqlTestCase):
                           self.nfvo_plugin.validate_tosca,
                           template)
 
+    def test_validate_vnffg_properties(self):
+        template = {'vnffgd': utils.vnffgd_tosca_template}
+        self.nfvo_plugin.validate_vnffg_properties(template)
+
+    def test_validate_vnffg_properties_wrong_number(self):
+        template = {'vnffgd': utils.vnffgd_wrong_cp_number_template}
+        self.assertRaises(nfvo.VnffgdWrongEndpointNumber,
+                          self.nfvo_plugin.validate_vnffg_properties,
+                          template)
+
     def test_create_vnffgd(self):
         vnffgd_obj = utils.get_dummy_vnffgd_obj()
         result = self.nfvo_plugin.create_vnffgd(self.context, vnffgd_obj)
         self.assertIsNotNone(result)
         self.assertIn('id', result)
         self.assertIn('template', result)
+        self.assertIn('template_source', result)
+        self.assertEqual('onboarded', result['template_source'])
+
+    def test_create_vnffgd_inline(self):
+        vnffgd_obj = utils.get_dummy_vnffgd_obj_inline()
+        result = self.nfvo_plugin.create_vnffgd(self.context, vnffgd_obj)
+        self.assertIsNotNone(result)
+        self.assertIn('id', result)
+        self.assertIn('template', result)
+        self.assertEqual('inline', result['template_source'])
 
     def test_create_vnffg_abstract_types(self):
         with patch.object(TackerManager, 'get_service_plugins') as \
@@ -440,6 +538,32 @@ class TestNfvoPlugin(db_base.SqlTestCase):
             self.assertIn('id', result)
             self.assertIn('status', result)
             self.assertEqual('PENDING_CREATE', result['status'])
+            self._driver_manager.invoke.assert_called_with(mock.ANY, mock.ANY,
+                                                           name=mock.ANY,
+                                                           vnfs=mock.ANY,
+                                                           fc_id=mock.ANY,
+                                                           auth_attr=mock.ANY,
+                                                           symmetrical=mock.ANY
+                                                           )
+
+    @mock.patch('tacker.nfvo.nfvo_plugin.NfvoPlugin.create_vnffgd')
+    def test_create_vnffg_abstract_types_inline(self, mock_create_vnffgd):
+        with patch.object(TackerManager, 'get_service_plugins') as \
+                mock_plugins:
+            mock_plugins.return_value = {'VNFM': FakeVNFMPlugin()}
+            mock.patch('tacker.common.driver_manager.DriverManager',
+                       side_effect=FakeDriverManager()).start()
+            mock_create_vnffgd.return_value = {'id':
+                    '11da9f20-9347-4283-bc68-eb98061ef8f7'}
+            self._insert_dummy_vnffg_template_inline()
+            vnffg_obj = utils.get_dummy_vnffg_obj_inline()
+            result = self.nfvo_plugin.create_vnffg(self.context, vnffg_obj)
+            self.assertIsNotNone(result)
+            self.assertIn('id', result)
+            self.assertIn('status', result)
+            self.assertEqual('PENDING_CREATE', result['status'])
+            self.assertEqual('dummy_vnffg_inline', result['name'])
+            mock_create_vnffgd.assert_called_once_with(mock.ANY, mock.ANY)
             self._driver_manager.invoke.assert_called_with(mock.ANY, mock.ANY,
                                                            name=mock.ANY,
                                                            vnfs=mock.ANY,
@@ -468,6 +592,37 @@ class TestNfvoPlugin(db_base.SqlTestCase):
                                                            auth_attr=mock.ANY,
                                                            symmetrical=mock.ANY
                                                            )
+
+    @mock.patch.object(nfvo_plugin.NfvoPlugin, '_get_by_id')
+    def test_create_vnffg_param_value_format_error(self, mock_get_by_id):
+        with patch.object(TackerManager, 'get_service_plugins') as \
+                mock_plugins:
+            mock_plugins.return_value = {'VNFM': FakeVNFMPlugin()}
+            mock_get_by_id.value = get_by_id()
+            vnffg_obj = utils.get_dummy_vnffg_str_param_obj()
+            self.assertRaises(nfvo.VnffgParamValueFormatError,
+                              self.nfvo_plugin.create_vnffg,
+                              self.context, vnffg_obj)
+
+    def test_create_vnffg_template_param_not_parse(self):
+        with patch.object(TackerManager, 'get_service_plugins') as \
+                mock_plugins:
+            mock_plugins.return_value = {'VNFM': FakeVNFMPlugin()}
+            self._insert_dummy_vnffg_multi_param_template()
+            vnffg_obj = utils.get_dummy_vnffg_param_obj()
+            self.assertRaises(nfvo.VnffgTemplateParamParsingException,
+                              self.nfvo_plugin.create_vnffg,
+                              self.context, vnffg_obj)
+
+    def test_create_vnffg_param_value_not_use(self):
+        with patch.object(TackerManager, 'get_service_plugins') as \
+                mock_plugins:
+            mock_plugins.return_value = {'VNFM': FakeVNFMPlugin()}
+            self._insert_dummy_vnffg_param_template()
+            vnffg_obj = utils.get_dummy_vnffg_multi_param_obj()
+            self.assertRaises(nfvo.VnffgParamValueNotUsed,
+                              self.nfvo_plugin.create_vnffg,
+                              self.context, vnffg_obj)
 
     def test_create_vnffg_vnf_mapping(self):
         with patch.object(TackerManager, 'get_service_plugins') as \
@@ -562,12 +717,51 @@ class TestNfvoPlugin(db_base.SqlTestCase):
             name='fake_template',
             vnfds={'tosca.nodes.nfv.VNF1': 'vnf1',
                    'tosca.nodes.nfv.VNF2': 'vnf2'},
-            description='fake_nsd_template_description')
+            description='fake_nsd_template_description',
+            deleted_at=datetime.min,
+            template_source='onboarded')
         session.add(nsd_template)
         for (key, value) in attributes.items():
             attribute_db = ns_db.NSDAttribute(
-                id=str(uuid.uuid4()),
+                id=uuidutils.generate_uuid(),
                 nsd_id='eb094833-995e-49f0-a047-dfb56aaf7c4e',
+                key=key,
+                value=value)
+            session.add(attribute_db)
+        session.flush()
+        return nsd_template
+
+    def _insert_dummy_ns_template_inline(self):
+        session = self.context.session
+        attributes = {
+            u'nsd': 'imports: [VNF1, VNF2]\ntopology_template:\n  inputs:\n  '
+                    '  vl1_name: {default: net_mgmt, description: name of VL1'
+                    ' virtuallink, type: string}\n    vl2_name: {default: '
+                    'net0, description: name of VL2 virtuallink, type: string'
+                    '}\n  node_templates:\n    VL1:\n      properties:\n     '
+                    '   network_name: {get_input: vl1_name}\n        vendor: '
+                    'tacker\n      type: tosca.nodes.nfv.VL\n    VL2:\n      '
+                    'properties:\n        network_name: {get_input: vl2_name}'
+                    '\n        vendor: tacker\n      type: tosca.nodes.nfv.VL'
+                    '\n    VNF1:\n      requirements:\n      - {virtualLink1: '
+                    'VL1}\n      - {virtualLink2: VL2}\n      type: tosca.node'
+                    's.nfv.VNF1\n    VNF2: {type: tosca.nodes.nfv.VNF2}\ntosca'
+                    '_definitions_version: tosca_simple_profile_for_nfv_1_0_0'
+                    '\n'}
+        nsd_template = ns_db.NSD(
+            id='be18005d-5656-4d81-b499-6af4d4d8437f',
+            tenant_id='ad7ebc56538745a08ef7c5e97f8bd437',
+            name='dummy_NSD',
+            vnfds={'tosca.nodes.nfv.VNF1': 'vnf1',
+                   'tosca.nodes.nfv.VNF2': 'vnf2'},
+            description='dummy_nsd_description',
+            deleted_at=datetime.min,
+            template_source='inline')
+        session.add(nsd_template)
+        for (key, value) in attributes.items():
+            attribute_db = ns_db.NSDAttribute(
+                id=uuidutils.generate_uuid(),
+                nsd_id='be18005d-5656-4d81-b499-6af4d4d8437f',
                 key=key,
                 value=value)
             session.add(attribute_db)
@@ -578,12 +772,13 @@ class TestNfvoPlugin(db_base.SqlTestCase):
         session = self.context.session
         ns = ns_db.NS(
             id='ba6bf017-f6f7-45f1-a280-57b073bf78ea',
-            name='fake_ns',
+            name='dummy_ns',
             tenant_id='ad7ebc56538745a08ef7c5e97f8bd437',
             status='ACTIVE',
             nsd_id='eb094833-995e-49f0-a047-dfb56aaf7c4e',
             vim_id='6261579e-d6f3-49ad-8bc3-a9cb974778ff',
-            description='fake_ns_description')
+            description='dummy_ns_description',
+            deleted_at=datetime.min)
         session.add(ns)
         session.flush()
         return ns
@@ -597,7 +792,8 @@ class TestNfvoPlugin(db_base.SqlTestCase):
             status='ACTIVE',
             nsd_id='eb094833-995e-49f0-a047-dfb56aaf7c4e',
             vim_id='6261579e-d6f3-49ad-8bc3-a9cb974778ff',
-            description='fake_ns_description')
+            description='fake_ns_description',
+            deleted_at=datetime.min)
         session.add(ns)
         session.flush()
         return ns
@@ -609,7 +805,31 @@ class TestNfvoPlugin(db_base.SqlTestCase):
             mock_plugins.return_value = {'VNFM': FakeVNFMPlugin()}
             result = self.nfvo_plugin.create_nsd(self.context, nsd_obj)
             self.assertIsNotNone(result)
-            self.assertEqual(result['name'], 'dummy_NSD')
+            self.assertEqual('dummy_NSD', result['name'])
+            self.assertIn('id', result)
+            self.assertEqual('dummy_NSD', result['name'])
+            self.assertEqual('onboarded', result['template_source'])
+            self.assertEqual('8819a1542a5948b68f94d4be0fd50496',
+                             result['tenant_id'])
+            self.assertIn('attributes', result)
+            self.assertIn('created_at', result)
+            self.assertIn('updated_at', result)
+
+    def test_create_nsd_inline(self):
+        nsd_obj = utils.get_dummy_nsd_obj_inline()
+        with patch.object(TackerManager, 'get_service_plugins') as \
+                mock_plugins:
+            mock_plugins.return_value = {'VNFM': FakeVNFMPlugin()}
+            result = self.nfvo_plugin.create_nsd(self.context, nsd_obj)
+            self.assertIsNotNone(result)
+            self.assertIn('id', result)
+            self.assertEqual('dummy_NSD_inline', result['name'])
+            self.assertEqual('inline', result['template_source'])
+            self.assertEqual('8819a1542a5948b68f94d4be0fd50496',
+                             result['tenant_id'])
+            self.assertIn('attributes', result)
+            self.assertIn('created_at', result)
+            self.assertIn('updated_at', result)
 
     @mock.patch.object(nfvo_plugin.NfvoPlugin, 'get_auth_dict')
     @mock.patch.object(vim_client.VimClient, 'get_vim')
@@ -636,6 +856,38 @@ class TestNfvoPlugin(db_base.SqlTestCase):
             self.assertEqual(ns_obj['ns']['name'], result['name'])
             self.assertIn('status', result)
             self.assertIn('tenant_id', result)
+
+    @mock.patch('tacker.nfvo.nfvo_plugin.NfvoPlugin.create_nsd')
+    @mock.patch.object(nfvo_plugin.NfvoPlugin, 'get_auth_dict')
+    @mock.patch.object(vim_client.VimClient, 'get_vim')
+    @mock.patch.object(nfvo_plugin.NfvoPlugin, '_get_by_name')
+    def test_create_ns_inline(self, mock_get_by_name, mock_get_vimi,
+                              mock_auth_dict, mock_create_nsd):
+        self._insert_dummy_ns_template_inline()
+        self._insert_dummy_vim()
+        mock_auth_dict.return_value = {
+            'auth_url': 'http://127.0.0.1',
+            'token': 'DummyToken',
+            'project_domain_name': 'dummy_domain',
+            'project_name': 'dummy_project'
+        }
+        with patch.object(TackerManager, 'get_service_plugins') as \
+                mock_plugins:
+            mock_plugins.return_value = {'VNFM': FakeVNFMPlugin()}
+            mock_get_by_name.return_value = get_by_name()
+            mock_create_nsd.return_value = {'id':
+                            'be18005d-5656-4d81-b499-6af4d4d8437f'}
+
+            ns_obj = utils.get_dummy_ns_obj_inline()
+            result = self.nfvo_plugin.create_ns(self.context, ns_obj)
+            self.assertIsNotNone(result)
+            self.assertIn('id', result)
+            self.assertEqual(ns_obj['ns']['nsd_id'], result['nsd_id'])
+            self.assertEqual(ns_obj['ns']['name'], result['name'])
+            self.assertEqual('dummy_ns_inline', result['name'])
+            self.assertIn('status', result)
+            self.assertIn('tenant_id', result)
+            mock_create_nsd.assert_called_once_with(mock.ANY, mock.ANY)
 
     @mock.patch.object(nfvo_plugin.NfvoPlugin, 'get_auth_dict')
     @mock.patch.object(vim_client.VimClient, 'get_vim')

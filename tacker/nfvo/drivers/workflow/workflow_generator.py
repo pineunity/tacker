@@ -11,9 +11,9 @@
 #    under the License.
 
 import ast
-import uuid
+from oslo_utils import uuidutils
 
-from six import iteritems
+from tacker.mistral import workflow_generator
 
 
 OUTPUT = {
@@ -21,47 +21,12 @@ OUTPUT = {
 }
 
 
-class WorkflowGenerator(object):
-    def __init__(self, resource, action):
-        self.resource = resource
-        self.action = action
-        self.wf_name = self.action + '_' + self.resource
-        self.wf_identifier = 'std.' + self.wf_name + str(uuid.uuid4())
-        self.task = getattr(self, self.wf_name)
-        self.input_dict = dict()
-        self._build_basic_workflow()
-
-    def _build_basic_workflow(self):
-        self.definition = {
-            'version': '2.0',
-            self.wf_identifier: {
-                'type': 'direct',
-                'input': [self.resource]
-            }
-        }
-
-    def _get_vim_id(self):
-        pass
-
-    def _get_vnfd_id(self):
-        pass
-
-    def _get_vnf_name(self):
-        pass
-
-    def _get_attr(self):
-        pass
-
-    def _get_description(self):
-        pass
-
-    def get_tasks(self):
-        return self.definition[self.wf_identifier]['tasks']
+class WorkflowGenerator(workflow_generator.WorkflowGeneratorBase):
 
     def _add_create_vnf_tasks(self, ns):
         vnfds = ns['vnfd_details']
         task_dict = dict()
-        for vnfd_name, vnfd_info in iteritems(vnfds):
+        for vnfd_name, vnfd_info in (vnfds).items():
             nodes = vnfd_info['instances']
             for node in nodes:
                 task = self.wf_name + '_' + node
@@ -86,7 +51,7 @@ class WorkflowGenerator(object):
     def _add_wait_vnf_tasks(self, ns):
         vnfds = ns['vnfd_details']
         task_dict = dict()
-        for vnfd_name, vnfd_info in iteritems(vnfds):
+        for vnfd_name, vnfd_info in (vnfds).items():
             nodes = vnfd_info['instances']
             for node in nodes:
                 task = 'wait_vnf_active_%s' % node
@@ -119,7 +84,7 @@ class WorkflowGenerator(object):
     def _add_delete_vnf_tasks(self, ns):
         vnfds = ns['vnfd_details']
         task_dict = dict()
-        for vnfd_name, vnfd_info in iteritems(vnfds):
+        for vnfd_name, vnfd_info in (vnfds).items():
             nodes = vnfd_info['instances']
             for node in nodes:
                 task = 'delete_vnf_%s' % node
@@ -132,7 +97,7 @@ class WorkflowGenerator(object):
     def _build_output_dict(self, ns):
         vnfds = ns['vnfd_details']
         task_dict = dict()
-        for vnfd_name, vnfd_info in iteritems(vnfds):
+        for vnfd_name, vnfd_info in (vnfds).items():
             nodes = vnfd_info['instances']
             for node in nodes:
                 for op_name in OUTPUT[self.wf_name]:
@@ -145,9 +110,9 @@ class WorkflowGenerator(object):
 
     def build_input(self, ns, params):
         vnfds = ns['vnfd_details']
-        id = str(uuid.uuid4())
+        id = uuidutils.generate_uuid()
         self.input_dict = {'vnf': {}}
-        for vnfd_name, vnfd_info in iteritems(vnfds):
+        for vnfd_name, vnfd_info in (vnfds).items():
             nodes = vnfd_info['instances']
             for node in nodes:
                 self.input_dict['vnf'][node] = dict()
@@ -155,8 +120,7 @@ class WorkflowGenerator(object):
                     'attributes': {},
                     'vim_id': ns['ns'].get('vim_id', ''),
                     'vnfd_id': vnfd_info['id'],
-                    'name': 'create_vnf_%s_%s' % (vnfd_info['id'],
-                        id)
+                    'name': 'create_vnf_%s_%s' % (vnfd_info['id'], id)
                 }
                 if params.get(vnfd_name):
                     self.input_dict['vnf'][node]['vnf']['attributes'] = {

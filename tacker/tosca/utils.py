@@ -18,7 +18,6 @@ import sys
 import yaml
 
 from oslo_log import log as logging
-from six import iteritems
 from toscaparser import properties
 from toscaparser.utils import yamlparser
 
@@ -30,7 +29,8 @@ from collections import OrderedDict
 
 FAILURE = 'tosca.policies.tacker.Failure'
 LOG = logging.getLogger(__name__)
-MONITORING = 'tosca.policies.tacker.Monitoring'
+MONITORING = 'tosca.policies.Monitoring'
+SCALING = 'tosca.policies.Scaling'
 PLACEMENT = 'tosca.policies.tacker.Placement'
 TACKERCP = 'tosca.nodes.nfv.CP.Tacker'
 TACKERVDU = 'tosca.nodes.nfv.VDU.Tacker'
@@ -83,6 +83,9 @@ HEAT_RESOURCE_MAP = {
     "image": "OS::Glance::Image"
 }
 
+SCALE_GROUP_RESOURCE = "OS::Heat::AutoScalingGroup"
+SCALE_POLICY_RESOURCE = "OS::Heat::ScalingPolicy"
+
 
 @log.log
 def updateimports(template):
@@ -99,7 +102,7 @@ def updateimports(template):
 
         template['imports'].append(nfvfile)
 
-    LOG.debug(_("%s"), path)
+    LOG.debug(path)
 
 
 @log.log
@@ -117,7 +120,7 @@ def check_for_substitution_mappings(template, params):
     elif (not sm_dict or not requirements) and not req_dict_tpl:
         return
     del params['substitution_mappings']
-    for req_name, req_val in iteritems(req_dict_tpl):
+    for req_name, req_val in (req_dict_tpl).items():
         if req_name not in requirements:
             raise vnfm.SMRequirementMissing(requirement=req_name)
         if not isinstance(req_val, list):
@@ -169,6 +172,54 @@ def get_vdu_metadata(template):
 
 
 @log.log
+def pre_process_alarm_resources(vnf, template, vdu_metadata):
+    alarm_resources = dict()
+    matching_metadata = dict()
+    alarm_actions = dict()
+    for policy in template.policies:
+        if (policy.type_definition.is_derived_from(MONITORING)):
+            matching_metadata =\
+                _process_matching_metadata(vdu_metadata, policy)
+            alarm_actions = _process_alarm_actions(vnf, policy)
+    alarm_resources['matching_metadata'] = matching_metadata
+    alarm_resources['alarm_actions'] = alarm_actions
+    return alarm_resources
+
+
+def _process_matching_metadata(metadata, policy):
+    matching_mtdata = dict()
+    triggers = policy.entity_tpl['triggers']
+    for trigger_name, trigger_dict in triggers.items():
+        if not (trigger_dict.get('metadata') and metadata):
+            raise vnfm.MetadataNotMatched()
+        is_matched = False
+        for vdu_name, metadata_dict in metadata['vdus'].items():
+            if trigger_dict['metadata'] ==\
+                    metadata_dict['metering.vnf']:
+                is_matched = True
+        if not is_matched:
+            raise vnfm.MetadataNotMatched()
+        matching_mtdata[trigger_name] = dict()
+        matching_mtdata[trigger_name]['metadata.user_metadata.vnf'] =\
+            trigger_dict['metadata']
+    return matching_mtdata
+
+
+def _process_alarm_actions(vnf, policy):
+    # process  alarm url here
+    triggers = policy.entity_tpl['triggers']
+    alarm_actions = dict()
+    for trigger_name, trigger_dict in triggers.items():
+        alarm_url = vnf['attributes'].get(trigger_name)
+        if alarm_url:
+            alarm_url = str(alarm_url)
+            LOG.debug('Alarm url in heat %s', alarm_url)
+            alarm_actions[trigger_name] = dict()
+            alarm_actions[trigger_name]['alarm_actions'] = [alarm_url]
+    return alarm_actions
+
+
+@log.log
 def get_mgmt_ports(tosca):
     mgmt_ports = {}
     for nt in tosca.nodetemplates:
@@ -190,26 +241,27 @@ def get_mgmt_ports(tosca):
 
 @log.log
 def add_resources_tpl(heat_dict, hot_res_tpl):
-    for res, res_dict in iteritems(hot_res_tpl):
-        for vdu, vdu_dict in iteritems(res_dict):
+    for res, res_dict in (hot_res_tpl).items():
+        for vdu, vdu_dict in (res_dict).items():
             res_name = vdu + "_" + res
             heat_dict["resources"][res_name] = {
                 "type": HEAT_RESOURCE_MAP[res],
                 "properties": {}
             }
 
-            for prop, val in iteritems(vdu_dict):
+            for prop, val in (vdu_dict).items():
                 heat_dict["resources"][res_name]["properties"][prop] = val
-            heat_dict["resources"][vdu]["properties"][res] = {
-                "get_resource": res_name
-            }
+            if heat_dict["resources"].get(vdu):
+                heat_dict["resources"][vdu]["properties"][res] = {
+                    "get_resource": res_name
+                }
 
 
 @log.log
 def convert_unsupported_res_prop(heat_dict, unsupported_res_prop):
     res_dict = heat_dict['resources']
 
-    for res, attr in iteritems(res_dict):
+    for res, attr in (res_dict).items():
         res_type = attr['type']
         if res_type in unsupported_res_prop:
             prop_dict = attr['properties']
@@ -255,13 +307,14 @@ def represent_odict(dump, tag, mapping, flow_style=None):
 
 @log.log
 def post_process_heat_template(heat_tpl, mgmt_ports, metadata,
-                               res_tpl, unsupported_res_prop=None):
+                               alarm_resources, res_tpl,
+                               unsupported_res_prop=None):
     #
     # TODO(bobh) - remove when heat-translator can support literal strings.
     #
     def fix_user_data(user_data_string):
         user_data_string = re.sub('user_data: #', 'user_data: |\n        #',
-                                 user_data_string, re.MULTILINE)
+                                  user_data_string, re.MULTILINE)
         return re.sub('\n\n', '\n', user_data_string, re.MULTILINE)
 
     heat_tpl = fix_user_data(heat_tpl)
@@ -276,11 +329,27 @@ def post_process_heat_template(heat_tpl, mgmt_ports, metadata,
             heat_dict['outputs'].update(output)
         else:
             heat_dict['outputs'] = output
-        LOG.debug(_('Added output for %s'), outputname)
+        LOG.debug('Added output for %s', outputname)
     if metadata:
         for vdu_name, metadata_dict in metadata['vdus'].items():
-            heat_dict['resources'][vdu_name]['properties']['metadata'] =\
-                metadata_dict
+            if heat_dict['resources'].get(vdu_name):
+                heat_dict['resources'][vdu_name]['properties']['metadata'] =\
+                    metadata_dict
+    matching_metadata = alarm_resources.get('matching_metadata')
+    alarm_actions = alarm_resources.get('alarm_actions')
+    if matching_metadata:
+        for trigger_name, matching_metadata_dict in matching_metadata.items():
+            if heat_dict['resources'].get(trigger_name):
+                matching_mtdata = dict()
+                matching_mtdata['matching_metadata'] =\
+                    matching_metadata[trigger_name]
+                heat_dict['resources'][trigger_name]['properties'].\
+                    update(matching_mtdata)
+    if alarm_actions:
+        for trigger_name, alarm_actions_dict in alarm_actions.items():
+            if heat_dict['resources'].get(trigger_name):
+                heat_dict['resources'][trigger_name]['properties']. \
+                    update(alarm_actions_dict)
 
     add_resources_tpl(heat_dict, res_tpl)
     for res in heat_dict["resources"].values():
@@ -294,8 +363,8 @@ def post_process_heat_template(heat_tpl, mgmt_ports, metadata,
         convert_unsupported_res_prop(heat_dict, unsupported_res_prop)
 
     yaml.SafeDumper.add_representer(OrderedDict,
-        lambda dumper, value: represent_odict(dumper,
-                                              u'tag:yaml.org,2002:map', value))
+    lambda dumper, value: represent_odict(dumper,
+                                          u'tag:yaml.org,2002:map', value))
 
     return yaml.safe_dump(heat_dict)
 
@@ -370,9 +439,9 @@ def get_flavor_dict(template, flavor_extra_input=None):
             flavor_dict[nt.name] = {}
             properties = nt.get_capabilities()["nfv_compute"].get_properties()
             for prop, (hot_prop, default, unit) in \
-                    iteritems(FLAVOR_PROPS):
+                    (FLAVOR_PROPS).items():
                 hot_prop_val = (properties[prop].value
-                    if properties.get(prop, None) else None)
+                                if properties.get(prop, None) else None)
                 if unit and hot_prop_val:
                     hot_prop_val = \
                         utils.change_memory_unit(hot_prop_val, unit)
@@ -396,9 +465,9 @@ def populate_flavor_extra_specs(es_dict, properties, flavor_extra_input):
                 error_msg_details=(mval + ":Invalid Input"))
         es_dict['hw:mem_page_size'] = mval
     if 'numa_nodes' in properties and 'numa_node_count' in properties:
-        LOG.warning(_('Both numa_nodes and numa_node_count have been'
-                      'specified; numa_node definitions will be ignored and'
-                      'numa_node_count will be applied'))
+        LOG.warning('Both numa_nodes and numa_node_count have been'
+                    'specified; numa_node definitions will be ignored and'
+                    'numa_node_count will be applied')
     if 'numa_node_count' in properties:
         es_dict['hw:numa_nodes'] = \
             properties['numa_node_count'].value
@@ -442,9 +511,9 @@ def get_image_dict(template):
         if not vdu.entity_tpl.get("artifacts"):
             continue
         artifacts = vdu.entity_tpl["artifacts"]
-        for name, artifact in iteritems(artifacts):
+        for name, artifact in (artifacts).items():
             if ('type' in artifact.keys() and
-              artifact["type"] == IMAGE):
+               artifact["type"] == IMAGE):
                 if 'file' not in artifact.keys():
                     raise vnfm.FilePathMissing()
                 image_dict[vdu.name] = {
@@ -458,10 +527,79 @@ def get_image_dict(template):
 
 def get_resources_dict(template, flavor_extra_input=None):
     res_dict = dict()
-    for res, method in iteritems(OS_RESOURCES):
+    for res, method in (OS_RESOURCES).items():
         res_method = getattr(sys.modules[__name__], method)
         if res is 'flavor':
             res_dict[res] = res_method(template, flavor_extra_input)
         else:
             res_dict[res] = res_method(template)
     return res_dict
+
+
+@log.log
+def get_scaling_policy(template):
+    scaling_policy_names = list()
+    for policy in template.policies:
+        if (policy.type_definition.is_derived_from(SCALING)):
+            scaling_policy_names.append(policy.name)
+    return scaling_policy_names
+
+
+@log.log
+def get_scaling_group_dict(ht_template, scaling_policy_names):
+    scaling_group_dict = dict()
+    scaling_group_names = list()
+    heat_dict = yamlparser.simple_ordered_parse(ht_template)
+    for resource_name, resource_dict in heat_dict['resources'].items():
+        if resource_dict['type'] == SCALE_GROUP_RESOURCE:
+            scaling_group_names.append(resource_name)
+    if scaling_group_names:
+        scaling_group_dict[scaling_policy_names[0]] = scaling_group_names[0]
+    return scaling_group_dict
+
+
+def get_nested_resources_name(template):
+    for policy in template.policies:
+        if (policy.type_definition.is_derived_from(SCALING)):
+            nested_resource_name = policy.name + '_res.yaml'
+            return nested_resource_name
+
+
+def update_nested_scaling_resources(nested_resources, mgmt_ports, metadata,
+                                    res_tpl, unsupported_res_prop=None):
+    nested_tpl = dict()
+    if nested_resources:
+        nested_resource_name, nested_resources_yaml =\
+            list(nested_resources.items())[0]
+        nested_resources_dict =\
+            yamlparser.simple_ordered_parse(nested_resources_yaml)
+        if metadata:
+            for vdu_name, metadata_dict in metadata['vdus'].items():
+                nested_resources_dict['resources'][vdu_name]['properties']['metadata'] = \
+                    metadata_dict
+        add_resources_tpl(nested_resources_dict, res_tpl)
+        for res in nested_resources_dict["resources"].values():
+            if not res['type'] == HEAT_SOFTWARE_CONFIG:
+                continue
+            config = res["properties"]["config"]
+            if 'get_file' in config:
+                res["properties"]["config"] = open(config["get_file"]).read()
+
+        if unsupported_res_prop:
+            convert_unsupported_res_prop(nested_resources_dict,
+                                         unsupported_res_prop)
+
+        for outputname, portname in mgmt_ports.items():
+            ipval = {'get_attr': [portname, 'fixed_ips', 0, 'ip_address']}
+            output = {outputname: {'value': ipval}}
+            if 'outputs' in nested_resources_dict:
+                nested_resources_dict['outputs'].update(output)
+            else:
+                nested_resources_dict['outputs'] = output
+            LOG.debug(_('Added output for %s'), outputname)
+            yaml.SafeDumper.add_representer(
+                OrderedDict, lambda dumper, value: represent_odict(
+                    dumper, u'tag:yaml.org,2002:map', value))
+            nested_tpl[nested_resource_name] =\
+                yaml.safe_dump(nested_resources_dict)
+    return nested_tpl

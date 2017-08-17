@@ -303,7 +303,7 @@ class TestOpenStack(base.TestCase):
                 vnf["attributes"][k] = yaml.safe_load(
                     vnf["attributes"][k])
             expected_vnf["attributes"]['scaling_group_names'] = {
-                'SP1': 'G1'}
+                'SP1': 'SP1_group'}
             vnf["attributes"]['scaling_group_names'] = json.loads(
                 vnf["attributes"]['scaling_group_names']
             )
@@ -402,7 +402,7 @@ class TestOpenStack(base.TestCase):
         self._test_assert_equal_for_tosca_templates(
             'tosca_scale.yaml',
             'hot_scale_main.yaml',
-            files={'scaling.yaml': 'hot_scale_custom.yaml'},
+            files={'SP1_res.yaml': 'hot_scale_custom.yaml'},
             is_monitor=False
         )
 
@@ -443,7 +443,7 @@ class TestOpenStack(base.TestCase):
         self._test_assert_equal_for_tosca_templates(
             'tosca_alarm_scale.yaml',
             'hot_tosca_alarm_scale.yaml',
-            files={'scaling.yaml': 'hot_alarm_scale_custom.yaml'},
+            files={'SP1_res.yaml': 'hot_alarm_scale_custom.yaml'},
             is_monitor=False
         )
 

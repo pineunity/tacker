@@ -15,6 +15,7 @@
 
 from oslo_config import cfg
 from oslo_log import log as logging
+import oslo_messaging
 from oslo_service import periodic_task
 
 from tacker.common import utils
@@ -26,13 +27,14 @@ LOG = logging.getLogger(__name__)
 class Manager(periodic_task.PeriodicTasks):
 
     # Set RPC API version to 1.0 by default.
-    RPC_API_VERSION = '1.0'
+    target = oslo_messaging.Target(version='1.0')
 
     def __init__(self, host=None):
         if not host:
             host = cfg.CONF.host
         self.host = host
-        super(Manager, self).__init__()
+        conf = getattr(self, "conf", cfg.CONF)
+        super(Manager, self).__init__(conf)
 
     def periodic_tasks(self, context, raise_on_error=False):
         self.run_periodic_tasks(context, raise_on_error=raise_on_error)
@@ -131,11 +133,11 @@ class TackerManager(object):
         plugin_providers = cfg.CONF.service_plugins
         if 'commonservices' not in plugin_providers:
             plugin_providers.append('commonservices')
-        LOG.debug(_("Loading service plugins: %s"), plugin_providers)
+        LOG.debug("Loading service plugins: %s", plugin_providers)
         for provider in plugin_providers:
             if provider == '':
                 continue
-            LOG.info(_("Loading Plugin: %s"), provider)
+            LOG.info("Loading Plugin: %s", provider)
 
             plugin_inst = self._get_plugin_instance('tacker.service_plugins',
                                                     provider)
@@ -154,8 +156,8 @@ class TackerManager(object):
             #         hasattr(plugin_inst, 'agent_notifiers')):
             #     self.plugin.agent_notifiers.update(plugin_inst.agent_notifiers)
 
-            LOG.debug(_("Successfully loaded %(type)s plugin. "
-                        "Description: %(desc)s"),
+            LOG.debug("Successfully loaded %(type)s plugin. "
+                      "Description: %(desc)s",
                       {"type": plugin_inst.get_plugin_type(),
                        "desc": plugin_inst.get_plugin_description()})
 

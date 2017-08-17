@@ -11,11 +11,12 @@
 # under the License.
 
 import ast
-import uuid
+from datetime import datetime
 
 from oslo_db.exception import DBDuplicateEntry
 from oslo_log import log as logging
 from oslo_utils import timeutils
+from oslo_utils import uuidutils
 from six import iteritems
 
 import sqlalchemy as sa
@@ -24,7 +25,7 @@ from sqlalchemy.orm import exc as orm_exc
 from sqlalchemy import schema
 
 from tacker.common import exceptions
-from tacker.db.common_services import common_services_db
+from tacker.db.common_services import common_services_db_plugin
 from tacker.db import db_base
 from tacker.db import model_base
 from tacker.db import models_v1
@@ -53,6 +54,9 @@ class NSD(model_base.BASE, models_v1.HasId, models_v1.HasTenant,
     name = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text)
     vnfds = sa.Column(types.Json, nullable=True)
+
+    # Nsd template source - onboarded
+    template_source = sa.Column(sa.String(255), server_default='onboarded')
 
     # (key, value) pair to spin up
     attributes = orm.relationship('NSDAttribute',
@@ -113,7 +117,7 @@ class NSPluginDb(network_service.NSPluginBase, db_base.CommonDbMixin):
 
     def __init__(self):
         super(NSPluginDb, self).__init__()
-        self._cos_db_plg = common_services_db.CommonServicesPluginDb()
+        self._cos_db_plg = common_services_db_plugin.CommonServicesPluginDb()
 
     def _get_resource(self, context, model, id):
         try:
@@ -146,7 +150,7 @@ class NSPluginDb(network_service.NSPluginBase, db_base.CommonDbMixin):
             'attributes': self._make_attributes_dict(nsd['attributes']),
         }
         key_list = ('id', 'tenant_id', 'name', 'description',
-                    'created_at', 'updated_at', 'vnfds')
+                    'created_at', 'updated_at', 'vnfds', 'template_source')
         res.update((key, nsd[key]) for key in key_list)
         return self._fields(res, fields)
 
@@ -154,7 +158,7 @@ class NSPluginDb(network_service.NSPluginBase, db_base.CommonDbMixin):
         return dict((arg.key, arg.value) for arg in dev_attrs_db)
 
     def _make_ns_dict(self, ns_db, fields=None):
-        LOG.debug(_('ns_db %s'), ns_db)
+        LOG.debug('ns_db %s', ns_db)
         res = {}
         key_list = ('id', 'tenant_id', 'nsd_id', 'name', 'description',
                     'vnf_ids', 'status', 'mgmt_urls', 'error_reason',
@@ -165,22 +169,25 @@ class NSPluginDb(network_service.NSPluginBase, db_base.CommonDbMixin):
     def create_nsd(self, context, nsd):
         vnfds = nsd['vnfds']
         nsd = nsd['nsd']
-        LOG.debug(_('nsd %s'), nsd)
+        LOG.debug('nsd %s', nsd)
         tenant_id = self._get_tenant_id_for_create(context, nsd)
+        template_source = nsd.get('template_source')
 
         try:
             with context.session.begin(subtransactions=True):
-                nsd_id = str(uuid.uuid4())
+                nsd_id = uuidutils.generate_uuid()
                 nsd_db = NSD(
                     id=nsd_id,
                     tenant_id=tenant_id,
                     name=nsd.get('name'),
                     vnfds=vnfds,
-                    description=nsd.get('description'))
+                    description=nsd.get('description'),
+                    deleted_at=datetime.min,
+                    template_source=template_source)
                 context.session.add(nsd_db)
                 for (key, value) in nsd.get('attributes', {}).items():
                     attribute_db = NSDAttribute(
-                        id=str(uuid.uuid4()),
+                        id=uuidutils.generate_uuid(),
                         nsd_id=nsd_id,
                         key=key,
                         value=value)
@@ -189,11 +196,11 @@ class NSPluginDb(network_service.NSPluginBase, db_base.CommonDbMixin):
             raise exceptions.DuplicateEntity(
                 _type="nsd",
                 entry=e.columns)
-        LOG.debug(_('nsd_db %(nsd_db)s %(attributes)s '),
+        LOG.debug('nsd_db %(nsd_db)s %(attributes)s ',
                   {'nsd_db': nsd_db,
                    'attributes': nsd_db.attributes})
         nsd_dict = self._make_nsd_dict(nsd_db)
-        LOG.debug(_('nsd_dict %s'), nsd_dict)
+        LOG.debug('nsd_dict %s', nsd_dict)
         self._cos_db_plg.create_event(
             context, res_id=nsd_dict['id'],
             res_type=constants.RES_TYPE_NSD,
@@ -232,19 +239,22 @@ class NSPluginDb(network_service.NSPluginBase, db_base.CommonDbMixin):
         return self._make_nsd_dict(nsd_db)
 
     def get_nsds(self, context, filters, fields=None):
+        if ('template_source' in filters) and \
+                (filters['template_source'][0] == 'all'):
+            filters.pop('template_source')
         return self._get_collection(context, NSD,
                                     self._make_nsd_dict,
                                     filters=filters, fields=fields)
 
     # reference implementation. needs to be overrided by subclass
     def create_ns(self, context, ns):
-        LOG.debug(_('ns %s'), ns)
+        LOG.debug('ns %s', ns)
         ns = ns['ns']
         tenant_id = self._get_tenant_id_for_create(context, ns)
         nsd_id = ns['nsd_id']
         vim_id = ns['vim_id']
         name = ns.get('name')
-        ns_id = str(uuid.uuid4())
+        ns_id = uuidutils.generate_uuid()
         try:
             with context.session.begin(subtransactions=True):
                 nsd_db = self._get_resource(context, NSD,
@@ -258,7 +268,8 @@ class NSPluginDb(network_service.NSPluginBase, db_base.CommonDbMixin):
                            mgmt_urls=None,
                            nsd_id=nsd_id,
                            vim_id=vim_id,
-                           error_reason=None)
+                           error_reason=None,
+                           deleted_at=datetime.min)
                 context.session.add(ns_db)
         except DBDuplicateEntry as e:
             raise exceptions.DuplicateEntity(
@@ -276,7 +287,7 @@ class NSPluginDb(network_service.NSPluginBase, db_base.CommonDbMixin):
 
     def create_ns_post(self, context, ns_id, mistral_obj,
             vnfd_dict, error_reason):
-        LOG.debug(_('ns ID %s'), ns_id)
+        LOG.debug('ns ID %s', ns_id)
         output = ast.literal_eval(mistral_obj.output)
         mgmt_urls = dict()
         vnf_ids = dict()
@@ -330,6 +341,8 @@ class NSPluginDb(network_service.NSPluginBase, db_base.CommonDbMixin):
 
     def delete_ns_post(self, context, ns_id, mistral_obj,
                        error_reason, soft_delete=True):
+        ns = self.get_ns(context, ns_id)
+        nsd_id = ns.get('nsd_id')
         with context.session.begin(subtransactions=True):
             query = (
                 self._model_query(context, NS).
@@ -357,6 +370,9 @@ class NSPluginDb(network_service.NSPluginBase, db_base.CommonDbMixin):
                         details="ns Delete Complete")
                 else:
                     query.delete()
+            template_db = self._get_resource(context, NSD, nsd_id)
+            if template_db.get('template_source') == 'inline':
+                self.delete_nsd(context, nsd_id)
 
     def get_ns(self, context, ns_id, fields=None):
         ns_db = self._get_resource(context, NS, ns_id)

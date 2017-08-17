@@ -13,14 +13,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import uuid
+from datetime import datetime
 
 import mock
 from mock import patch
+from oslo_utils import uuidutils
 import yaml
 
 from tacker import context
-from tacker.db.common_services import common_services_db
+from tacker.db.common_services import common_services_db_plugin
 from tacker.db.nfvo import nfvo_db
 from tacker.db.vnfm import vnfm_db
 from tacker.extensions import vnfm
@@ -33,12 +34,12 @@ from tacker.vnfm import plugin
 class FakeDriverManager(mock.Mock):
     def invoke(self, *args, **kwargs):
         if 'create' in args:
-            return str(uuid.uuid4())
+            return uuidutils.generate_uuid()
 
         if 'get_resource_info' in args:
             return {'resources': {'name': 'dummy_vnf',
                                   'type': 'dummy',
-                                  'id': str(uuid.uuid4())}}
+                                  'id': uuidutils.generate_uuid()}}
 
 
 class FakeVNFMonitor(mock.Mock):
@@ -66,10 +67,11 @@ class TestVNFMPlugin(db_base.SqlTestCase):
         self._mock_green_pool()
         self._insert_dummy_vim()
         self.vnfm_plugin = plugin.VNFMPlugin()
-        mock.patch('tacker.db.common_services.common_services_db.'
+        mock.patch('tacker.db.common_services.common_services_db_plugin.'
                    'CommonServicesPluginDb.create_event'
                    ).start()
-        self._cos_db_plugin = common_services_db.CommonServicesPluginDb()
+        self._cos_db_plugin =\
+            common_services_db_plugin.CommonServicesPluginDb()
 
     def _mock_device_manager(self):
         self._device_manager = mock.Mock(wraps=FakeDriverManager())
@@ -123,7 +125,8 @@ class TestVNFMPlugin(db_base.SqlTestCase):
             tenant_id='ad7ebc56538745a08ef7c5e97f8bd437',
             name='fake_template',
             description='fake_template_description',
-            template_source='onboarded')
+            template_source='onboarded',
+            deleted_at=datetime.min)
         session.add(device_template)
         session.flush()
         return device_template
@@ -135,6 +138,7 @@ class TestVNFMPlugin(db_base.SqlTestCase):
             tenant_id='ad7ebc56538745a08ef7c5e97f8bd437',
             name='tmpl-koeak4tqgoqo8cr4-dummy_inline_vnf',
             description='inline_fake_template_description',
+            deleted_at=datetime.min,
             template_source='inline')
         session.add(device_template)
         session.flush()
@@ -162,7 +166,8 @@ class TestVNFMPlugin(db_base.SqlTestCase):
             vnfd_id='eb094833-995e-49f0-a047-dfb56aaf7c4e',
             vim_id='6261579e-d6f3-49ad-8bc3-a9cb974778ff',
             placement_attr={'region': 'RegionOne'},
-            status='ACTIVE')
+            status='ACTIVE',
+            deleted_at=datetime.min)
         session.add(device_db)
         session.flush()
         return device_db
@@ -200,6 +205,7 @@ class TestVNFMPlugin(db_base.SqlTestCase):
             description='fake_vim_description',
             type='test_vim',
             status='Active',
+            deleted_at=datetime.min,
             placement_attr={'regions': ['RegionOne']})
         vim_auth_db = nfvo_db.VimAuth(
             vim_id='6261579e-d6f3-49ad-8bc3-a9cb974778ff',
@@ -434,33 +440,28 @@ class TestVNFMPlugin(db_base.SqlTestCase):
         self.assertEqual(expected_result, trigger_result)
 
     @patch('tacker.db.vnfm.vnfm_db.VNFMPluginDb.get_vnf')
-    @patch('tacker.vnfm.monitor.ActionPolicy.get_policy')
-    def test_create_vnf_trigger_respawn(self, mock_get_policy, mock_get_vnf):
+    def test_create_vnf_trigger_respawn(self, mock_get_vnf):
         dummy_vnf = self._get_dummy_active_vnf(
             utils.vnfd_alarm_respawn_tosca_template)
         mock_get_vnf.return_value = dummy_vnf
-        mock_action_class = mock.Mock()
-        mock_get_policy.return_value = mock_action_class
         self._test_create_vnf_trigger(policy_name="vdu_hcpu_usage_respawning",
                                       action_value="respawn")
-        mock_get_policy.assert_called_once_with('respawn', 'test_vim')
-        mock_action_class.execute_action.assert_called_once_with(
-            self.vnfm_plugin, dummy_vnf)
 
     @patch('tacker.db.vnfm.vnfm_db.VNFMPluginDb.get_vnf')
-    @patch('tacker.vnfm.monitor.ActionPolicy.get_policy')
-    def test_create_vnf_trigger_scale(self, mock_get_policy, mock_get_vnf):
+    def test_create_vnf_trigger_scale(self, mock_get_vnf):
         dummy_vnf = self._get_dummy_active_vnf(
             utils.vnfd_alarm_scale_tosca_template)
         mock_get_vnf.return_value = dummy_vnf
-        mock_action_class = mock.Mock()
-        mock_get_policy.return_value = mock_action_class
-        scale_body = {'scale': {'policy': 'SP1', 'type': 'out'}}
         self._test_create_vnf_trigger(policy_name="vdu_hcpu_usage_scaling_out",
                                       action_value="SP1-out")
-        mock_get_policy.assert_called_once_with('scaling', 'test_vim')
-        mock_action_class.execute_action.assert_called_once_with(
-            self.vnfm_plugin, dummy_vnf, scale_body)
+
+    @patch('tacker.db.vnfm.vnfm_db.VNFMPluginDb.get_vnf')
+    def test_create_vnf_trigger_multi_actions(self, mock_get_vnf):
+        dummy_vnf = self._get_dummy_active_vnf(
+            utils.vnfd_alarm_multi_actions_tosca_template)
+        mock_get_vnf.return_value = dummy_vnf
+        self._test_create_vnf_trigger(policy_name="mon_policy_multi_actions",
+                                      action_value="respawn&log")
 
     @patch('tacker.db.vnfm.vnfm_db.VNFMPluginDb.get_vnf')
     def test_get_vnf_policies(self, mock_get_vnf):
