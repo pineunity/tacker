@@ -18,28 +18,24 @@
 
 """Utilities and helper functions."""
 
-import datetime
-import functools
-import hashlib
 import logging as std_logging
-import multiprocessing
 import os
 import random
 import signal
 import socket
+import string
 import sys
-import uuid
 
 from eventlet.green import subprocess
 import netaddr
 from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log as logging
+from oslo_log import versionutils
 from oslo_utils import importutils
-from six import iteritems
 from stevedore import driver
 
-from tacker._i18n import _LE
+from tacker._i18n import _
 from tacker.common import constants as q_const
 
 
@@ -70,85 +66,6 @@ MEM_UNITS = {
 }
 CONF = cfg.CONF
 synchronized = lockutils.synchronized_with_prefix(SYNCHRONIZED_PREFIX)
-
-
-class cache_method_results(object):
-    """This decorator is intended for object methods only."""
-
-    def __init__(self, func):
-        self.func = func
-        functools.update_wrapper(self, func)
-        self._first_call = True
-        self._not_cached = object()
-
-    def _get_from_cache(self, target_self, *args, **kwargs):
-        func_name = "%(module)s.%(class)s.%(func_name)s" % {
-            'module': target_self.__module__,
-            'class': target_self.__class__.__name__,
-            'func_name': self.func.__name__,
-        }
-        key = (func_name,) + args
-        if kwargs:
-            key += dict2tuple(kwargs)
-        try:
-            item = target_self._cache.get(key, self._not_cached)
-        except TypeError:
-            LOG.debug(_("Method %(func_name)s cannot be cached due to "
-                        "unhashable parameters: args: %(args)s, kwargs: "
-                        "%(kwargs)s"),
-                      {'func_name': func_name,
-                       'args': args,
-                       'kwargs': kwargs})
-            return self.func(target_self, *args, **kwargs)
-
-        if item is self._not_cached:
-            item = self.func(target_self, *args, **kwargs)
-            target_self._cache.set(key, item, None)
-
-        return item
-
-    def __call__(self, target_self, *args, **kwargs):
-        if not hasattr(target_self, '_cache'):
-            raise NotImplementedError(
-                "Instance of class %(module)s.%(class)s must contain _cache "
-                "attribute" % {
-                    'module': target_self.__module__,
-                    'class': target_self.__class__.__name__})
-        if not target_self._cache:
-            if self._first_call:
-                LOG.debug(_("Instance of class %(module)s.%(class)s doesn't "
-                            "contain attribute _cache therefore results "
-                            "cannot be cached for %(func_name)s."),
-                          {'module': target_self.__module__,
-                           'class': target_self.__class__.__name__,
-                           'func_name': self.func.__name__})
-                self._first_call = False
-            return self.func(target_self, *args, **kwargs)
-        return self._get_from_cache(target_self, *args, **kwargs)
-
-    def __get__(self, obj, objtype):
-        return functools.partial(self.__call__, obj)
-
-
-def read_cached_file(filename, cache_info, reload_func=None):
-    """Read from a file if it has been modified.
-
-    :param cache_info: dictionary to hold opaque cache.
-    :param reload_func: optional function to be called with data when
-                        file is reloaded due to a modification.
-
-    :returns: data from file
-
-    """
-    mtime = os.path.getmtime(filename)
-    if not cache_info or mtime != cache_info.get('mtime'):
-        LOG.debug(_("Reloading cached file %s"), filename)
-        with open(filename) as fap:
-            cache_info['data'] = fap.read()
-        cache_info['mtime'] = mtime
-        if reload_func:
-            reload_func(cache_info['data'])
-    return cache_info['data']
 
 
 def find_config_file(options, config_file):
@@ -211,82 +128,14 @@ def subprocess_popen(args, stdin=None, stdout=None, stderr=None, shell=False,
                             close_fds=True, env=env)
 
 
-def parse_mappings(mapping_list, unique_values=True):
-    """Parse a list of mapping strings into a dictionary.
-
-    :param mapping_list: a list of strings of the form '<key>:<value>'
-    :param unique_values: values must be unique if True
-    :returns: a dict mapping keys to values
-    """
-    mappings = {}
-    for mapping in mapping_list:
-        mapping = mapping.strip()
-        if not mapping:
-            continue
-        split_result = mapping.split(':')
-        if len(split_result) != 2:
-            raise ValueError(_("Invalid mapping: '%s'") % mapping)
-        key = split_result[0].strip()
-        if not key:
-            raise ValueError(_("Missing key in mapping: '%s'") % mapping)
-        value = split_result[1].strip()
-        if not value:
-            raise ValueError(_("Missing value in mapping: '%s'") % mapping)
-        if key in mappings:
-            raise ValueError(_("Key %(key)s in mapping: '%(mapping)s' not "
-                               "unique") % {'key': key, 'mapping': mapping})
-        if unique_values and value in mappings.itervalues():
-            raise ValueError(_("Value %(value)s in mapping: '%(mapping)s' "
-                               "not unique") % {'value': value,
-                                                'mapping': mapping})
-        mappings[key] = value
-    return mappings
-
-
 def get_hostname():
     return socket.gethostname()
 
 
-def compare_elements(a, b):
-    """Compare elements if a and b have same elements.
-
-    This method doesn't consider ordering
-    """
-    a = a or []
-    b = b or []
-    return set(a) == set(b)
-
-
-def dict2str(dic):
-    return ','.join("%s=%s" % (key, val)
-                    for key, val in sorted(iteritems(dic)))
-
-
-def str2dict(string):
-    res_dict = {}
-    for keyvalue in string.split(','):
-        (key, value) = keyvalue.split('=', 1)
-        res_dict[key] = value
-    return res_dict
-
-
 def dict2tuple(d):
-    items = d.items()
+    items = list(d.items())
     items.sort()
     return tuple(items)
-
-
-def diff_list_of_dict(old_list, new_list):
-    new_set = set([dict2str(l) for l in new_list])
-    old_set = set([dict2str(l) for l in old_list])
-    added = new_set - old_set
-    removed = old_set - new_set
-    return [str2dict(a) for a in added], [str2dict(r) for r in removed]
-
-
-def is_extension_supported(plugin, ext_alias):
-    return ext_alias in getattr(
-        plugin, "supported_extension_aliases", [])
 
 
 def log_opt_values(log):
@@ -295,36 +144,6 @@ def log_opt_values(log):
 
 def is_valid_vlan_tag(vlan):
     return q_const.MIN_VLAN_TAG <= vlan <= q_const.MAX_VLAN_TAG
-
-
-def get_random_string(length):
-    """Get a random hex string of the specified length.
-
-    based on Cinder library
-      cinder/transfer/api.py
-    """
-    rndstr = ""
-    random.seed(datetime.datetime.now().microsecond)
-    while len(rndstr) < length:
-        rndstr += hashlib.sha224(str(random.random())).hexdigest()
-
-    return rndstr[0:length]
-
-
-def get_dhcp_agent_device_id(network_id, host):
-    # Split host so as to always use only the hostname and
-    # not the domain name. This will guarantee consistentcy
-    # whether a local hostname or an fqdn is passed in.
-    local_hostname = host.split('.')[0]
-    host_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, str(local_hostname))
-    return 'dhcp%s-%s' % (host_uuid, network_id)
-
-
-def cpu_count():
-    try:
-        return multiprocessing.cpu_count()
-    except NotImplementedError:
-        return 1
 
 
 def is_valid_ipv4(address):
@@ -343,7 +162,7 @@ def change_memory_unit(mem, to):
     """
 
     mem = str(mem) + " MB" if str(mem).isdigit() else mem.upper()
-    for unit, value in iteritems(MEM_UNITS):
+    for unit, value in (MEM_UNITS).items():
         mem_arr = mem.split(unit)
         if len(mem_arr) < 2:
             continue
@@ -358,12 +177,12 @@ def load_class_by_alias_or_classname(namespace, name):
     Load class using the stevedore driver manager
     :param namespace: namespace where the alias is defined
     :param name: alias or class name of the class to be loaded
-    :returns class if calls can be loaded
-    :raises ImportError if class cannot be loaded
+    :returns: class if calls can be loaded
+    :raises ImportError: if class cannot be loaded
     """
 
     if not name:
-        LOG.error(_LE("Alias or class name is not set"))
+        LOG.error("Alias or class name is not set")
         raise ImportError(_("Class not found."))
     try:
         # Try to resolve class by alias
@@ -375,9 +194,9 @@ def load_class_by_alias_or_classname(namespace, name):
         try:
             class_to_load = importutils.import_class(name)
         except (ImportError, ValueError):
-            LOG.error(_LE("Error loading class by alias"),
+            LOG.error("Error loading class by alias",
                       exc_info=e1_info)
-            LOG.error(_LE("Error loading class by class name"),
+            LOG.error("Error loading class by class name",
                       exc_info=True)
             raise ImportError(_("Class not found."))
     return class_to_load
@@ -391,3 +210,17 @@ def deep_update(orig_dict, new_dict):
                 continue
 
         orig_dict[key] = value
+
+
+def deprecate_warning(what, as_of, in_favor_of=None, remove_in=1):
+    versionutils.deprecation_warning(as_of=as_of, what=what,
+                                     in_favor_of=in_favor_of,
+                                     remove_in=remove_in)
+
+
+def generate_resource_name(resource, prefix='tmpl'):
+    return prefix + '-' \
+        + ''.join(random.SystemRandom().choice(
+                  string.ascii_lowercase + string.digits)
+          for _ in range(16)) \
+        + '-' + resource

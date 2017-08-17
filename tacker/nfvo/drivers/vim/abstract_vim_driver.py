@@ -52,7 +52,7 @@ class VimAbstractDriver(extensions.PluginInterface):
         pass
 
     @abc.abstractmethod
-    def deregister_vim(self, context, vim_id):
+    def deregister_vim(self, context, vim_obj):
         """Deregister VIM object from NFVO plugin
 
         Cleanup VIM data and delete VIM information
@@ -76,7 +76,7 @@ class VimAbstractDriver(extensions.PluginInterface):
         pass
 
     @abc.abstractmethod
-    def delete_vim_auth(self, vim_id):
+    def delete_vim_auth(self, context, vim_id, auth):
         """Delete VIM auth keys
 
         Delete VIM sensitive information such as keys from file system or DB
@@ -84,9 +84,12 @@ class VimAbstractDriver(extensions.PluginInterface):
         pass
 
     @abc.abstractmethod
-    def vim_status(self, auth_url):
-        """Health check for VIM
+    def get_vim_resource_id(self, vim_obj, resource_type, resource_name):
+        """Parses a VIM resource ID from a given type and name
 
-        Checks the health status of VIM and return a boolean value
+        :param vim_obj: VIM information
+        :param resource_type: type of resource, such as network, compute
+        :param resource_name: name of resource, such at "test-network"
+        :return: ID of resource
         """
         pass

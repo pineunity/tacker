@@ -14,10 +14,10 @@
 #    under the License.
 
 import netaddr
-from six import iteritems
 import webob.exc
 
 from oslo_log import log as logging
+from oslo_utils import strutils
 
 from tacker.api import api_common
 from tacker.api.v1 import attributes
@@ -72,8 +72,8 @@ class Controller(object):
                     _("Native pagination depend on native sorting")
                 )
             if not self._allow_sorting:
-                LOG.info(_("Allow sorting is enabled because native "
-                           "pagination requires native sorting"))
+                LOG.info("Allow sorting is enabled because native "
+                         "pagination requires native sorting")
                 self._allow_sorting = True
 
         if parent:
@@ -91,7 +91,7 @@ class Controller(object):
                                                          self._resource)
 
     def _get_primary_key(self, default_primary_key='id'):
-        for key, value in iteritems(self._attr_info):
+        for key, value in (self._attr_info).items():
             if value.get('primary_key', False):
                 return key
         return default_primary_key
@@ -151,7 +151,7 @@ class Controller(object):
     def _filter_attributes(self, context, data, fields_to_strip=None):
         if not fields_to_strip:
             return data
-        return dict(item for item in iteritems(data)
+        return dict(item for item in (data).items()
                     if (item[0] not in fields_to_strip))
 
     def _do_field_list(self, original_fields):
@@ -330,8 +330,7 @@ class Controller(object):
                     obj_deleter(request.context, obj['id'], **kwargs)
                 except Exception:
                     # broad catch as our only purpose is to log the exception
-                    LOG.exception(_("Unable to undo add for "
-                                    "%(resource)s %(id)s"),
+                    LOG.exception("Unable to undo add for %(resource)s %(id)s",
                                   {'resource': self._resource,
                                    'id': obj['id']})
             # TODO(salvatore-orlando): The object being processed when the
@@ -442,7 +441,7 @@ class Controller(object):
         # Load object to check authz
         # but pass only attributes in the original body and required
         # by the policy engine to the policy 'brain'
-        field_list = [name for (name, value) in iteritems(self._attr_info)
+        field_list = [name for (name, value) in (self._attr_info).items()
                       if (value.get('required_by_policy') or
                           value.get('primary_key') or
                           'default' not in value)]
@@ -451,6 +450,8 @@ class Controller(object):
         orig_obj = self._item(request, id, field_list=field_list,
                               parent_id=parent_id)
         orig_obj.update(body[self._resource])
+        attribs = attributes.ATTRIBUTES_TO_UPDATE
+        orig_obj[attribs] = body[self._resource].keys()
         try:
             policy.enforce(request.context,
                            action,
@@ -505,7 +506,8 @@ class Controller(object):
         if not body:
             raise webob.exc.HTTPBadRequest(_("Resource body required"))
 
-        LOG.debug(_("Request body: %(body)s"), {'body': body})
+        LOG.debug("Request body: %(body)s",
+                  {'body': strutils.mask_password(body)})
         prep_req_body = lambda x: Controller.prepare_request_body(
             context,
             x if resource in x else {resource: x},
@@ -531,7 +533,7 @@ class Controller(object):
         Controller._verify_attributes(res_dict, attr_info)
 
         if is_create:  # POST
-            for attr, attr_vals in iteritems(attr_info):
+            for attr, attr_vals in (attr_info).items():
                 if attr_vals['allow_post']:
                     if ('default' not in attr_vals and
                             attr not in res_dict):
@@ -545,12 +547,12 @@ class Controller(object):
                         msg = _("Attribute '%s' not allowed in POST") % attr
                         raise webob.exc.HTTPBadRequest(msg)
         else:  # PUT
-            for attr, attr_vals in iteritems(attr_info):
+            for attr, attr_vals in (attr_info).items():
                 if attr in res_dict and not attr_vals['allow_put']:
                     msg = _("Cannot update read-only attribute %s") % attr
                     raise webob.exc.HTTPBadRequest(msg)
 
-        for attr, attr_vals in iteritems(attr_info):
+        for attr, attr_vals in (attr_info).items():
             if (attr not in res_dict or
                     res_dict[attr] is attributes.ATTR_NOT_SPECIFIED):
                 continue
@@ -561,6 +563,19 @@ class Controller(object):
             if 'validate' not in attr_vals:
                 continue
             for rule in attr_vals['validate']:
+                # skip validating vnfd_id when vnfd_template is specified to
+                # create vnf
+                if (resource == 'vnf') and ('vnfd_template' in body['vnf'])\
+                        and (attr == "vnfd_id") and is_create:
+                    continue
+                # skip validating vnffgd_id when vnffgd_template is provided
+                if (resource == 'vnffg') and ('vnffgd_template' in body['vnffg'])\
+                        and (attr == 'vnffgd_id') and is_create:
+                    continue
+                # skip validating nsd_id when nsd_template is provided
+                if (resource == 'ns') and ('nsd_template' in body['ns'])\
+                        and (attr == 'nsd_id') and is_create:
+                    continue
                 res = attributes.validators[rule](res_dict[attr],
                                                   attr_vals['validate'][rule])
                 if res:

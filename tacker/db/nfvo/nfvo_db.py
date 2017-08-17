@@ -14,196 +14,44 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import uuid
-
-from oslo_db import exception
-from oslo_utils import strutils
 import sqlalchemy as sa
 from sqlalchemy import orm
-from sqlalchemy.orm import exc as orm_exc
+from sqlalchemy import schema
 from sqlalchemy import sql
 
-from tacker.db import db_base
 from tacker.db import model_base
 from tacker.db import models_v1
 from tacker.db import types
-from tacker.db.vm import vm_db
-from tacker.extensions import nfvo
-from tacker import manager
 
 
-VIM_ATTRIBUTES = ('id', 'type', 'tenant_id', 'name', 'description',
-                  'placement_attr', 'shared', 'is_default', 'status')
-VIM_AUTH_ATTRIBUTES = ('auth_url', 'vim_project', 'password', 'auth_cred')
-
-
-class Vim(model_base.BASE, models_v1.HasId, models_v1.HasTenant):
+class Vim(model_base.BASE,
+          models_v1.HasId,
+          models_v1.HasTenant,
+          models_v1.Audit):
     type = sa.Column(sa.String(64), nullable=False)
     name = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text, nullable=True)
     placement_attr = sa.Column(types.Json, nullable=True)
-    shared = sa.Column(sa.Boolean, default=True, server_default=sql.true(
+    shared = sa.Column(sa.Boolean, default=False, server_default=sql.false(
     ), nullable=False)
     is_default = sa.Column(sa.Boolean, default=False, server_default=sql.false(
     ), nullable=False)
     vim_auth = orm.relationship('VimAuth')
     status = sa.Column(sa.String(255), nullable=False)
 
+    __table_args__ = (
+        schema.UniqueConstraint(
+            "tenant_id",
+            "name",
+            "deleted_at",
+            name="uniq_vim0tenant_id0name0deleted_at"),
+    )
+
 
 class VimAuth(model_base.BASE, models_v1.HasId):
     vim_id = sa.Column(types.Uuid, sa.ForeignKey('vims.id'),
                        nullable=False)
-    password = sa.Column(sa.String(128), nullable=False)
+    password = sa.Column(sa.String(255), nullable=False)
     auth_url = sa.Column(sa.String(255), nullable=False)
     vim_project = sa.Column(types.Json, nullable=False)
     auth_cred = sa.Column(types.Json, nullable=False)
-    __table_args__ = (sa.UniqueConstraint('auth_url'), {})
-
-
-class NfvoPluginDb(nfvo.NFVOPluginBase, db_base.CommonDbMixin):
-
-    def __init__(self):
-        super(NfvoPluginDb, self).__init__()
-
-    @property
-    def _core_plugin(self):
-        return manager.TackerManager.get_plugin()
-
-    def _make_vim_dict(self, vim_db, fields=None, mask_password=True):
-        res = dict((key, vim_db[key]) for key in VIM_ATTRIBUTES)
-        vim_auth_db = vim_db.vim_auth
-        res['auth_url'] = vim_auth_db[0].auth_url
-        res['vim_project'] = vim_auth_db[0].vim_project
-        res['auth_cred'] = vim_auth_db[0].auth_cred
-        res['auth_cred']['password'] = vim_auth_db[0].password
-        if mask_password:
-            res['auth_cred'] = strutils.mask_dict_password(res['auth_cred'])
-        return self._fields(res, fields)
-
-    def _fields(self, resource, fields):
-        if fields:
-            return dict(((key, item) for key, item in resource.items()
-                         if key in fields))
-        return resource
-
-    def _get_resource(self, context, model, id):
-        try:
-            return self._get_by_id(context, model, id)
-        except orm_exc.NoResultFound:
-            if issubclass(model, Vim):
-                raise nfvo.VimNotFoundException(vim_id=id)
-            else:
-                raise
-
-    def create_vim(self, context, vim):
-        self._validate_default_vim(context, vim)
-        vim_cred = vim['auth_cred']
-        try:
-            with context.session.begin(subtransactions=True):
-                vim_db = Vim(
-                    id=vim.get('id'),
-                    type=vim.get('type'),
-                    tenant_id=vim.get('tenant_id'),
-                    name=vim.get('name'),
-                    description=vim.get('description'),
-                    placement_attr=vim.get('placement_attr'),
-                    is_default=vim.get('is_default'),
-                    status=vim.get('status'))
-                context.session.add(vim_db)
-                vim_auth_db = VimAuth(
-                    id=str(uuid.uuid4()),
-                    vim_id=vim.get('id'),
-                    password=vim_cred.pop('password'),
-                    vim_project=vim.get('vim_project'),
-                    auth_url=vim.get('auth_url'),
-                    auth_cred=vim_cred)
-                context.session.add(vim_auth_db)
-        except exception.DBDuplicateEntry:
-                raise nfvo.VimDuplicateUrlException()
-        return self._make_vim_dict(vim_db)
-
-    def delete_vim(self, context, vim_id):
-        with context.session.begin(subtransactions=True):
-            vim_db = self._get_resource(context, Vim, vim_id)
-            context.session.query(VimAuth).filter_by(
-                vim_id=vim_id).delete()
-            context.session.delete(vim_db)
-
-    def is_vim_still_in_use(self, context, vim_id):
-        with context.session.begin(subtransactions=True):
-            devices_db = context.session.query(vm_db.Device).filter_by(
-                vim_id=vim_id).first()
-            if devices_db is not None:
-                raise nfvo.VimInUseException(vim_id=vim_id)
-        return devices_db
-
-    def get_vim(self, context, vim_id, fields=None, mask_password=True):
-        vim_db = self._get_resource(context, Vim, vim_id)
-        return self._make_vim_dict(vim_db, mask_password=mask_password)
-
-    def get_vims(self, context, filters=None, fields=None):
-        return self._get_collection(context, Vim, self._make_vim_dict,
-                                    filters=filters, fields=fields)
-
-    def update_vim(self, context, vim_id, vim):
-        self._validate_default_vim(context, vim, vim_id=vim_id)
-        with context.session.begin(subtransactions=True):
-            vim_cred = vim['auth_cred']
-            vim_project = vim['vim_project']
-            is_default = vim.get('is_default')
-            try:
-                if is_default:
-                    vim_db = self._get_resource(context, Vim, vim_id)
-                    vim_db.update({'is_default': is_default})
-                vim_auth_db = (self._model_query(context, VimAuth).filter(
-                    VimAuth.vim_id == vim_id).with_lockmode('update').one())
-            except orm_exc.NoResultFound:
-                    raise nfvo.VimNotFoundException(vim_id=vim_id)
-            vim_auth_db.update({'auth_cred': vim_cred, 'password':
-                               vim_cred.pop('password'), 'vim_project':
-                               vim_project})
-        return self.get_vim(context, vim_id)
-
-    def update_vim_status(self, context, vim_id, status):
-        with context.session.begin(subtransactions=True):
-            try:
-                vim_db = (self._model_query(context, Vim).filter(
-                    Vim.id == vim_id).with_lockmode('update').one())
-            except orm_exc.NoResultFound:
-                    raise nfvo.VimNotFoundException(vim_id=vim_id)
-            vim_db.update({'status': status})
-        return self._make_vim_dict(vim_db)
-
-    # Deprecated. Will be removed in Ocata release
-    def get_vim_by_name(self, context, vim_name, fields=None,
-                        mask_password=True):
-        vim_db = self._get_by_name(context, Vim, vim_name)
-        return self._make_vim_dict(vim_db, mask_password=mask_password)
-
-    # Deprecated. Will be removed in Ocata release
-    def _get_by_name(self, context, model, name):
-        try:
-            query = self._model_query(context, model)
-            return query.filter(model.name == name).one()
-        except orm_exc.NoResultFound:
-            if issubclass(model, Vim):
-                raise
-
-    def _validate_default_vim(self, context, vim, vim_id=None):
-        if not vim.get('is_default'):
-            return True
-        try:
-            vim_db = self._get_default_vim(context)
-        except orm_exc.NoResultFound:
-            return True
-        if vim_id == vim_db.id:
-            return True
-        raise nfvo.VimDefaultDuplicateException(vim_id=vim_db.id)
-
-    def _get_default_vim(self, context):
-        query = self._model_query(context, Vim)
-        return query.filter(Vim.is_default == sql.true()).one()
-
-    def get_default_vim(self, context):
-        vim_db = self._get_default_vim(context)
-        return self._make_vim_dict(vim_db, mask_password=False)
