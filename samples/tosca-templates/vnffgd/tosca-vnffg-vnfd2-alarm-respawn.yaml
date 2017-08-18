@@ -76,21 +76,21 @@ topology_template:
         network_name: net1
         vendor: Tacker
 
-    policies:
-    - vdu1_cpu_usage_monitoring_policy:
-        type: tosca.policies.tacker.Alarming
-        triggers:
-            vdu_hcpu_usage_respawning:
-                event_type:
-                    type: tosca.events.resource.utilization
-                    implementation: ceilometer
-                metrics: cpu_util
-                condition:
-                    threshold: 50
-                    constraint: utilization greater_than 50%
-                    period: 600
-                    evaluations: 1
-                    method: avg
-                    comparison_operator: gt
-                metadata: VDU1
-                actions: [respawn, notify]
+  policies:
+      - vdu1_cpu_usage_monitoring_policy:
+          type: tosca.policies.tacker.Alarming
+          triggers:
+              vdu_hcpu_usage_respawning:
+                  event_type:
+                      type: tosca.events.resource.utilization
+                      implementation: ceilometer
+                  meter_name: cpu_util
+                  condition:
+                      threshold: 50
+                      constraint: utilization greater_than 50%
+                      period: 600
+                      evaluations: 1
+                      method: average
+                      comparison_operator: gt
+                  metadata: VDU1
+                  action: [respawn, notify]
