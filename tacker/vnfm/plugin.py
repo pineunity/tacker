@@ -800,7 +800,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
             LOG.debug('vnf for monitoring: %s', vnf_dict)
             self._vnf_action.invoke(
                 action, 'execute_action', plugin=self, context=context,
-                vnf_dict=vnf_dict, args={})
+                vnf_dict=vnf_dict, args={'action': action})
 
         # Multiple actions support
         if trigger.get('policy_actions'):
@@ -809,7 +809,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
                 for action in policy_actions['def_actions']:
                     self._vnf_action.invoke(
                         action, 'execute_action', plugin=self, context=context,
-                        vnf_dict=vnf_dict, args={})
+                        vnf_dict=vnf_dict, args={'action': action})
             if policy_actions.get('custom_actions'):
                 custom_actions = policy_actions['custom_actions']
                 for pl_action, pl_action_dict in custom_actions.items():
