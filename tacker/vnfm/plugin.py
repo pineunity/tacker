@@ -122,7 +122,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
 
     OPTS_POLICY_ACTION = [
         cfg.ListOpt(
-            'policy_action', default=['autoscaling', 'respawn', 'notify'
+            'policy_action', default=['autoscaling', 'respawn', 'notify',
                                       'log', 'log_and_kill'],
             help=_('Hosting vnf drivers tacker plugin will use')),
     ]
@@ -225,7 +225,7 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
                 LOG.debug('policy action: %s', action)
                 self._vnf_action.invoke(
                     action, 'execute_action', plugin=self, context=context,
-                    vnf_dict=hosting_vnf['vnf'], args={})
+                    vnf_dict=hosting_vnf['vnf'], args={'action': action})
 
             hosting_vnf = self._vnf_monitor.to_hosting_vnf(
                 vnf_dict, action_cb)

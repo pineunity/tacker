@@ -65,6 +65,7 @@ class VNFActionNotify(abstract_action.AbstractPolicyAction):
             cctxt = rpc_client.prepare()
             return cctxt.call(t_context.get_admin_context_without_session(),
                               event_func_name,
+
                               vnf_id=vnf_id)
 
         def _execute_action(action):
