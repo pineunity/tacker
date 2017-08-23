@@ -381,6 +381,56 @@ class OpenStack_Driver(abstract_vim_driver.VimAbstractDriver,
 
         raise ValueError('empty match field for input flow classifier')
 
+    def update_port_pair_group(self, port_chain_id, scaling_ports, auth_attr=None):
+        if not auth_attr:
+            LOG.warning("auth information required for n-sfc driver")
+            return None
+        neutronclient_ = NeutronClient(auth_attr)
+        port_chain = neutronclient_.port_chain_show(port_chain_id)
+        ppg_id = port_chain['port_chain']['port_pair_groups'][0]
+        ppg_info = neutronclient_.port_pair_group_show(ppg_id)
+
+        port_pair_group_update = {}
+        port_pair_group_update['name'] = ppg_info['port_pair_group']['name']
+        port_pair_group_update['description'] = ppg_info['port_pair_group']['description']
+        port_pair_group_update['port_pairs'] = []
+
+        existing_port_pairs = []
+        for epp_item in ppg_info['port_pair_group']['port_pairs']:
+            epp_info = neutronclient_.port_pair_show(epp_item)
+            epp_dict = {}
+            epp_dict['id'] = epp_info['port_pair']['id']
+            epp_dict['ingress'] = epp_info['port_pair']['ingress']
+            epp_dict['egress'] = epp_info['port_pair']['egress']
+            existing_port_pairs.append(epp_dict)
+
+        for port_item in scaling_ports:
+            port_pair = {}
+            port_pair['name'] = port_item['name'] + '-connection-points'
+            name = str(port_item['name']).split('-')
+            port_pair['description'] = 'port pair for %s' % name[0]
+            cp_list = port_item[CONNECTION_POINT]
+            num_cps = len(cp_list)
+            if num_cps == 1:
+                port_pair['ingress'] = cp_list[0]
+                port_pair['egress'] = cp_list[0]
+            else:
+                port_pair['ingress'] = cp_list[0]
+                port_pair['egress'] = cp_list[1]
+            port_pair_id = None
+            # Check port_pair in existing port_pair_group
+            for epp_item in existing_port_pairs:
+                if (epp_item['ingress'] == port_pair['ingress']) and \
+                        (epp_item['egress'] == port_pair['egress']):
+                    port_pair_id = epp_item['id']
+                    existing_port_pairs.remove(epp_item)
+            if port_pair_id is None:
+                port_pair_id = neutronclient_.port_pair_create(port_pair)
+            port_pair_group_update['port_pairs'].append(port_pair_id)
+
+        ppg_new = neutronclient_.port_pair_group_update(ppg_id, port_pair_group_update)
+        return ppg_new
+
     def create_chain(self, name, fc_id, vnfs, symmetrical=False,
                      auth_attr=None):
         if not auth_attr:
@@ -672,3 +722,40 @@ class NeutronClient(object):
             LOG.warning(_('get flow classifier list returns %s'), e)
             raise ValueError(str(e))
         return flc_list
+
+    def port_pair_group_show(self, ppg_id):
+        try:
+            ppg = self.client.show_port_pair_group(ppg_id)
+        except nc_exceptions.NotFound:
+            LOG.warning('port pair group %s not found', ppg_id)
+            raise ValueError('port pair group %s not found' %ppg_id)
+        return ppg
+
+    def port_chain_show(self, port_chain_id):
+        try:
+            pc = self.client.show_port_chain(port_chain_id)
+        except nc_exceptions.NotFound:
+            LOG.warning('port chain %s not found', port_chain_id)
+            raise ValueError('port chain %s not found' % port_chain_id)
+        return pc
+
+    def port_pair_group_update(self, ppg_id, ppg_dict):
+        try:
+            ppg = self.client.update_port_pair_group(ppg_id, {'port_pair_group': ppg_dict})
+        except nc_exceptions.BadRequest as e:
+            LOG.warning('update port pair group returns %s', e)
+            raise ValueError(str(e))
+        return ppg
+
+    def port_chain_update(self, port_chain_id, port_chain_dict):
+        try:
+            pc = self.client.update_port_chain(
+                port_chain_id, {'port_chain': port_chain_dict})
+        except nc_exceptions.BadRequest as e:
+            LOG.warning('update port chain returns %s', e)
+            raise ValueError(str(e))
+
+        if pc and len(pc):
+            return pc['port_chain']['id']
+        else:
+            return None

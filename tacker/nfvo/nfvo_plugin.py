@@ -347,6 +347,24 @@ class NfvoPlugin(nfvo_db_plugin.NfvoPluginDb, vnffg_db.VnffgPluginDbMixin,
         return vnffg_dict
 
     @log.log
+    def scaling_out_vnffg(self, context, vnffg_id, vnf_id, fields=None):
+        # vnf_id = 'f0ab9dc6-faa5-48bd-baf6-f3f0ccb1ddee'
+        vnffg_db = super(NfvoPlugin, self).get_vnffg(context, vnffg_id)
+        scaling_ports = super(NfvoPlugin, self)._get_scaling_ports(context,
+                                                                   vnf_id=vnf_id,
+                                                                   vnffg=vnffg_db)
+        vim_obj = self._get_vim_from_vnf(context, vnf_id)
+        port_chain_id = self.get_port_chain_id(context, vnffg_id)
+        driver_type = vim_obj['type']
+        ppg_update = self._vim_drivers.invoke(driver_type,
+                                              'update_port_pair_group',
+                                              port_chain_id=port_chain_id,
+                                              scaling_ports=scaling_ports,
+                                              auth_attr=vim_obj['auth_cred'])
+        return ppg_update
+
+
+    @log.log
     def update_vnffg(self, context, vnffg_id, vnffg):
         vnffg_dict = super(NfvoPlugin, self)._update_vnffg_pre(context,
                                                                vnffg_id)

@@ -395,3 +395,27 @@ class OpenStack(abstract_driver.DeviceAbstractDriver,
         # Raise exception when Heat API service is not available
         except Exception:
             raise vnfm.InfraDriverUnreachable(service="Heat API service")
+
+    @log.log
+    def get_scaling_port_resource_info(self, plugin, context, vnf_info, auth_attr,
+                                       region_name=None):
+        # This function is used for updating port-pair of vnf
+        instance_id = vnf_info['instance_id']
+        heatclient = hc.HeatClient(auth_attr, region_name)
+        try:
+            # nested_depth=2 is used to get VDU resources
+            # in case of nested template
+            resources_ids =\
+                heatclient.resource_get_list(instance_id, nested_depth=2)
+            details_dict = {}
+            for resource in resources_ids:
+                if resource.resource_type == "OS::Neutron::Port":
+                    name = str(resource.resource_name) + "-" + resource.parent_resource
+                    details_dict[name] = {
+                        "id": resource.physical_resource_id,
+                        "type": resource.resource_type
+                    }
+            return details_dict
+        # Raise exception when Heat API service is not available
+        except Exception:
+            raise vnfm.InfraDriverUnreachable(service="Heat API service")
