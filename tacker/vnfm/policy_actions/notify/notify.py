@@ -21,7 +21,8 @@ from tacker.plugins.common import constants
 from tacker.vnfm.policy_actions import abstract_action
 from tacker.common import rpc
 from tacker.common import topics
-from tacker.conductor import conductorrpc
+from tacker.conductor.conductorrpc import AutoHealingRPC
+from tacker.conductor.conductorrpc import AutoScalingRPC
 from tacker import context as t_context
 
 LOG = logging.getLogger(__name__)
@@ -76,11 +77,11 @@ class VNFActionNotify(abstract_action.AbstractPolicyAction):
                 return 'FAILED'
             try:
                 if action in constants.DEFAULT_ALARM_ACTIONS:
-                    target = conductorrpc.AutoHealingRPC.AutoHealingRPC.target
+                    target = AutoHealingRPC.AutoHealingRPC.target
                     output = _establish_rpc(target, 'vnf_respawning_event')
                     LOG.debug('RPC respawning output: %s', output)
                 else:
-                    target = conductorrpc.AutoScalingRPC.AutoScalingRPC.target
+                    target = AutoScalingRPC.AutoScalingRPC.target
                     output = _establish_rpc(target, 'vnf_scaling_event')
                     LOG.debug('RPC scaling output: %s', output)
             except Exception:
