@@ -14,6 +14,7 @@
 #    under the License.
 
 import sys
+import time
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -71,6 +72,18 @@ class Conductor(manager.Manager):
         # check VNFFGs or NSs which VNFs belong to
 
         LOG.debug('vnf scaling event called sucesfully: %s', vnf_id)
+        while(True):
+            time.sleep(300)
+            try:
+                vnfm_plugin = manager.TackerManager.get_service_plugins()['VNFM']
+                vnf_info = vnfm_plugin.get_vnf(context, vnf_id)
+                if vnf_info['status'] == constants.ACTIVE:
+                    break
+            except Exception as e:
+                LOG.error("Call vnf % is failed", vnf_id)
+
+
+
 
         # t_admin_context = t_context.get_admin_context()
         # vnfm_plugin = manager.TackerManager.get_service_plugins()['VNFM']
@@ -96,6 +109,17 @@ class Conductor(manager.Manager):
         # check VNFFGs or NSs which VNFs belong to
 
         LOG.debug('vnf respawning event called sucesfully: %s', vnf_id)
+
+        while (True):
+            time.sleep(300)
+            try:
+                vnfm_plugin = manager.TackerManager.get_service_plugins()['VNFM']
+                vnf_info = vnfm_plugin.get_vnf(context, vnf_id)
+                if vnf_info['status'] == constants.ACTIVE:
+                    break
+            except Exception as e:
+                LOG.error("Call vnf % is failed", vnf_id)
+
 
         # t_admin_context = t_context.get_admin_context()
         # vnfm_plugin = manager.TackerManager.get_service_plugins()['VNFM']
