@@ -363,6 +363,17 @@ class NfvoPlugin(nfvo_db_plugin.NfvoPluginDb, vnffg_db.VnffgPluginDbMixin,
                                               auth_attr=vim_obj['auth_cred'])
         return ppg_update
 
+    @log.log
+    def trigger_vnffg_scaling(self, context, vnffg_id, vnf_id, fields=None):
+
+
+        return vnffg_id
+
+    @log.log
+    def trigger_vnffg_healing(self, context, vnffg_id, vnf_id, fields=None):
+
+        return vnffg_id
+
 
     @log.log
     def update_vnffg(self, context, vnffg_id, vnffg):
