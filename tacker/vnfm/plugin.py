@@ -886,3 +886,19 @@ class VNFMPlugin(vnfm_db.VNFMPluginDb, VNFMMgmtMixin):
         else:
             raise vnfm.VNFInactive(vnf_id=vnf_id,
                                    message=_(' Cannot fetch details'))
+
+    def get_undelete_port_resource(self, context, vnf_id, fields=None, filters=None):
+        vnf_info = self.get_vnf(context, vnf_id)
+        infra_driver, vim_auth = self._get_infra_driver(context, vnf_info)
+        if vnf_info['status'] == constants.ACTIVE:
+            undelete_ports = self._vnf_manager.invoke(infra_driver,
+                                                      'get_undelete_port_resource',
+                                                      plugin=self,
+                                                      context=context,
+                                                      vnf_info=vnf_info,
+                                                      auth_attr=vim_auth)
+            return undelete_ports
+        # Raise exception when VNF.status != ACTIVE
+        else:
+            raise vnfm.VNFInactive(vnf_id=vnf_id,
+                                   message=_(' Cannot fetch details'))

@@ -347,8 +347,32 @@ class NfvoPlugin(nfvo_db_plugin.NfvoPluginDb, vnffg_db.VnffgPluginDbMixin,
         return vnffg_dict
 
     @log.log
-    def scaling_out_vnffg(self, context, vnffg_id, vnf_id, fields=None):
-        # vnf_id = 'f0ab9dc6-faa5-48bd-baf6-f3f0ccb1ddee'
+    def get_vnffg(self, context, vnffg_id, fields=None):
+        vnffg_db = super(NfvoPlugin, self).get_vnffg(context, vnffg_id)
+        #vnf_id = "8c1c867f-5f4f-4c6e-8b30-f452c8e73da9"
+        #self.update_scale_in(context, vnffg_id, vnf_id)
+        #self.update_scale_out(context, vnffg_id, vnf_id)
+        return vnffg_db
+
+    @log.log
+    def update_scale_in(self, context, vnffg_id, vnf_id):
+        vnfm_plugin = manager.TackerManager.get_service_plugins()['VNFM']
+        undeleted_ports = vnfm_plugin.get_undelete_port_resource(context, vnf_id)
+
+        vim_obj = self._get_vim_from_vnf(context, vnf_id)
+        driver_type = vim_obj['type']
+
+        port_chain_id = self.get_port_chain_id(context, vnffg_id)
+        ppg_update = self._vim_drivers.invoke(driver_type,
+                                              'update_scale_in_chain',
+                                              port_chain_id=port_chain_id,
+                                              undelete_ports=undeleted_ports,
+                                              auth_attr=vim_obj['auth_cred'])
+
+
+
+    @log.log
+    def update_scale_out(self, context, vnffg_id, vnf_id):
         vnffg_db = super(NfvoPlugin, self).get_vnffg(context, vnffg_id)
         scaling_ports = super(NfvoPlugin, self)._get_scaling_ports(context,
                                                                    vnf_id=vnf_id,
@@ -357,11 +381,10 @@ class NfvoPlugin(nfvo_db_plugin.NfvoPluginDb, vnffg_db.VnffgPluginDbMixin,
         port_chain_id = self.get_port_chain_id(context, vnffg_id)
         driver_type = vim_obj['type']
         ppg_update = self._vim_drivers.invoke(driver_type,
-                                              'update_port_pair_group',
+                                              'update_scale_out_chain',
                                               port_chain_id=port_chain_id,
                                               scaling_ports=scaling_ports,
                                               auth_attr=vim_obj['auth_cred'])
-        return ppg_update
 
     @log.log
     def trigger_vnffg_scaling(self, context, vnffg_id, vnf_id, fields=None):
